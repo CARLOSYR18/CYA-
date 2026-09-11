@@ -49,7 +49,7 @@ export default function Dashboard() {
     return Object.entries(qtyByProduct)
       .map(([productId, qty]) => {
         const product = products.find((p) => p.id === productId)
-        return { name: product?.name?.slice(0, 18) || productId, cantidad: qty }
+        return { name: product?.name?.slice(0, 16) || productId, cantidad: qty }
       })
       .sort((a, b) => b.cantidad - a.cantidad)
       .slice(0, 6)
@@ -67,104 +67,125 @@ export default function Dashboard() {
   if (loading) {
     return (
       <AppLayout title="Panel">
-        <p className="text-ink-muted text-sm">Cargando…</p>
+        <div className="flex items-center justify-center py-20 text-ink-muted text-sm">
+          Cargando métricas…
+        </div>
       </AppLayout>
     )
   }
 
   return (
     <AppLayout title="Panel">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* 1. Stat Cards Grid: 1 col on mobile, 2 on tablet, 4 on desktop */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
         <StatCard icon={DollarSign} label="Valor de inventario" value={money(stats.stockValue)} tone="brand" />
         <StatCard icon={TrendingUp} label="Ventas este mes" value={money(stats.monthRevenue)} tone="good" />
         <StatCard icon={Boxes} label="Productos activos" value={stats.totalProducts} tone="brand" />
         <StatCard
           icon={AlertTriangle}
-          label="Alertas de stock bajo"
+          label="Alertas stock bajo"
           value={stats.lowStock.length}
           tone={stats.lowStock.length ? 'amber' : 'good'}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <div className="card p-5 lg:col-span-2">
-          <p className="font-display font-semibold text-ink-primary mb-4">Productos más vendidos</p>
+      {/* 2. Charts Grid: 1 col on mobile/tablet, 3 cols on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
+        {/* Bar Chart: Productos más vendidos */}
+        <div className="card p-4 sm:p-5 lg:col-span-2">
+          <p className="font-display font-semibold text-ink-primary text-sm sm:text-base mb-3 sm:mb-4">
+            Productos más vendidos
+          </p>
           {topProducts.length === 0 ? (
             <p className="text-sm text-ink-muted py-10 text-center">Aún no hay ventas registradas.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={topProducts} layout="vertical" margin={{ left: 10, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2A3140" horizontal={false} />
-                <XAxis type="number" stroke="#5F6B7E" fontSize={12} />
-                <YAxis type="category" dataKey="name" stroke="#5F6B7E" fontSize={12} width={130} />
-                <Tooltip
-                  contentStyle={{ background: '#1A2029', border: '1px solid #2A3140', borderRadius: 8, fontSize: 13 }}
-                  labelStyle={{ color: '#E9ECF1' }}
-                  cursor={{ fill: '#212836' }}
-                />
-                <Bar dataKey="cantidad" fill="#4F7CFF" radius={[0, 4, 4, 0]} barSize={18} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="w-full h-[240px] sm:h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topProducts} layout="vertical" margin={{ left: -10, right: 15, top: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2A3140" horizontal={false} />
+                  <XAxis type="number" stroke="#5F6B7E" fontSize={11} />
+                  <YAxis type="category" dataKey="name" stroke="#98A2B3" fontSize={11} width={105} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: '#1A2029', border: '1px solid #2A3140', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: '#E9ECF1' }}
+                    cursor={{ fill: '#212836' }}
+                  />
+                  <Bar dataKey="cantidad" fill="#4F7CFF" radius={[0, 4, 4, 0]} barSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
 
-        <div className="card p-5">
-          <p className="font-display font-semibold text-ink-primary mb-4">Stock por categoría</p>
+        {/* Pie Chart: Stock por categoría */}
+        <div className="card p-4 sm:p-5">
+          <p className="font-display font-semibold text-ink-primary text-sm sm:text-base mb-3 sm:mb-4">
+            Stock por categoría
+          </p>
           {stockByCategory.length === 0 ? (
-            <p className="text-sm text-ink-muted py-10 text-center">Sin datos.</p>
+            <p className="text-sm text-ink-muted py-10 text-center">Sin datos de categorías.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={stockByCategory} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
-                  {stockByCategory.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ background: '#1A2029', border: '1px solid #2A3140', borderRadius: 8, fontSize: 13 }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="w-full h-[220px] sm:h-[240px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={stockByCategory} dataKey="value" nameKey="name" innerRadius={48} outerRadius={78} paddingAngle={2}>
+                    {stockByCategory.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: '#1A2029', border: '1px solid #2A3140', borderRadius: 8, fontSize: 12 }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           )}
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 justify-center">
+          <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-2 justify-center">
             {stockByCategory.map((c, i) => (
-              <div key={c.name} className="flex items-center gap-1.5 text-xs text-ink-secondary">
-                <span className="w-2 h-2 rounded-full" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                {c.name}
+              <div key={c.name} className="flex items-center gap-1.5 text-[11px] text-ink-secondary">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                <span className="truncate max-w-[90px]">{c.name}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="card">
-        <div className="px-5 py-4 border-b border-base-border flex items-center justify-between">
-          <p className="font-display font-semibold text-ink-primary">Productos con stock bajo</p>
-          <span className="text-xs text-ink-muted">{stats.lowStock.length} de {products.length}</span>
+      {/* 3. Low Stock Table: with horizontal scroll wrapper to avoid mobile viewport breakage */}
+      <div className="card overflow-hidden">
+        <div className="px-4 sm:px-5 py-3.5 border-b border-base-border flex items-center justify-between">
+          <p className="font-display font-semibold text-ink-primary text-sm sm:text-base">
+            Productos con stock bajo
+          </p>
+          <span className="text-xs text-ink-muted">
+            {stats.lowStock.length} de {products.length}
+          </span>
         </div>
         {stats.lowStock.length === 0 ? (
-          <p className="text-sm text-ink-muted py-10 text-center">Todo el inventario está en niveles saludables.</p>
+          <p className="text-sm text-ink-muted py-8 text-center">Todo el inventario está en niveles saludables.</p>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className="th">SKU</th>
-                <th className="th">Producto</th>
-                <th className="th">Stock actual</th>
-                <th className="th">Stock mínimo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.lowStock.map((p) => (
-                <tr key={p.id}>
-                  <td className="td font-mono text-xs text-ink-secondary">{p.sku}</td>
-                  <td className="td">{p.name}</td>
-                  <td className="td text-amber font-medium">{p.stock}</td>
-                  <td className="td text-ink-muted">{p.min_stock}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[460px] text-left">
+              <thead>
+                <tr>
+                  <th className="th">SKU</th>
+                  <th className="th">Producto</th>
+                  <th className="th">Stock actual</th>
+                  <th className="th">Stock mínimo</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {stats.lowStock.map((p) => (
+                  <tr key={p.id} className="hover:bg-base-raised/50 transition-colors">
+                    <td className="td font-mono text-xs text-ink-secondary">{p.sku}</td>
+                    <td className="td font-medium">{p.name}</td>
+                    <td className="td text-amber font-semibold">{p.stock}</td>
+                    <td className="td text-ink-muted">{p.min_stock}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </AppLayout>
@@ -178,12 +199,12 @@ function StatCard({ icon: Icon, label, value, tone }) {
     amber: 'bg-amber-dim text-amber',
   }
   return (
-    <div className="card p-5">
-      <div className={`w-9 h-9 rounded-md flex items-center justify-center mb-3 ${toneStyles[tone]}`}>
-        <Icon size={17} />
+    <div className="card p-4 sm:p-5">
+      <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center mb-2.5 sm:mb-3 ${toneStyles[tone]}`}>
+        <Icon size={16} />
       </div>
-      <p className="text-2xl font-display font-semibold text-ink-primary">{value}</p>
-      <p className="text-sm text-ink-muted mt-0.5">{label}</p>
+      <p className="text-xl sm:text-2xl font-display font-bold text-ink-primary tracking-tight">{value}</p>
+      <p className="text-xs text-ink-muted mt-0.5">{label}</p>
     </div>
   )
 }
