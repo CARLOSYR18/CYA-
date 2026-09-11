@@ -6,11 +6,11 @@ export default function AppLayout({ title, children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-base-bg text-ink-primary overflow-x-hidden">
+    <div className="flex min-h-screen bg-base-bg text-ink-primary overflow-x-hidden antialiased selection:bg-brand/10 selection:text-brand">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         <Topbar title={title} onOpenSidebar={() => setSidebarOpen(true)} />
-        <main className="p-3.5 sm:p-6 max-w-[1400px] w-full mx-auto flex-1">{children}</main>
+        <main className="p-4 sm:p-6 lg:p-8 max-w-[1440px] w-full mx-auto flex-1">{children}</main>
       </div>
     </div>
   )
