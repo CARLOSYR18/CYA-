@@ -1,14 +1,8 @@
-export default function StockBadge({ stock, minStock }) {
-  let dot = 'bg-good', cls = 'text-emerald-700 bg-emerald-50 border-emerald-200', label = 'En stock'
-  if (stock <= 0) {
-    dot = 'bg-bad'; cls = 'text-red-700 bg-red-50 border-red-200'; label = 'Agotado'
-  } else if (stock <= minStock) {
-    dot = 'bg-amber'; cls = 'text-amber-700 bg-amber-50 border-amber-200'; label = 'Stock bajo'
-  }
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${cls}`}>
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
-      {label}
-    </span>
-  )
+export default function StockBadge({ stock, minStock = 0 }) {
+  const s = Number(stock) || 0
+  const m = Number(minStock) || 0
+
+  if (s <= 0)   return <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-bold bg-red-50 text-red-700 border border-red-200"><span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />Agotado</span>
+  if (s <= m)   return <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-bold bg-amber-50 text-amber-700 border border-amber-200"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Stock bajo</span>
+  return          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Disponible</span>
 }
