@@ -146,6 +146,18 @@ body {
 }
 html, body { touch-action: manipulation; }
 
+/* ── List stagger animation ── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Shimmer for skeleton ── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
 /* ── Login floating animations ── */
 @keyframes floatSlow   { 0%,100%{transform:translateY(0)}  50%{transform:translateY(-7px)} }
 @keyframes floatMedium { 0%,100%{transform:translateY(0)}  50%{transform:translateY(-11px)} }
@@ -153,3 +165,4 @@ html, body { touch-action: manipulation; }
 .animate-float-slow    { animation: floatSlow 4.5s ease-in-out infinite; }
 .animate-float-medium  { animation: floatMedium 5.5s ease-in-out infinite 0.7s; }
 .animate-float-reverse { animation: floatReverse 5s ease-in-out infinite 1.2s; }
+
