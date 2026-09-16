@@ -11,6 +11,7 @@ import Purchases from './pages/Purchases'
 import Clients from './pages/Clients'
 import Suppliers from './pages/Suppliers'
 import Users from './pages/Users'
+import CompanySettings from './pages/CompanySettings'
 import NotFound from './pages/NotFound'
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/clientes" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
           <Route path="/proveedores" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
           <Route path="/usuarios" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
+          <Route path="/configuracion" element={<ProtectedRoute adminOnly><CompanySettings /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -92,4 +92,8 @@ export const seedData = {
       items: [{ product_id: 'p-4', quantity: 50, unit_cost: 11 }],
     },
   ],
+
+  company_settings: [
+    { id: 'cs-1', created_at: iso(1), updated_at: iso(1), name: 'CYA', ruc: '', address: '', phone: '', logo_url: '' },
+  ],
 }

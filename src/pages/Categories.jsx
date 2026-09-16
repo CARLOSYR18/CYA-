@@ -52,40 +52,82 @@ export default function Categories() {
   return (
     <AppLayout title="Categorías">
       <div className="flex justify-end mb-5">
-        <button onClick={openCreate} className="btn-primary"><Plus size={16} /> Nueva categoría</button>
+        <button onClick={openCreate} className="btn-primary w-full sm:w-auto justify-center">
+          <Plus size={16} /> Nueva categoría
+        </button>
       </div>
 
-      <div className="card overflow-x-auto">
+      <div className="card overflow-hidden">
         {loading ? (
           <p className="text-sm text-ink-muted p-8 text-center">Cargando…</p>
         ) : categories.length === 0 ? (
           <EmptyState icon={Tags} title="Sin categorías" description="Crea categorías para organizar tus productos." />
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className="th">Nombre</th>
-                <th className="th">Descripción</th>
-                <th className="th">Productos</th>
-                <th className="th"></th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Mobile Cards View */}
+            <div className="block sm:hidden divide-y divide-base-border">
               {categories.map((c) => (
-                <tr key={c.id} className="hover:bg-base-raised/50">
-                  <td className="td font-medium">{c.name}</td>
-                  <td className="td text-ink-secondary">{c.description || '—'}</td>
-                  <td className="td font-mono">{productCount(c.id)}</td>
-                  <td className="td">
-                    <div className="flex items-center gap-1 justify-end">
-                      <button onClick={() => openEdit(c)} className="p-1.5 rounded-md text-ink-muted hover:text-brand hover:bg-brand-dim transition-colors"><Pencil size={15} /></button>
-                      <button onClick={() => setConfirmDelete(c)} className="p-1.5 rounded-md text-ink-muted hover:text-bad hover:bg-bad-dim transition-colors"><Trash2 size={15} /></button>
+                <div key={c.id} className="p-4 flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-ink-primary text-sm">{c.name}</p>
+                      <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-ink-secondary">
+                        {productCount(c.id)} {productCount(c.id) === 1 ? 'prod.' : 'prods.'}
+                      </span>
                     </div>
-                  </td>
-                </tr>
+                    {c.description && (
+                      <p className="text-xs text-ink-secondary mt-1">{c.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => openEdit(c)}
+                      className="p-2 rounded-lg text-ink-muted hover:text-brand hover:bg-brand-dim transition-colors"
+                      title="Editar"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(c)}
+                      className="p-2 rounded-lg text-ink-muted hover:text-bad hover:bg-bad-dim transition-colors"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="overflow-x-auto hidden sm:block">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th className="th">Nombre</th>
+                    <th className="th">Descripción</th>
+                    <th className="th">Productos</th>
+                    <th className="th"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map((c) => (
+                    <tr key={c.id} className="hover:bg-base-raised/50">
+                      <td className="td font-medium">{c.name}</td>
+                      <td className="td text-ink-secondary">{c.description || '—'}</td>
+                      <td className="td font-mono">{productCount(c.id)}</td>
+                      <td className="td">
+                        <div className="flex items-center gap-1 justify-end">
+                          <button onClick={() => openEdit(c)} className="p-1.5 rounded-md text-ink-muted hover:text-brand hover:bg-brand-dim transition-colors"><Pencil size={15} /></button>
+                          <button onClick={() => setConfirmDelete(c)} className="p-1.5 rounded-md text-ink-muted hover:text-bad hover:bg-bad-dim transition-colors"><Trash2 size={15} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

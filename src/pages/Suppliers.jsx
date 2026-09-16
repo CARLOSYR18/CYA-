@@ -42,7 +42,9 @@ export default function Suppliers() {
   return (
     <AppLayout title="Proveedores">
       <div className="flex justify-end mb-5">
-        <button onClick={openCreate} className="btn-primary"><Plus size={16} /> Nuevo proveedor</button>
+        <button onClick={openCreate} className="btn-primary w-full sm:w-auto justify-center">
+          <Plus size={16} /> Nuevo proveedor
+        </button>
       </div>
 
       {loading ? (
@@ -75,8 +77,8 @@ export default function Suppliers() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Editar proveedor' : 'Nuevo proveedor'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
               <label className="label">Nombre / Razón social</label>
               <input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus />
             </div>
@@ -96,7 +98,7 @@ export default function Suppliers() {
               <label className="label">Teléfono</label>
               <input className="field" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </div>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <label className="label">Dirección</label>
               <input className="field" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </div>

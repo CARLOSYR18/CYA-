@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Boxes, Tags, ArrowLeftRight, ShoppingCart,
-  Truck, Users, UserCog, Warehouse, X
+  Truck, Users, UserCog, Warehouse, X, Settings2
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -111,6 +111,25 @@ export default function Sidebar({ isOpen, onClose }) {
                   <>
                     <UserCog size={18} strokeWidth={isActive ? 2.2 : 1.8} className={isActive ? 'text-brand' : 'text-ink-muted'} />
                     <span className="flex-1">Usuarios y roles</span>
+                    {isActive && <div className="w-1.5 h-1.5 rounded-full bg-brand" />}
+                  </>
+                )}
+              </NavLink>
+              <NavLink
+                to="/configuracion"
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                    isActive
+                      ? 'bg-brand/10 text-brand font-semibold shadow-xs'
+                      : 'text-ink-secondary hover:bg-slate-100/70 hover:text-ink-primary font-medium'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <Settings2 size={18} strokeWidth={isActive ? 2.2 : 1.8} className={isActive ? 'text-brand' : 'text-ink-muted'} />
+                    <span className="flex-1">Conf. empresa</span>
                     {isActive && <div className="w-1.5 h-1.5 rounded-full bg-brand" />}
                   </>
                 )}

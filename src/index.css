@@ -103,3 +103,25 @@ html, body {
   touch-action: manipulation;
 }
 
+#receipt-print-area {
+  display: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-print-area {
+    display: block !important;
+    visibility: visible;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  #receipt-print-area * {
+    visibility: visible;
+  }
+}
+
+

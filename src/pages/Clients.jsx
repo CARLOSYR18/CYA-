@@ -1,120 +1,156 @@
 import { useEffect, useState } from 'react'
-import { Plus, Pencil, Trash2, Users, Mail, Phone } from 'lucide-react'
+import { Users, Phone, ShoppingBag, Calendar, TrendingUp, ChevronRight, X } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
-import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
-import { clientsService } from '../services/clientsService'
+import Modal from '../components/ui/Modal'
+import StatusBadge from '../components/ui/StatusBadge'
+import { getClientsHistory } from '../lib/clientHistory'
 
-const emptyForm = { name: '', ruc: '', contact_name: '', email: '', phone: '', address: '' }
+const money = (n) => `S/ ${Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const dateStr = (iso) => iso ? new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
 export default function Clients() {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyForm)
-  const [error, setError] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [selected, setSelected] = useState(null) // client with sales history
 
-  async function loadAll() { setLoading(true); setClients(await clientsService.list()); setLoading(false) }
-  useEffect(() => { loadAll() }, [])
-
-  function openCreate() { setEditing(null); setForm(emptyForm); setError(''); setModalOpen(true) }
-  function openEdit(c) { setEditing(c); setForm({ name: c.name, ruc: c.ruc || '', contact_name: c.contact_name || '', email: c.email || '', phone: c.phone || '', address: c.address || '' }); setError(''); setModalOpen(true) }
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (!form.name.trim()) { setError('El nombre / razón social es obligatorio'); return }
-    try {
-      if (editing) await clientsService.update(editing.id, form)
-      else await clientsService.create(form)
-      setModalOpen(false)
-      loadAll()
-    } catch (err) { setError(err.message) }
-  }
-
-  async function handleDelete() {
-    await clientsService.remove(confirmDelete.id)
-    setConfirmDelete(null)
-    loadAll()
-  }
+  useEffect(() => {
+    getClientsHistory()
+      .then(setClients)
+      .finally(() => setLoading(false))
+  }, [])
 
   return (
     <AppLayout title="Clientes">
-      <div className="flex justify-end mb-5">
-        <button onClick={openCreate} className="btn-primary"><Plus size={16} /> Nuevo cliente</button>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-5">
+        <p className="text-xs sm:text-sm text-ink-muted">
+          Clientes registrados automáticamente al registrar ventas.
+        </p>
+        <span className="text-xs bg-brand/10 text-brand font-semibold px-3 py-1 rounded-full self-start sm:self-auto shrink-0">
+          {clients.length} cliente{clients.length !== 1 ? 's' : ''}
+        </span>
       </div>
 
       {loading ? (
-        <p className="text-sm text-ink-muted p-8 text-center">Cargando…</p>
+        <p className="text-sm text-ink-muted p-8 text-center">Cargando historial…</p>
       ) : clients.length === 0 ? (
-        <div className="card"><EmptyState icon={Users} title="Sin clientes" description="Registra tu primer cliente para empezar a facturar." /></div>
+        <div className="card">
+          <EmptyState
+            icon={Users}
+            title="Sin historial de clientes"
+            description="Los clientes aparecen aquí automáticamente cuando registras ventas."
+          />
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {clients.map((c) => (
-            <div key={c.id} className="card p-5">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <p className="font-medium text-ink-primary">{c.name}</p>
-                  {c.ruc && <p className="text-xs font-mono text-ink-muted mt-0.5">RUC {c.ruc}</p>}
+            <button
+              key={c.id}
+              onClick={() => setSelected(c)}
+              className="card p-5 text-left hover:shadow-md hover:-translate-y-0.5 transition-all group cursor-pointer w-full"
+            >
+              {/* Top row */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center shrink-0">
+                  <span className="text-brand font-display font-bold text-lg leading-none">
+                    {c.name.charAt(0).toUpperCase()}
+                  </span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => openEdit(c)} className="p-1.5 rounded-md text-ink-muted hover:text-brand hover:bg-brand-dim transition-colors"><Pencil size={14} /></button>
-                  <button onClick={() => setConfirmDelete(c)} className="p-1.5 rounded-md text-ink-muted hover:text-bad hover:bg-bad-dim transition-colors"><Trash2 size={14} /></button>
+                <ChevronRight size={16} className="text-ink-muted group-hover:text-brand transition-colors mt-1" />
+              </div>
+
+              {/* Name & phone */}
+              <p className="font-semibold text-ink-primary text-sm leading-tight mb-1">{c.name}</p>
+              {c.phone && (
+                <p className="flex items-center gap-1 text-xs text-ink-muted mb-4">
+                  <Phone size={11} /> {c.phone}
+                </p>
+              )}
+              {!c.phone && <div className="mb-4" />}
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-1 sm:gap-2 pt-3 border-t border-base-border/60">
+                <div className="text-center min-w-0">
+                  <p className="text-[10px] text-ink-muted uppercase tracking-wide mb-0.5 flex items-center justify-center gap-1">
+                    <ShoppingBag size={9} /> Compras
+                  </p>
+                  <p className="font-bold text-ink-primary text-xs sm:text-sm">{c.salesCount}</p>
+                </div>
+                <div className="text-center min-w-0">
+                  <p className="text-[10px] text-ink-muted uppercase tracking-wide mb-0.5 flex items-center justify-center gap-1">
+                    <TrendingUp size={9} /> Total
+                  </p>
+                  <p className="font-bold text-brand text-xs sm:text-sm truncate">{money(c.totalSpent)}</p>
+                </div>
+                <div className="text-center min-w-0">
+                  <p className="text-[10px] text-ink-muted uppercase tracking-wide mb-0.5 flex items-center justify-center gap-1">
+                    <Calendar size={9} /> Última
+                  </p>
+                  <p className="font-medium text-ink-secondary text-[10px] sm:text-[11px] truncate">{dateStr(c.lastPurchase)}</p>
                 </div>
               </div>
-              <div className="space-y-1.5 text-sm text-ink-secondary">
-                {c.contact_name && <p>Contacto: {c.contact_name}</p>}
-                {c.email && <p className="flex items-center gap-1.5"><Mail size={13} className="text-ink-muted" />{c.email}</p>}
-                {c.phone && <p className="flex items-center gap-1.5"><Phone size={13} className="text-ink-muted" />{c.phone}</p>}
-              </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Editar cliente' : 'Nuevo cliente'}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label className="label">Nombre / Razón social</label>
-              <input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus />
+      {/* ── Historial de compras del cliente ── */}
+      <Modal
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected ? `Historial — ${selected.name}` : ''}
+        width="max-w-2xl"
+      >
+        {selected && (
+          <div className="space-y-4">
+            {/* Client info strip */}
+            <div className="flex flex-wrap gap-2.5 sm:gap-4 bg-slate-50 rounded-xl p-3 sm:px-4 sm:py-3 text-xs sm:text-sm">
+              {selected.phone && (
+                <span className="flex items-center gap-1.5 text-ink-secondary">
+                  <Phone size={13} className="text-ink-muted" /> {selected.phone}
+                </span>
+              )}
+              <span className="flex items-center gap-1.5 text-ink-secondary">
+                <ShoppingBag size={13} className="text-ink-muted" /> {selected.salesCount} compra{selected.salesCount !== 1 ? 's' : ''}
+              </span>
+              <span className="flex items-center gap-1.5 font-semibold text-brand">
+                <TrendingUp size={13} /> {money(selected.totalSpent)} en total
+              </span>
             </div>
-            <div>
-              <label className="label">RUC / DNI</label>
-              <input className="field font-mono" value={form.ruc} onChange={(e) => setForm({ ...form, ruc: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">Persona de contacto</label>
-              <input className="field" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">Correo</label>
-              <input type="email" className="field" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">Teléfono</label>
-              <input className="field" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            </div>
-            <div className="col-span-2">
-              <label className="label">Dirección</label>
-              <input className="field" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-            </div>
-          </div>
-          {error && <p className="text-sm text-bad bg-bad-dim border border-bad/20 rounded-md px-3 py-2">{error}</p>}
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancelar</button>
-            <button type="submit" className="btn-primary">{editing ? 'Guardar cambios' : 'Crear cliente'}</button>
-          </div>
-        </form>
-      </Modal>
 
-      <Modal open={!!confirmDelete} onClose={() => setConfirmDelete(null)} title="Eliminar cliente" width="max-w-sm">
-        <p className="text-sm text-ink-secondary mb-4">¿Eliminar <span className="text-ink-primary font-medium">{confirmDelete?.name}</span>?</p>
-        <div className="flex justify-end gap-2">
-          <button onClick={() => setConfirmDelete(null)} className="btn-secondary">Cancelar</button>
-          <button onClick={handleDelete} className="btn-danger">Eliminar</button>
-        </div>
+            {/* Sales list */}
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              {selected.sales.map((sale) => (
+                <div key={sale.id} className="border border-base-border rounded-xl overflow-hidden">
+                  {/* Sale header */}
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 px-3 sm:px-4 py-2 bg-slate-50/80 border-b border-base-border/60">
+                    <span className="text-xs text-ink-muted">
+                      {new Date(sale.created_at).toLocaleString('es-PE')}
+                    </span>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <StatusBadge status={sale.status} />
+                      <span className="font-mono font-semibold text-xs sm:text-sm text-ink-primary">
+                        {money(sale.items.reduce((s, it) => s + it.quantity * it.unit_price, 0))}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Sale items */}
+                  <div className="divide-y divide-base-border/40">
+                    {sale.items.map((it, i) => (
+                      <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 px-3 sm:px-4 py-2 text-xs sm:text-sm">
+                        <span className="text-ink-secondary font-medium">{it.product_name || it.product_id}</span>
+                        <span className="font-mono text-ink-muted text-xs">
+                          {it.quantity} × {money(it.unit_price)} = <span className="text-ink-primary font-medium">{money(it.quantity * it.unit_price)}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Modal>
     </AppLayout>
   )

@@ -55,52 +55,93 @@ export default function Users() {
   return (
     <AppLayout title="Usuarios y roles">
       <div className="flex justify-end mb-5">
-        <button onClick={openCreate} className="btn-primary"><Plus size={16} /> Nuevo usuario</button>
+        <button onClick={openCreate} className="btn-primary w-full sm:w-auto justify-center">
+          <Plus size={16} /> Nuevo usuario
+        </button>
       </div>
 
-      <div className="card overflow-x-auto">
+      <div className="card overflow-hidden">
         {loading ? (
           <p className="text-sm text-ink-muted p-8 text-center">Cargando…</p>
         ) : users.length === 0 ? (
           <EmptyState icon={UserCog} title="Sin usuarios" />
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className="th">Nombre</th>
-                <th className="th">Correo</th>
-                <th className="th">Rol</th>
-                <th className="th">Estado</th>
-                <th className="th"></th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Mobile Cards View */}
+            <div className="block sm:hidden divide-y divide-base-border">
               {users.map((u) => (
-                <tr key={u.id} className="hover:bg-base-raised/50">
-                  <td className="td font-medium">{u.full_name}</td>
-                  <td className="td text-ink-secondary">{u.email}</td>
-                  <td className="td">
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${u.role === 'admin' ? 'text-brand-hover' : 'text-ink-secondary'}`}>
+                <div key={u.id} className="p-4 space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-ink-primary text-sm">{u.full_name}</p>
+                      <p className="text-xs text-ink-secondary">{u.email}</p>
+                    </div>
+                    <button
+                      onClick={() => openEdit(u)}
+                      className="p-1.5 rounded-lg text-ink-muted hover:text-brand hover:bg-brand-dim transition-colors"
+                      title="Editar usuario"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-base-border/50 text-xs">
+                    <span className={`inline-flex items-center gap-1.5 font-medium ${u.role === 'admin' ? 'text-brand' : 'text-ink-secondary'}`}>
                       {u.role === 'admin' && <ShieldCheck size={13} />}
                       {u.role === 'admin' ? 'Administrador' : 'Empleado'}
                     </span>
-                  </td>
-                  <td className="td">
-                    <button onClick={() => toggleActive(u)} className="inline-flex items-center gap-1.5 text-xs">
+                    <button onClick={() => toggleActive(u)} className="inline-flex items-center gap-1.5 py-1 px-2 rounded-md hover:bg-slate-100 transition-colors">
                       {u.active !== false ? (
-                        <><ToggleRight size={18} className="text-good" /> <span className="text-good">Activo</span></>
+                        <><ToggleRight size={18} className="text-good" /> <span className="text-good font-medium">Activo</span></>
                       ) : (
-                        <><ToggleLeft size={18} className="text-ink-muted" /> <span className="text-ink-muted">Inactivo</span></>
+                        <><ToggleLeft size={18} className="text-ink-muted" /> <span className="text-ink-muted font-medium">Inactivo</span></>
                       )}
                     </button>
-                  </td>
-                  <td className="td">
-                    <button onClick={() => openEdit(u)} className="p-1.5 rounded-md text-ink-muted hover:text-brand hover:bg-brand-dim transition-colors"><Pencil size={15} /></button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="overflow-x-auto hidden sm:block">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th className="th">Nombre</th>
+                    <th className="th">Correo</th>
+                    <th className="th">Rol</th>
+                    <th className="th">Estado</th>
+                    <th className="th"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id} className="hover:bg-base-raised/50">
+                      <td className="td font-medium">{u.full_name}</td>
+                      <td className="td text-ink-secondary">{u.email}</td>
+                      <td className="td">
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${u.role === 'admin' ? 'text-brand-hover' : 'text-ink-secondary'}`}>
+                          {u.role === 'admin' && <ShieldCheck size={13} />}
+                          {u.role === 'admin' ? 'Administrador' : 'Empleado'}
+                        </span>
+                      </td>
+                      <td className="td">
+                        <button onClick={() => toggleActive(u)} className="inline-flex items-center gap-1.5 text-xs">
+                          {u.active !== false ? (
+                            <><ToggleRight size={18} className="text-good" /> <span className="text-good">Activo</span></>
+                          ) : (
+                            <><ToggleLeft size={18} className="text-ink-muted" /> <span className="text-ink-muted">Inactivo</span></>
+                          )}
+                        </button>
+                      </td>
+                      <td className="td">
+                        <button onClick={() => openEdit(u)} className="p-1.5 rounded-md text-ink-muted hover:text-brand hover:bg-brand-dim transition-colors"><Pencil size={15} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

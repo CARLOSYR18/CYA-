@@ -17,6 +17,7 @@ import { productsService } from '../services/productsService'
 import { salesService } from '../services/salesService'
 import { categoriesService } from '../services/categoriesService'
 import { clientsService } from '../services/clientsService'
+import { purchasesService } from '../services/purchasesService'
 
 const money = (n) => `S/ ${(Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
@@ -74,6 +75,7 @@ export default function Dashboard() {
   const [sales, setSales] = useState([])
   const [categories, setCategories] = useState([])
   const [clients, setClients] = useState([])
+  const [purchases, setPurchases] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -82,11 +84,13 @@ export default function Dashboard() {
       salesService.list(),
       categoriesService.list(),
       clientsService.list(),
-    ]).then(([p, s, c, cl]) => {
+      purchasesService.list(),
+    ]).then(([p, s, c, cl, pu]) => {
       setProducts(p || [])
       setSales(s || [])
       setCategories(c || [])
       setClients(cl || [])
+      setPurchases(pu || [])
       setLoading(false)
     }).catch(() => {
       setLoading(false)
@@ -94,27 +98,33 @@ export default function Dashboard() {
   }, [])
 
   const stats = useMemo(() => {
-    const stockValue = products.reduce((sum, p) => sum + (Number(p.stock) || 0) * (Number(p.cost_price) || 0), 0)
+    // La inversión ya NO sale de stock × costo del producto (ese costo puede
+    // estar desactualizado). Sale de lo realmente gastado en compras recibidas.
+    const totalInvested = purchases
+      .filter((p) => p.status === 'recibido')
+      .reduce((sum, p) => sum + purchasesService.purchaseTotal(p), 0)
+
     const retailValue = products.reduce((sum, p) => sum + (Number(p.stock) || 0) * (Number(p.sale_price) || 0), 0)
     const totalUnits = products.reduce((sum, p) => sum + (Number(p.stock) || 0), 0)
-    const potentialMargin = retailValue - stockValue
 
     const lowStock = products.filter((p) => (Number(p.stock) || 0) <= (Number(p.min_stock) || 0))
     const outOfStock = products.filter((p) => (Number(p.stock) || 0) <= 0)
 
-    const now = new Date()
+    const thisMonth = new Date()
     const monthSales = sales.filter((s) => {
       const d = new Date(s.created_at)
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+      return d.getMonth() === thisMonth.getMonth() && d.getFullYear() === thisMonth.getFullYear()
     })
     const monthRevenue = monthSales.reduce((sum, s) => sum + salesService.saleTotal(s), 0)
     const avgTicket = monthSales.length > 0 ? monthRevenue / monthSales.length : 0
 
+    const potentialMargin = Math.max(retailValue - totalInvested, 0)
+
     return {
-      stockValue,
+      totalInvested,
       retailValue,
-      totalUnits,
       potentialMargin,
+      totalUnits,
       lowStock,
       outOfStock,
       monthRevenue,
@@ -124,7 +134,7 @@ export default function Dashboard() {
       totalCategories: categories.length,
       totalClients: clients.length,
     }
-  }, [products, sales, categories, clients])
+  }, [products, sales, purchases, categories, clients])
 
   const topProducts = useMemo(() => {
     const qtyByProduct = {}
@@ -156,19 +166,18 @@ export default function Dashboard() {
   }, [sales, products])
 
   const stockByCategory = useMemo(() => {
-    const totalCatUnits = products.reduce((sum, p) => sum + (Number(p.stock) || 0), 0)
+    // Los combos no cuentan aparte: su stock ya está reflejado en el
+    // producto base, sumarlo de nuevo duplicaría las unidades.
+    const physicalProducts = products.filter((p) => !p.is_kit)
     return categories
-      .map((c) => {
-        const catProducts = products.filter((p) => p.category_id === c.id)
-        const val = catProducts.reduce((sum, p) => sum + (Number(p.stock) || 0), 0)
-        return {
-          name: c.name,
-          value: val,
-          percent: totalCatUnits > 0 ? Math.round((val / totalCatUnits) * 100) : 0,
-        }
-      })
+      .map((c) => ({
+        name: c.name,
+        value: physicalProducts.filter((p) => p.category_id === c.id).reduce((sum, p) => sum + p.stock, 0),
+      }))
       .filter((c) => c.value > 0)
   }, [categories, products])
+
+  const totalStockUnits = stockByCategory.reduce((sum, c) => sum + c.value, 0)
 
   const clientMap = useMemo(() => {
     const map = {}
@@ -265,7 +274,7 @@ export default function Dashboard() {
             2. KEY METRIC STAT CARDS (4 Main Cards)
            ========================================================================= */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Valor de Inventario */}
+          {/* Card 1: Invertido en compras */}
           <div className="card p-5 bg-white hover:border-slate-300 hover:shadow-sm transition-all group">
             <div className="flex items-center justify-between mb-3">
               <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center transition-transform group-hover:scale-105">
@@ -275,9 +284,9 @@ export default function Dashboard() {
                 Activo
               </span>
             </div>
-            <p className="text-xs font-medium text-ink-secondary">Valor total inventario (costo)</p>
+            <p className="text-xs font-medium text-ink-secondary">Invertido en compras</p>
             <p className="text-2xl sm:text-[26px] font-display font-bold text-ink-primary tracking-tight mt-1">
-              {money(stats.stockValue)}
+              {money(stats.totalInvested)}
             </p>
             <div className="flex items-center justify-between text-[11px] text-ink-muted mt-3 pt-2.5 border-t border-slate-100">
               <span>{stats.totalUnits.toLocaleString()} unidades totales</span>
@@ -526,7 +535,7 @@ export default function Dashboard() {
                   {/* Center Text inside Donut */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className="text-xl font-display font-bold text-ink-primary">
-                      {stats.totalUnits}
+                      {totalStockUnits}
                     </span>
                     <span className="text-[10px] text-ink-muted uppercase tracking-wider font-semibold">
                       Uds. totales

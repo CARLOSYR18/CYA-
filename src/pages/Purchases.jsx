@@ -90,51 +90,96 @@ export default function Purchases() {
   return (
     <AppLayout title="Compras">
       <div className="flex justify-end mb-5">
-        <button onClick={openCreate} className="btn-primary"><Plus size={16} /> Nueva orden de compra</button>
+        <button onClick={openCreate} className="btn-primary w-full sm:w-auto justify-center">
+          <Plus size={16} /> Nueva orden de compra
+        </button>
       </div>
 
-      <div className="card overflow-x-auto">
+      <div className="card overflow-hidden">
         {loading ? (
           <p className="text-sm text-ink-muted p-8 text-center">Cargando…</p>
         ) : sorted.length === 0 ? (
           <EmptyState icon={Truck} title="Sin compras" description="Registra tu primera orden de compra a un proveedor." />
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className="th">Fecha</th>
-                <th className="th">Proveedor</th>
-                <th className="th">Items</th>
-                <th className="th">Total</th>
-                <th className="th">Estado</th>
-                <th className="th"></th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Mobile Cards View */}
+            <div className="block sm:hidden divide-y divide-base-border">
               {sorted.map((p) => (
-                <tr key={p.id} className="hover:bg-base-raised/50">
-                  <td className="td text-ink-secondary text-xs cursor-pointer" onClick={() => setViewing(p)}>{new Date(p.created_at).toLocaleString('es-PE')}</td>
-                  <td className="td font-medium cursor-pointer" onClick={() => setViewing(p)}>{supplierName(p.supplier_id)}</td>
-                  <td className="td text-ink-secondary cursor-pointer" onClick={() => setViewing(p)}>{p.items.length} producto(s)</td>
-                  <td className="td font-mono cursor-pointer" onClick={() => setViewing(p)}>{money(purchasesService.purchaseTotal(p))}</td>
-                  <td className="td"><StatusBadge status={p.status} /></td>
-                  <td className="td">
-                    {p.status === 'pendiente' && (
-                      <button onClick={() => handleReceive(p)} className="inline-flex items-center gap-1.5 text-xs text-good font-medium hover:text-good/80">
-                        <CheckCircle2 size={14} /> Marcar recibido
+                <div key={p.id} className="p-4 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-ink-muted">
+                      {new Date(p.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}
+                    </span>
+                    <StatusBadge status={p.status} />
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div onClick={() => setViewing(p)} className="cursor-pointer flex-1">
+                      <p className="font-semibold text-ink-primary text-sm">{supplierName(p.supplier_id)}</p>
+                      <p className="text-xs text-ink-secondary mt-0.5">
+                        {p.items.length} {p.items.length === 1 ? 'producto' : 'productos'}
+                      </p>
+                      <span className="text-[10px] text-brand font-medium">Ver detalle →</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono font-bold text-base text-ink-primary">
+                        {money(purchasesService.purchaseTotal(p))}
+                      </span>
+                    </div>
+                  </div>
+                  {p.status === 'pendiente' && (
+                    <div className="pt-2 border-t border-base-border/60 flex justify-end">
+                      <button
+                        onClick={() => handleReceive(p)}
+                        className="inline-flex items-center gap-1.5 text-xs text-good font-semibold hover:text-good/80 bg-good-dim px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        <CheckCircle2 size={14} /> Marcar como recibido
                       </button>
-                    )}
-                  </td>
-                </tr>
+                    </div>
+                  )}
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="overflow-x-auto hidden sm:block">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th className="th">Fecha</th>
+                    <th className="th">Proveedor</th>
+                    <th className="th">Items</th>
+                    <th className="th">Total</th>
+                    <th className="th">Estado</th>
+                    <th className="th"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map((p) => (
+                    <tr key={p.id} className="hover:bg-base-raised/50">
+                      <td className="td text-ink-secondary text-xs cursor-pointer" onClick={() => setViewing(p)}>{new Date(p.created_at).toLocaleString('es-PE')}</td>
+                      <td className="td font-medium cursor-pointer" onClick={() => setViewing(p)}>{supplierName(p.supplier_id)}</td>
+                      <td className="td text-ink-secondary cursor-pointer" onClick={() => setViewing(p)}>{p.items.length} producto(s)</td>
+                      <td className="td font-mono cursor-pointer" onClick={() => setViewing(p)}>{money(purchasesService.purchaseTotal(p))}</td>
+                      <td className="td"><StatusBadge status={p.status} /></td>
+                      <td className="td">
+                        {p.status === 'pendiente' && (
+                          <button onClick={() => handleReceive(p)} className="inline-flex items-center gap-1.5 text-xs text-good font-medium hover:text-good/80">
+                            <CheckCircle2 size={14} /> Marcar recibido
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nueva orden de compra" width="max-w-2xl">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Proveedor</label>
               <select className="field" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
@@ -158,22 +203,45 @@ export default function Purchases() {
                 <Plus size={13} /> Agregar producto
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3 sm:space-y-2">
               {items.map((it, idx) => {
                 const product = products.find((p) => p.id === it.product_id)
                 return (
-                  <div key={idx} className="flex items-center gap-2">
-                    <select className="field flex-1" value={it.product_id} onChange={(e) => updateItem(idx, { product_id: e.target.value })}>
+                  <div
+                    key={idx}
+                    className="flex flex-col sm:flex-row sm:items-center gap-2 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-xl sm:rounded-none border sm:border-0 border-base-border"
+                  >
+                    <select
+                      className="field flex-1"
+                      value={it.product_id}
+                      onChange={(e) => updateItem(idx, { product_id: e.target.value })}
+                    >
                       <option value="">Selecciona un producto</option>
                       {products.map((p) => <option key={p.id} value={p.id}>{p.sku} — {p.name}</option>)}
                     </select>
-                    <input type="number" min="1" className="field w-24" value={it.quantity} onChange={(e) => updateItem(idx, { quantity: e.target.value })} />
-                    <span className="w-24 text-sm font-mono text-ink-secondary text-right">
-                      {product ? money(product.cost_price * (it.quantity || 0)) : '—'}
-                    </span>
-                    <button type="button" onClick={() => removeItemRow(idx)} className="p-1.5 text-ink-muted hover:text-bad">
-                      <Trash2 size={15} />
-                    </button>
+                    <div className="flex items-center justify-between sm:justify-start gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-ink-muted sm:hidden">Cant:</span>
+                        <input
+                          type="number"
+                          min="1"
+                          className="field w-20 sm:w-24 text-center"
+                          value={it.quantity}
+                          onChange={(e) => updateItem(idx, { quantity: e.target.value })}
+                        />
+                      </div>
+                      <span className="w-24 text-xs sm:text-sm font-mono text-ink-secondary text-right">
+                        {product ? money(product.cost_price * (it.quantity || 0)) : '—'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeItemRow(idx)}
+                        className="p-1.5 text-ink-muted hover:text-bad rounded-lg hover:bg-bad-dim transition-colors ml-auto sm:ml-0"
+                        title="Eliminar producto"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 )
               })}
