@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Google Fonts ── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 /* ── Reset & Base ── */
 *, *::before, *::after { box-sizing: border-box; }
@@ -37,9 +35,9 @@ body {
   .field {
     @apply w-full bg-white border border-base-border rounded-xl px-3.5 py-2.5
            text-sm text-ink-primary placeholder:text-ink-muted
-           shadow-inner-sm
            focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none
            transition-all duration-200;
+    box-shadow: inset 0 1px 3px rgba(10,15,30,0.05);
   }
   .label {
     @apply block text-2xs font-bold text-ink-muted mb-1.5 tracking-widest uppercase;
@@ -81,7 +79,7 @@ body {
     @apply bg-white border border-base-border rounded-2xl shadow-sm;
   }
   .card-hover {
-    @apply transition-all duration-200 hover:shadow-card hover:-translate-y-0.5 hover:border-base-borderLight cursor-pointer;
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:border-base-borderLight cursor-pointer;
   }
   .card-section {
     @apply bg-white border border-base-border rounded-2xl shadow-sm overflow-hidden;

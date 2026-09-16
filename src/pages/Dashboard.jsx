@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts'
 import {
-  Boxes, TrendingUp, AlertTriangle, DollarSign, Plus, ArrowRight,
+  Boxes, TrendingUp, AlertTriangle, DollarSign, Plus,
   ShoppingCart, ArrowLeftRight, CheckCircle2, ShieldAlert,
-  Calendar, Layers, Package, ArrowUpRight
+  Layers, Package, ArrowUpRight, Activity, Users, Clock
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import StockBadge from '../components/ui/StockBadge'
@@ -19,493 +19,488 @@ import { categoriesService } from '../services/categoriesService'
 import { clientsService } from '../services/clientsService'
 import { purchasesService } from '../services/purchasesService'
 
-const money = (n) => `S/ ${(Number(n)||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2})}`
-const PIE_COLORS = ['#1B4FD8','#0D9166','#CA8A04','#7C3AED','#DB2777','#0891B2','#64748B']
-
-const todayStr = () => new Date().toLocaleDateString('es-PE', { weekday:'long', day:'numeric', month:'long', year:'numeric' })
-const shortDate = (iso) => {
+/* ── helpers ── */
+const fmt = (n) => `S/ ${(Number(n)||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2})}`
+const PIE_COLORS = ['#2563EB','#0EA5E9','#8B5CF6','#10B981','#F59E0B','#EF4444']
+const greeting = () => { const h=new Date().getHours(); return h<12?'Buenos días':h<18?'Buenas tardes':'Buenas noches' }
+const dayStr = () => new Date().toLocaleDateString('es-PE',{weekday:'long',day:'numeric',month:'long'})
+const timeAgo = (iso) => {
   if (!iso) return '—'
-  const d = new Date(iso)
-  return isNaN(d) ? '—' : d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+  const diff = Math.round((new Date()-new Date(iso))/60000)
+  if (diff<1) return 'ahora'; if (diff<60) return `hace ${diff}m`
+  if (diff<1440) return `hace ${Math.round(diff/60)}h`
+  return new Date(iso).toLocaleDateString('es-PE',{day:'2-digit',month:'short'})
 }
 
-function BarTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null
-  const d = payload[0].payload
+/* ── animated counter hook ── */
+function useCounter(target, active=true, duration=900) {
+  const [val, setVal] = useState(0)
+  useEffect(() => {
+    if (!active || target === 0) { setVal(target); return }
+    const start = Date.now()
+    const id = setInterval(() => {
+      const p = Math.min((Date.now()-start)/duration, 1)
+      const ease = 1-Math.pow(1-p,3)
+      setVal(Math.round(target*ease))
+      if (p>=1) clearInterval(id)
+    }, 14)
+    return () => clearInterval(id)
+  }, [target, active, duration])
+  return val
+}
+
+/* ── intersection observer for staggered entrance ── */
+function useFadeIn() {
+  const ref = useRef(null)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.08 })
+    if (ref.current) obs.observe(ref.current)
+    return () => obs.disconnect()
+  }, [])
+  return [ref, visible]
+}
+
+/* ── 3D horizontal bar shape ── */
+const DEPTH = 7
+const Bar3D = (props) => {
+  const { x, y, width, height, value } = props
+  if (!value || value <= 0 || !width || width <= 0) return null
+  const front   = '#2563EB'
+  const top     = '#60A5FA'
+  const side    = '#1D4ED8'
+  const topPts  = `${x},${y+DEPTH/2} ${x+DEPTH},${y-DEPTH/2} ${x+width+DEPTH},${y-DEPTH/2} ${x+width},${y+DEPTH/2}`
+  const sidePts = `${x+width},${y+DEPTH/2} ${x+width+DEPTH},${y-DEPTH/2} ${x+width+DEPTH},${y+height-DEPTH/2} ${x+width},${y+height+DEPTH/2}`
   return (
-    <div className="bg-white border border-base-border rounded-xl shadow-card px-3.5 py-2.5 text-xs min-w-[160px]">
-      <p className="font-semibold text-ink-primary mb-1">{d.fullName}</p>
-      <p className="text-brand font-bold text-sm">{payload[0].value} uds.</p>
-      {d.revenue > 0 && <p className="text-ink-muted mt-0.5">Total: <span className="font-medium text-ink-secondary">{money(d.revenue)}</span></p>}
+    <g style={{filter:'drop-shadow(0 2px 4px rgba(37,99,235,0.25))'}}>
+      <rect x={x} y={y+DEPTH/2} width={width} height={height} fill={front} rx={3}/>
+      <polygon points={topPts}  fill={top}  style={{opacity:.9}}/>
+      <polygon points={sidePts} fill={side} style={{opacity:.85}}/>
+    </g>
+  )
+}
+
+/* ── tooltips ── */
+function BTooltip({ active, payload }) {
+  if (!active||!payload?.length) return null
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs shadow-xl">
+      <p className="text-slate-500 mb-1">{payload[0].payload.fullName}</p>
+      <p className="font-bold text-slate-900 text-sm">{payload[0].value} <span className="font-normal text-slate-400">uds.</span></p>
     </div>
   )
 }
-function PieTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null
+function PTooltip({ active, payload }) {
+  if (!active||!payload?.length) return null
   return (
-    <div className="bg-white border border-base-border rounded-xl shadow-card px-3.5 py-2.5 text-xs">
-      <p className="font-semibold text-ink-primary mb-1">{payload[0].name}</p>
-      <p className="text-ink-secondary">Stock: <span className="font-bold text-ink-primary">{payload[0].value}</span> uds.</p>
+    <div className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs shadow-xl">
+      <p className="font-semibold text-slate-800">{payload[0].name}</p>
+      <p className="text-slate-400 mt-0.5">{payload[0].value} unidades</p>
     </div>
   )
 }
 
-function KPICard({ icon: Icon, iconCls, label, value, badge, footer }) {
+/* ── Stat card with animated counter ── */
+function StatCard({ icon: Icon, accent, label, rawValue, displayValue, detail, link, linkText, badge, delay=0, active }) {
+  const [ref, visible] = useFadeIn()
+  const counted = useCounter(rawValue||0, visible&&active)
   return (
-    <div className="bg-white border border-base-border rounded-2xl p-5 shadow-sm hover:shadow-card hover:-translate-y-0.5 transition-all duration-200 group cursor-default flex flex-col gap-4">
-      <div className="flex items-start justify-between">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200 ${iconCls}`}>
-          <Icon size={20} strokeWidth={2} />
+    <div ref={ref}
+      className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
+      style={{
+        boxShadow:'0 1px 3px rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.04)',
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(24px)',
+        transition: `opacity 0.5s ease ${delay}ms, transform 0.5s cubic-bezier(0.16,1,0.3,1) ${delay}ms`
+      }}>
+      {/* color accent bar */}
+      <div style={{height:3, background:accent}}/>
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between mb-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{background:`${accent}14`}}>
+            <Icon size={18} strokeWidth={2} style={{color:accent}}/>
+          </div>
+          {badge && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+              style={{background:`${accent}10`,color:accent,borderColor:`${accent}30`}}>
+              {badge}
+            </span>
+          )}
         </div>
-        {badge}
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+        <p className="text-2xl sm:text-[28px] font-display font-bold text-slate-900 leading-none tracking-tight">
+          {displayValue !== undefined ? displayValue : counted}
+        </p>
+        {detail && <p className="text-xs text-slate-400 mt-2 leading-relaxed">{detail}</p>}
+        {link && (
+          <Link to={link} className="inline-flex items-center gap-1 text-xs font-semibold mt-3 hover:underline"
+            style={{color:accent}}>
+            {linkText} <ArrowUpRight size={11}/>
+          </Link>
+        )}
       </div>
-      <div>
-        <p className="text-2xs font-bold text-ink-muted mb-1.5 uppercase tracking-widest">{label}</p>
-        <p className="text-2xl font-display font-bold text-ink-primary tracking-tight leading-none">{value}</p>
-      </div>
-      {footer && (
-        <div className="flex items-center justify-between text-xs text-ink-muted pt-3 border-t border-base-border">
-          {footer}
-        </div>
-      )}
     </div>
   )
 }
 
-function LoadingCard() {
+/* ── Metric row ── */
+function MetricRow({ icon:Icon, color, label, value, unit, delay=0 }) {
+  const [ref, visible] = useFadeIn()
   return (
-    <div className="bg-white border border-base-border rounded-2xl p-5 shadow-sm space-y-4">
-      <div className="skeleton w-11 h-11 rounded-xl" />
-      <div className="space-y-2">
-        <div className="skeleton w-24 h-3 rounded" />
-        <div className="skeleton w-32 h-7 rounded-lg" />
+    <div ref={ref} className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 last:border-0"
+      style={{opacity:visible?1:0,transform:visible?'translateX(0)':'translateX(-12px)',transition:`opacity 0.4s ease ${delay}ms,transform 0.4s ease ${delay}ms`}}>
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+        style={{background:`${color}12`}}>
+        <Icon size={14} strokeWidth={2} style={{color}}/>
       </div>
-      <div className="skeleton w-full h-3 rounded pt-3 border-t border-base-border" />
+      <p className="text-xs text-slate-500 flex-1">{label}</p>
+      <p className="font-display font-bold text-slate-900 text-sm">
+        {value} <span className="text-slate-400 font-normal text-xs">{unit}</span>
+      </p>
+    </div>
+  )
+}
+
+/* ── Skeleton ── */
+const Skel = ({h='h-44'}) => <div className={`${h} rounded-2xl bg-slate-100 animate-pulse`}/>
+
+/* ── Animated progress bar ── */
+function AnimBar({ pct, color }) {
+  const [w, setW] = useState(0)
+  useEffect(() => { const t=setTimeout(()=>setW(pct),200); return ()=>clearTimeout(t) }, [pct])
+  return (
+    <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+      <div className="h-full rounded-full transition-all duration-700 ease-out" style={{width:`${Math.max(w,3)}%`,background:color}}/>
     </div>
   )
 }
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const [products, setProducts]     = useState([])
-  const [sales, setSales]           = useState([])
-  const [categories, setCategories] = useState([])
-  const [clients, setClients]       = useState([])
-  const [purchases, setPurchases]   = useState([])
-  const [loading, setLoading]       = useState(true)
+  const [products,setProducts]=useState([])
+  const [sales,setSales]=useState([])
+  const [categories,setCategories]=useState([])
+  const [clients,setClients]=useState([])
+  const [purchases,setPurchases]=useState([])
+  const [loading,setLoading]=useState(true)
 
-  useEffect(() => {
+  useEffect(()=>{
     Promise.all([
-      productsService.list(), salesService.list(),
-      categoriesService.list(), clientsService.list(), purchasesService.list(),
-    ]).then(([p,s,c,cl,pu]) => {
-      setProducts(p||[]); setSales(s||[]); setCategories(c||[])
-      setClients(cl||[]); setPurchases(pu||[])
+      productsService.list(),salesService.list(),
+      categoriesService.list(),clientsService.list(),purchasesService.list()
+    ]).then(([p,s,c,cl,pu])=>{
+      setProducts(p||[]);setSales(s||[]);setCategories(c||[])
+      setClients(cl||[]);setPurchases(pu||[])
       setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [])
+    }).catch(()=>setLoading(false))
+  },[])
 
-  const stats = useMemo(() => {
-    const totalInvested = purchases
-      .filter(p => p.status === 'recibido')
-      .reduce((sum,p) => sum + purchasesService.purchaseTotal(p), 0)
-    const totalUnits = products.reduce((sum,p) => sum + (Number(p.stock)||0), 0)
-    const lowStock   = products.filter(p => (Number(p.stock)||0) <= (Number(p.min_stock)||0))
-    const outOfStock = products.filter(p => (Number(p.stock)||0) <= 0)
-    const now = new Date()
-    const monthSales = sales.filter(s => {
-      const d = new Date(s.created_at)
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-    })
-    const monthRevenue = monthSales.reduce((sum,s) => sum + salesService.saleTotal(s), 0)
-    const avgTicket = monthSales.length > 0 ? monthRevenue / monthSales.length : 0
-    return {
-      totalInvested, totalUnits, lowStock, outOfStock, monthRevenue,
-      monthSalesCount: monthSales.length, avgTicket,
-      totalProducts: products.length, totalCategories: categories.length, totalClients: clients.length
-    }
-  }, [products, sales, purchases, categories, clients])
+  const stats=useMemo(()=>{
+    const totalInvested=purchases.filter(p=>p.status==='recibido').reduce((s,p)=>s+purchasesService.purchaseTotal(p),0)
+    const totalUnits=products.reduce((s,p)=>s+(Number(p.stock)||0),0)
+    const lowStock=products.filter(p=>(Number(p.stock)||0)<=(Number(p.min_stock)||0))
+    const outOfStock=products.filter(p=>(Number(p.stock)||0)<=0)
+    const now=new Date()
+    const ms=sales.filter(s=>{const d=new Date(s.created_at);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()})
+    const rev=ms.reduce((s,x)=>s+salesService.saleTotal(x),0)
+    return{totalInvested,totalUnits,lowStock,outOfStock,monthRevenue:rev,
+      monthSalesCount:ms.length,avgTicket:ms.length?rev/ms.length:0,
+      totalProducts:products.length,totalCategories:categories.length,totalClients:clients.length}
+  },[products,sales,purchases,categories,clients])
 
-  const topProducts = useMemo(() => {
-    const qty = {}, rev = {}
-    sales.forEach(s => {
-      if (Array.isArray(s.items)) s.items.forEach(it => {
-        const q = Number(it.quantity)||0, p = Number(it.unit_price)||0
-        qty[it.product_id] = (qty[it.product_id]||0) + q
-        rev[it.product_id] = (rev[it.product_id]||0) + q * p
-      })
-    })
-    return Object.entries(qty).map(([pid,q]) => {
-      const name = products.find(p => p.id === pid)?.name || pid
-      return { fullName: name, name: name.length > 18 ? name.slice(0,18)+'…' : name, cantidad: q, revenue: rev[pid]||0 }
-    }).sort((a,b) => b.cantidad - a.cantidad).slice(0,6)
-  }, [sales, products])
+  const topProducts=useMemo(()=>{
+    const qty={},rev={}
+    sales.forEach(s=>s.items?.forEach(it=>{
+      const q=Number(it.quantity)||0,p=Number(it.unit_price)||0
+      qty[it.product_id]=(qty[it.product_id]||0)+q
+      rev[it.product_id]=(rev[it.product_id]||0)+q*p
+    }))
+    return Object.entries(qty).map(([pid,q])=>{
+      const name=products.find(p=>p.id===pid)?.name||pid
+      return{fullName:name,name:name.length>18?name.slice(0,18)+'…':name,cantidad:q,revenue:rev[pid]||0}
+    }).sort((a,b)=>b.cantidad-a.cantidad).slice(0,6)
+  },[sales,products])
 
-  const stockByCategory = useMemo(() =>
-    categories.map(c => ({
-      name: c.name,
-      value: products.filter(p => !p.is_kit && p.category_id === c.id).reduce((s,p) => s + p.stock, 0)
-    })).filter(c => c.value > 0)
-  , [categories, products])
+  const stockByCategory=useMemo(()=>
+    categories.map(c=>({name:c.name,value:products.filter(p=>!p.is_kit&&p.category_id===c.id).reduce((s,p)=>s+p.stock,0)})).filter(c=>c.value>0)
+  ,[categories,products])
 
-  const totalStockUnits = stockByCategory.reduce((s,c) => s + c.value, 0)
-  const clientMap = useMemo(() => { const m={}; clients.forEach(cl => m[cl.id]=cl.name); return m }, [clients])
-  const recentSales = useMemo(() => [...sales].sort((a,b) => new Date(b.created_at)-new Date(a.created_at)).slice(0,5), [sales])
-  const lowStockList = useMemo(() => [...stats.lowStock].sort((a,b) => {
-    if (a.stock<=0&&b.stock>0) return -1
-    if (b.stock<=0&&a.stock>0) return 1
-    return a.stock - b.stock
-  }).slice(0,5), [stats.lowStock])
+  const totalSU=stockByCategory.reduce((s,c)=>s+c.value,0)
+  const clientMap=useMemo(()=>{const m={};clients.forEach(c=>m[c.id]=c.name);return m},[clients])
+  const recentSales=useMemo(()=>[...sales].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,6),[sales])
+  const lowList=useMemo(()=>[...stats.lowStock].sort((a,b)=>a.stock-b.stock).slice(0,5),[stats.lowStock])
+
+  const AVATAR_PALETTE=['#2563EB','#7C3AED','#10B981','#F59E0B','#EF4444','#0EA5E9','#EC4899']
+  const nc=(n='')=>{let h=0;for(const c of n)h=c.charCodeAt(0)+((h<<5)-h);return AVATAR_PALETTE[Math.abs(h)%AVATAR_PALETTE.length]}
+
+  const [headerRef, headerVisible] = useFadeIn()
 
   return (
     <AppLayout title="Panel de Control">
-      <div className="space-y-5">
+      <div className="space-y-5 pb-8">
 
-        {/* ══ WELCOME BANNER ══ */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-brand to-brand-hover rounded-2xl p-5 sm:p-7 text-white shadow-card">
-          {/* decorative circles */}
-          <div className="absolute -top-8 -right-8 w-56 h-56 rounded-full bg-white/5 pointer-events-none" />
-          <div className="absolute top-4 right-24 w-24 h-24 rounded-full bg-white/5 pointer-events-none" />
-          <div className="absolute -bottom-10 left-1/3 w-40 h-40 rounded-full bg-white/[0.04] pointer-events-none" />
-
-          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-5">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="inline-flex items-center gap-1.5 text-2xs font-semibold text-blue-100 bg-white/15 border border-white/20 px-2.5 py-1 rounded-full">
-                  <Calendar size={10} />
-                  <span className="capitalize">{todayStr()}</span>
-                </span>
-              </div>
-              <h2 className="font-display font-bold text-2xl sm:text-3xl text-white tracking-tight">
-                ¡Bienvenido, {user?.full_name?.split(' ')[0] || 'Carlos'}! 👋
-              </h2>
-              <p className="text-blue-100/80 text-sm mt-2 max-w-md leading-relaxed">
-                Resumen del sistema — inventario, ventas y alertas al instante.
-              </p>
+        {/* ── Greeting header ── */}
+        <div ref={headerRef}
+          className="flex flex-col sm:flex-row sm:items-end justify-between gap-4"
+          style={{opacity:headerVisible?1:0,transform:headerVisible?'translateY(0)':'translateY(-16px)',transition:'opacity 0.4s ease,transform 0.4s ease'}}>
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/>
+              <span className="text-xs text-slate-400 capitalize">{dayStr()}</span>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <Link to="/ventas"
-                className="inline-flex items-center gap-2 bg-white text-brand text-sm font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-px active:scale-95 transition-all duration-150">
-                <ShoppingCart size={14} /> Nueva Venta
-              </Link>
-              <Link to="/productos"
-                className="inline-flex items-center gap-2 bg-white/15 border border-white/25 text-white text-sm font-semibold px-3.5 py-2.5 rounded-xl hover:bg-white/25 active:scale-95 transition-all duration-150">
-                <Plus size={14} /> Producto
-              </Link>
-              <Link to="/movimientos"
-                className="inline-flex items-center gap-2 bg-white/15 border border-white/25 text-white text-sm font-semibold px-3.5 py-2.5 rounded-xl hover:bg-white/25 active:scale-95 transition-all duration-150">
-                <ArrowLeftRight size={14} />
-                <span className="hidden sm:inline">Movimientos</span>
-              </Link>
-            </div>
+            <h2 className="font-display font-bold text-2xl sm:text-3xl text-slate-900 tracking-tight">
+              {greeting()}, {user?.full_name?.split(' ')[0] || 'bienvenido'} 👋
+            </h2>
+            <p className="text-slate-400 text-sm mt-1">Resumen de tu negocio al día de hoy.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link to="/ventas" className="btn-primary text-sm"><ShoppingCart size={14}/> Nueva Venta</Link>
+            <Link to="/productos" className="btn-secondary text-sm"><Plus size={14}/> Producto</Link>
+            <Link to="/movimientos" className="btn-secondary text-sm hidden sm:inline-flex"><ArrowLeftRight size={14}/> Movimiento</Link>
           </div>
         </div>
 
-        {/* ══ 4 KPI CARDS ══ */}
+        {/* ── 4 KPI cards ── */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1,2,3,4].map(i => <LoadingCard key={i} />)}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {[1,2,3,4].map(i=><Skel key={i} h="h-44"/>)}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPICard
-              icon={DollarSign}
-              iconCls="bg-blue-50 text-brand"
-              label="Invertido en compras"
-              value={money(stats.totalInvested)}
-              badge={<span className="badge badge-green">Activo</span>}
-              footer={<span>{stats.totalUnits.toLocaleString()} unidades totales</span>}
-            />
-            <KPICard
-              icon={TrendingUp}
-              iconCls="bg-emerald-50 text-good"
-              label="Ventas del mes"
-              value={money(stats.monthRevenue)}
-              badge={<span className="badge badge-blue">Este mes</span>}
-              footer={
-                <>
-                  <span>{stats.monthSalesCount} órdenes</span>
-                  <span className="font-semibold text-ink-secondary">Prom. {money(stats.avgTicket)}</span>
-                </>
-              }
-            />
-            <KPICard
-              icon={Boxes}
-              iconCls="bg-violet-50 text-violet-600"
-              label="Productos en catálogo"
-              value={<>{stats.totalProducts} <span className="text-sm font-normal text-ink-muted">SKUs</span></>}
-              badge={<span className="badge badge-slate">{stats.totalCategories} cat.</span>}
-              footer={
-                <>
-                  <span>{stats.totalCategories} categorías</span>
-                  <Link to="/productos" className="text-brand font-bold hover:underline text-xs flex items-center gap-0.5">
-                    Gestionar <ArrowUpRight size={11} />
-                  </Link>
-                </>
-              }
-            />
-            <KPICard
-              icon={stats.lowStock.length > 0 ? AlertTriangle : CheckCircle2}
-              iconCls={stats.lowStock.length > 0 ? 'bg-amber-50 text-warn' : 'bg-emerald-50 text-good'}
+        ):(
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <StatCard icon={DollarSign} accent="#2563EB" label="Invertido en compras"
+              rawValue={Math.round(stats.totalInvested)}
+              displayValue={fmt(stats.totalInvested)}
+              detail={`${stats.totalUnits.toLocaleString()} unidades en stock`}
+              badge="Capital" delay={50} active={!loading}/>
+            <StatCard icon={TrendingUp} accent="#10B981" label="Ventas del mes"
+              rawValue={Math.round(stats.monthRevenue)}
+              displayValue={fmt(stats.monthRevenue)}
+              detail={`${stats.monthSalesCount} órdenes · Prom. ${fmt(stats.avgTicket)}`}
+              link="/ventas" linkText="Ver ventas" delay={150} active={!loading}/>
+            <StatCard icon={Boxes} accent="#7C3AED" label="Productos activos"
+              rawValue={stats.totalProducts}
+              detail={`${stats.totalCategories} categorías registradas`}
+              link="/productos" linkText="Ver catálogo" delay={250} active={!loading}/>
+            <StatCard
+              icon={stats.lowStock.length>0?AlertTriangle:CheckCircle2}
+              accent={stats.lowStock.length>0?'#F59E0B':'#10B981'}
               label="Alertas de stock"
-              value={
-                <span className={stats.lowStock.length > 0 ? 'text-warn' : 'text-good'}>
-                  {stats.lowStock.length} <span className="text-sm font-normal text-ink-muted">artículos</span>
-                </span>
-              }
-              badge={
-                <span className={`badge ${stats.lowStock.length > 0 ? 'badge-amber' : 'badge-green'}`}>
-                  {stats.lowStock.length > 0 ? 'Atención' : 'Óptimo'}
-                </span>
-              }
-              footer={
-                <>
-                  {stats.outOfStock.length > 0
-                    ? <span className="text-bad font-semibold">{stats.outOfStock.length} agotados</span>
-                    : <span>Sin quiebres críticos</span>
-                  }
-                  {stats.lowStock.length > 0 && (
-                    <Link to="/movimientos" className="text-warn font-bold hover:underline text-xs flex items-center gap-0.5">
-                      Reponer <ArrowUpRight size={11} />
-                    </Link>
-                  )}
-                </>
-              }
-            />
+              rawValue={stats.lowStock.length}
+              badge={stats.lowStock.length>0?'Atención':'Óptimo'}
+              detail={stats.outOfStock.length>0?`${stats.outOfStock.length} agotado(s)`:'Sin quiebres críticos'}
+              link={stats.lowStock.length>0?'/movimientos':undefined}
+              linkText="Reponer stock" delay={350} active={!loading}/>
           </div>
         )}
 
-        {/* ══ SECONDARY METRICS ══ */}
+        {/* ── Middle section: metrics + donut + 3D bars ── */}
         {!loading && (
-          <div className="bg-white border border-base-border rounded-xl shadow-sm overflow-hidden">
-            <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-base-border">
-              {[
-                { label: 'Cartera de clientes',     val: stats.totalClients,   unit: 'clientes' },
-                {
-                  label: 'Disponibilidad de stock',
-                  val: `${stats.totalProducts > 0 ? Math.round(((stats.totalProducts - stats.lowStock.length) / stats.totalProducts) * 100) : 100}%`,
-                  unit: 'abastecido'
-                },
-                {
-                  label: 'Promedio de rotación',
-                  val: stats.monthSalesCount > 0 ? (stats.totalUnits / Math.max(stats.monthSalesCount,1)).toFixed(1) : '0.0',
-                  unit: 'uds/orden'
-                },
-              ].map(({ label, val, unit }) => (
-                <div key={label} className="px-5 py-4">
-                  <p className="text-2xs font-bold text-ink-muted uppercase tracking-widest mb-1.5">{label}</p>
-                  <p className="font-display font-bold text-xl text-ink-primary">
-                    {val} <span className="text-sm font-normal text-ink-muted">{unit}</span>
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
 
-        {/* ══ CHARTS ══ */}
-        {!loading && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Bar chart */}
-            <div className="bg-white border border-base-border rounded-2xl shadow-sm lg:col-span-2 flex flex-col overflow-hidden">
-              <div className="card-header">
-                <div>
-                  <h2 className="font-display font-bold text-ink-primary text-lg tracking-tight">Productos Más Vendidos</h2>
-                  <p className="text-xs text-ink-muted mt-0.5">Artículos con mayor rotación histórica</p>
-                </div>
-                <span className="badge badge-slate">Top {topProducts.length}</span>
+            {/* Indicadores */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
+              style={{boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
+              <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="font-display font-bold text-slate-800 text-sm">Indicadores clave</h3>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Este mes</span>
               </div>
-              <div className="p-5 sm:p-6 flex-1">
-                {topProducts.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-52">
-                    <div className="w-12 h-12 rounded-2xl bg-base-raised border border-base-border flex items-center justify-center text-ink-muted mb-3">
-                      <Package size={22} strokeWidth={1.5} />
-                    </div>
-                    <p className="text-sm font-semibold text-ink-primary">Sin ventas registradas</p>
-                    <p className="text-xs text-ink-muted mt-1">Registra ventas para ver la rotación.</p>
-                  </div>
-                ) : (
-                  <div className="w-full h-[240px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={topProducts} layout="vertical" margin={{ left:0, right:24, top:4, bottom:4 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E8EDF5" horizontal={false} />
-                        <XAxis type="number" stroke="#8A96AD" fontSize={11} tickLine={false} axisLine={false} />
-                        <YAxis type="category" dataKey="name" stroke="#3D4A63" fontSize={12} width={120} tickLine={false} axisLine={false} />
-                        <Tooltip content={<BarTooltip />} cursor={{ fill:'rgba(27,79,216,0.04)' }} />
-                        <Bar dataKey="cantidad" fill="#1B4FD8" radius={[0,6,6,0]} barSize={14} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </div>
+              <MetricRow icon={Users}      color="#2563EB" label="Cartera de clientes"
+                value={stats.totalClients} unit="clientes" delay={100}/>
+              <MetricRow icon={Activity}   color="#10B981" label="Disponibilidad de stock"
+                value={`${stats.totalProducts>0?Math.round(((stats.totalProducts-stats.lowStock.length)/stats.totalProducts)*100):100}%`}
+                unit="abastecido" delay={180}/>
+              <MetricRow icon={TrendingUp} color="#7C3AED" label="Promedio de rotación"
+                value={stats.monthSalesCount>0?(stats.totalUnits/Math.max(stats.monthSalesCount,1)).toFixed(1):'0.0'}
+                unit="uds/orden" delay={260}/>
+              <MetricRow icon={DollarSign} color="#F59E0B" label="Ticket promedio"
+                value={fmt(stats.avgTicket)} unit="" delay={340}/>
             </div>
 
             {/* Donut */}
-            <div className="bg-white border border-base-border rounded-2xl shadow-sm flex flex-col overflow-hidden">
-              <div className="card-header">
-                <div>
-                  <h2 className="font-display font-bold text-ink-primary text-lg tracking-tight">Stock por Categoría</h2>
-                  <p className="text-xs text-ink-muted mt-0.5">Distribución del inventario</p>
-                </div>
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-brand flex items-center justify-center">
-                  <Layers size={15} />
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
+              style={{boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
+              <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="font-display font-bold text-slate-800 text-sm">Stock por categoría</h3>
+                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <Layers size={13} className="text-blue-600"/>
                 </div>
               </div>
-              <div className="p-5 flex-1 flex flex-col">
-                {stockByCategory.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 h-48">
-                    <p className="text-sm font-semibold text-ink-primary">Sin datos</p>
-                    <p className="text-xs text-ink-muted mt-1">Crea categorías y asigna productos.</p>
+              {stockByCategory.length===0?(
+                <div className="flex flex-col items-center justify-center h-52 text-center px-4">
+                  <p className="text-sm font-semibold text-slate-600">Sin datos aún</p>
+                  <p className="text-xs text-slate-400 mt-1">Crea categorías y asigna productos.</p>
+                </div>
+              ):(
+                <div className="p-4">
+                  <div className="relative w-full h-[160px] sm:h-[180px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={stockByCategory} dataKey="value" nameKey="name"
+                          innerRadius="38%" outerRadius="58%" paddingAngle={4}
+                          startAngle={90} endAngle={-270}>
+                          {stockByCategory.map((_,i)=><Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]} stroke="transparent"/>)}
+                        </Pie>
+                        <Tooltip content={<PTooltip/>}/>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-2xl font-display font-bold text-slate-900">{totalSU}</span>
+                      <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-widest">uds.</span>
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="relative w-full h-[180px] flex items-center justify-center">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={stockByCategory} dataKey="value" nameKey="name" innerRadius={52} outerRadius={76} paddingAngle={3}>
-                            {stockByCategory.map((_,i) => <Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]} stroke="transparent" />)}
-                          </Pie>
-                          <Tooltip content={<PieTooltip />} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-xl font-display font-bold text-ink-primary">{totalStockUnits}</span>
-                        <span className="text-2xs text-ink-muted uppercase tracking-widest font-semibold">Uds.</span>
+                  <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-slate-100">
+                    {stockByCategory.map((c,i)=>(
+                      <div key={c.name} className="flex items-center gap-2 text-xs">
+                        <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{background:PIE_COLORS[i%PIE_COLORS.length]}}/>
+                        <span className="text-slate-600 flex-1 truncate">{c.name}</span>
+                        <span className="font-semibold text-slate-800">{c.value}</span>
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-base-border justify-center">
-                      {stockByCategory.map((c,i) => (
-                        <div key={c.name} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-base-raised border border-base-border text-2xs text-ink-secondary font-medium">
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PIE_COLORS[i%PIE_COLORS.length] }} />
-                          <span className="truncate max-w-[70px]">{c.name}</span>
-                          <span className="text-ink-muted">({c.value})</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ══ BOTTOM TABLES ══ */}
-        {!loading && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-            {/* Low stock */}
-            <div className="card-section flex flex-col">
-              <div className="card-header">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-amber-50 text-warn border border-amber-100 flex items-center justify-center shrink-0">
-                    <ShieldAlert size={16} />
+                    ))}
                   </div>
-                  <div>
-                    <h3 className="font-display font-bold text-ink-primary text-base">Stock Bajo / Agotado</h3>
-                    <p className="text-2xs text-ink-muted">{stats.lowStock.length} de {products.length} en nivel de reorden</p>
-                  </div>
-                </div>
-                <Link to="/movimientos" className="text-xs font-bold text-brand hover:underline flex items-center gap-1">
-                  Reponer <ArrowRight size={11} />
-                </Link>
-              </div>
-              {lowStockList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-10">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-good border border-emerald-100 flex items-center justify-center mb-3">
-                    <CheckCircle2 size={18} />
-                  </div>
-                  <p className="text-sm font-semibold text-ink-primary">Inventario saludable</p>
-                  <p className="text-xs text-ink-muted mt-1">Ningún producto bajo el umbral mínimo.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr>
-                        <th className="th">SKU / Producto</th>
-                        <th className="th text-center">Nivel</th>
-                        <th className="th text-right">Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lowStockList.map(p => {
-                        const pct = Math.min(Math.round((p.stock/Math.max(p.min_stock,1))*100),100)
-                        return (
-                          <tr key={p.id} className="tr-hover">
-                            <td className="td py-3">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-2xs bg-base-raised text-ink-muted px-1.5 py-0.5 rounded border border-base-border">{p.sku}</span>
-                                <span className="font-medium text-sm truncate max-w-[130px]">{p.name}</span>
-                              </div>
-                            </td>
-                            <td className="td py-3">
-                              <div className="flex flex-col items-center min-w-[80px] mx-auto">
-                                <span className="text-xs font-bold text-ink-primary">{p.stock} <span className="font-normal text-2xs text-ink-muted">/ mín {p.min_stock}</span></span>
-                                <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full transition-all ${p.stock<=0?'bg-bad':pct<50?'bg-warn':'bg-good'}`}
-                                    style={{ width:`${Math.max(pct,4)}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </td>
-                            <td className="td py-3 text-right"><StockBadge stock={p.stock} minStock={p.min_stock} /></td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
                 </div>
               )}
             </div>
 
+            {/* 3D Bar chart */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden md:col-span-2 lg:col-span-1"
+              style={{boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
+              <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="font-display font-bold text-slate-800 text-sm">Productos más vendidos</h3>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Top {topProducts.length}</span>
+              </div>
+              {topProducts.length===0?(
+                <div className="flex flex-col items-center justify-center h-52 text-center px-4">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-2">
+                    <Package size={18} strokeWidth={1.5} className="text-slate-400"/>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600">Sin ventas registradas</p>
+                  <p className="text-xs text-slate-400 mt-1">Registra ventas para ver rotación.</p>
+                </div>
+              ):(
+                <div className="px-2 py-4" style={{height:280}}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topProducts} layout="vertical" margin={{left:0,right:20,top:8,bottom:4}}>
+                      <XAxis type="number" stroke="#CBD5E1" fontSize={10} tickLine={false} axisLine={false}/>
+                      <YAxis type="category" dataKey="name" stroke="#94A3B8" fontSize={11}
+                        width={105} tickLine={false} axisLine={false}/>
+                      <Tooltip content={<BTooltip/>} cursor={{fill:'rgba(37,99,235,0.04)'}}/>
+                      <Bar dataKey="cantidad" shape={<Bar3D/>} barSize={18} isAnimationActive={true}
+                        animationDuration={900} animationEasing="ease-out"/>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Bottom tables ── */}
+        {!loading && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+
             {/* Recent sales */}
-            <div className="card-section flex flex-col">
-              <div className="card-header">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-brand border border-blue-100 flex items-center justify-center shrink-0">
-                    <ShoppingCart size={16} />
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
+              style={{boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
+              <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <ShoppingCart size={13} className="text-blue-600"/>
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-ink-primary text-base">Últimas Ventas</h3>
-                    <p className="text-2xs text-ink-muted">Transacciones recientes</p>
+                    <h3 className="font-display font-bold text-slate-800 text-sm">Últimas ventas</h3>
+                    <p className="text-[11px] text-slate-400 hidden sm:block">Transacciones recientes</p>
                   </div>
                 </div>
-                <Link to="/ventas" className="text-xs font-bold text-brand hover:underline flex items-center gap-1">
-                  Ver todas <ArrowRight size={11} />
+                <Link to="/ventas" className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
+                  Ver todas <ArrowUpRight size={11}/>
                 </Link>
               </div>
-              {recentSales.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-10">
-                  <div className="w-10 h-10 rounded-2xl bg-base-raised border border-base-border flex items-center justify-center mb-3">
-                    <ShoppingCart size={18} className="text-ink-muted" strokeWidth={1.5} />
+              {recentSales.length===0?(
+                <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
+                    <ShoppingCart size={18} strokeWidth={1.5} className="text-slate-400"/>
                   </div>
-                  <p className="text-sm font-semibold text-ink-primary">Sin ventas aún</p>
-                  <p className="text-xs text-ink-muted mt-1">Registra tu primera venta para verla aquí.</p>
+                  <p className="text-sm font-semibold text-slate-600">Sin ventas aún</p>
+                  <p className="text-xs text-slate-400 mt-1 mb-4">Registra tu primera venta aquí.</p>
+                  <Link to="/ventas" className="btn-primary text-xs"><Plus size={12}/>Registrar venta</Link>
                 </div>
-              ) : (
-                <div className="divide-y divide-base-border">
-                  {recentSales.map(sale => {
-                    const clientName = clientMap[sale.client_id] || sale.client_name || 'Cliente'
-                    const total = salesService.saleTotal(sale)
-                    const itemsCount = sale.items?.reduce((s,it) => s+it.quantity, 0)||0
-                    const initials = clientName.slice(0,2).toUpperCase()
-                    return (
-                      <div key={sale.id} className="px-4 py-3.5 hover:bg-brand-dim transition-colors flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-xs font-bold text-brand shrink-0 font-display">
-                            {initials}
+              ):(
+                <div className="divide-y divide-slate-100">
+                  {recentSales.map((sale,i)=>{
+                    const cName=clientMap[sale.client_id]||sale.client_name||'Cliente'
+                    const total=salesService.saleTotal(sale)
+                    const count=sale.items?.reduce((s,it)=>s+it.quantity,0)||0
+                    const color=nc(cName)
+                    return(
+                      <div key={sale.id} className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 hover:bg-slate-50 transition-colors"
+                        style={{animationDelay:`${i*60}ms`}}>
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[11px] font-bold font-display shrink-0"
+                            style={{background:color}}>
+                            {cName.slice(0,2).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-ink-primary truncate">{clientName}</p>
-                            <p className="text-xs text-ink-muted">{shortDate(sale.created_at)} · {itemsCount} art.</p>
+                            <p className="text-sm font-semibold text-slate-800 truncate">{cName}</p>
+                            <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                              <Clock size={9}/> {timeAgo(sale.created_at)} · {count} art.
+                            </p>
                           </div>
                         </div>
-                        <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                          <span className="font-display font-bold text-sm text-ink-primary">{money(total)}</span>
-                          <StatusBadge status={sale.status || 'pagado'} />
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="font-display font-bold text-sm text-slate-900">{fmt(total)}</span>
+                          <StatusBadge status={sale.status||'pagado'}/>
                         </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Low stock */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden"
+              style={{boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
+              <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <ShieldAlert size={13} className="text-amber-600"/>
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-slate-800 text-sm">Stock bajo / agotado</h3>
+                    <p className="text-[11px] text-slate-400 hidden sm:block">{stats.lowStock.length} de {products.length} en alerta</p>
+                  </div>
+                </div>
+                <Link to="/movimientos" className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
+                  Reponer <ArrowUpRight size={11}/>
+                </Link>
+              </div>
+              {lowList.length===0?(
+                <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
+                    <CheckCircle2 size={18} className="text-emerald-600"/>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600">Inventario en buen estado</p>
+                  <p className="text-xs text-slate-400 mt-1">Todos los productos sobre el mínimo.</p>
+                </div>
+              ):(
+                <div className="divide-y divide-slate-100">
+                  {lowList.map(p=>{
+                    const pct=Math.min(Math.round((p.stock/Math.max(p.min_stock,1))*100),100)
+                    const barColor=p.stock<=0?'#EF4444':pct<50?'#F59E0B':'#10B981'
+                    return(
+                      <div key={p.id} className="flex items-center gap-3 px-4 sm:px-5 py-3.5 hover:bg-slate-50 transition-colors">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-mono text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded shrink-0">{p.sku}</span>
+                            <span className="text-sm font-semibold text-slate-800 truncate">{p.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <AnimBar pct={pct} color={barColor}/>
+                            <span className="text-[11px] text-slate-400 font-mono shrink-0">{p.stock}/{p.min_stock}</span>
+                          </div>
+                        </div>
+                        <StockBadge stock={p.stock} minStock={p.min_stock}/>
                       </div>
                     )
                   })}
