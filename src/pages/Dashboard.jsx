@@ -57,6 +57,39 @@ const getAvatarStyle = (name = '') => {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
+/* ─── Animated Number Hook (Mobile & Desktop Safe) ─── */
+function useAnimatedNumber(value, duration = 850) {
+  const [displayValue, setDisplayValue] = useState(0)
+
+  useEffect(() => {
+    const target = Number(value) || 0
+    if (!target) {
+      setDisplayValue(0)
+      return
+    }
+    const startTime = performance.now()
+    let frameId
+
+    const step = (currentTime) => {
+      const elapsed = currentTime - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const ease = 1 - Math.pow(1 - progress, 3)
+      setDisplayValue(Math.round(target * ease * 100) / 100)
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(step)
+      } else {
+        setDisplayValue(target)
+      }
+    }
+
+    frameId = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frameId)
+  }, [value, duration])
+
+  return displayValue
+}
+
 /* ─── Mini Sparkline for Metric Cards ─── */
 function MiniSparkline({ color = '#1B4FD8', trend = 'up' }) {
   const points = trend === 'up'
@@ -79,10 +112,11 @@ function MiniSparkline({ color = '#1B4FD8', trend = 'up' }) {
         <polyline
           fill="none"
           stroke={color}
-          strokeWidth="2.2"
+          strokeWidth="2.4"
           strokeLinecap="round"
           strokeLinejoin="round"
           points={points}
+          className="animate-draw-line"
         />
       </svg>
     </div>
@@ -306,70 +340,97 @@ export default function Dashboard() {
     year: 'numeric'
   })
 
+  /* ─ Mobile & Desktop Safe Animated Counters ─ */
+  const animRev   = useAnimatedNumber(stats.rev, 900)
+  const animInv   = useAnimatedNumber(stats.inv, 900)
+  const animProds = useAnimatedNumber(stats.prods, 700)
+  const animUnits = useAnimatedNumber(stats.units, 800)
+  const animCount = useAnimatedNumber(stats.msCount, 600)
+  const animLow   = useAnimatedNumber(stats.low.length, 500)
+
   return (
     <AppLayout title="Panel de Control">
       <div className="space-y-6 max-w-7xl mx-auto pb-12">
 
         {/* ═════════════════════════════════════════════════════════
-            1. REFINED ENTERPRISE EXECUTIVE HEADER (PURE CLEAN WHITE)
+            1. REFINED EXECUTIVE HEADER (CELESTE / AZUL GRADIENTE)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6 transition-all">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div
+          className="relative overflow-hidden rounded-2xl p-5 sm:p-7 shadow-md transition-all text-white"
+          style={{
+            background: 'linear-gradient(135deg, #0284C7 0%, #2563EB 50%, #1D4ED8 100%)',
+            boxShadow: '0 8px 30px rgba(2, 132, 199, 0.25)',
+            animation: 'slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both'
+          }}
+        >
+          {/* Subtle background radial glow & decorative light */}
+          <div
+            className="absolute -right-20 -top-20 w-80 h-80 rounded-full pointer-events-none"
+            style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)' }}
+          />
+          <div
+            className="absolute -left-20 -bottom-20 w-80 h-80 rounded-full pointer-events-none"
+            style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.2) 0%, transparent 70%)' }}
+          />
+
+          <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-5">
             <div>
-              <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="flex items-center gap-2.5 mb-2.5 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-white/15 text-white border border-white/25 backdrop-blur-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   Almacén Principal Operativo
                 </span>
-                <span className="text-slate-400 text-xs font-normal">|</span>
-                <span className="text-slate-500 text-xs font-medium capitalize flex items-center gap-1">
-                  <Clock size={12} className="text-slate-400" />
+                <span className="text-white/40 text-xs font-normal">|</span>
+                <span className="text-sky-100/90 text-xs font-medium capitalize flex items-center gap-1.5">
+                  <Clock size={12} className="text-sky-200" />
                   {currentDateFormatted}
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight font-sans">
+
+              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight font-sans">
                 {greeting()},{' '}
-                <span className="text-brand">
-                  {user?.full_name ? user.full_name.split(' ')[0] : 'Administrador'}
-                </span>
+                <span className="text-sky-100 underline decoration-sky-300/40 underline-offset-4">
+                  {user?.full_name ? user.full_name.split(' ')[0] : (user?.email || 'Administrador')}
+                </span>{' '}
+                👋
               </h1>
-              <p className="text-slate-500 text-sm mt-0.5">
+              <p className="text-sky-100/80 text-sm mt-1 max-w-2xl leading-relaxed">
                 Visión general de inventario, finanzas operativas y flujo comercial en tiempo real.
               </p>
             </div>
 
             {/* Quick Action Hub */}
-            <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
               <button
                 onClick={loadData}
                 disabled={loading}
                 title="Actualizar datos"
-                className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-xs"
+                className="p-2.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 active:scale-95 text-white transition-all shadow-xs backdrop-blur-sm card-mobile-active"
               >
-                <RefreshCw size={16} className={loading ? 'animate-spin text-brand' : ''} />
+                <RefreshCw size={16} className={loading ? 'animate-spin text-white' : ''} />
               </button>
 
               <Link
                 to="/movimientos"
-                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs sm:text-sm font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-xs"
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs sm:text-sm font-semibold transition-all shadow-xs backdrop-blur-sm card-mobile-active"
               >
-                <ArrowLeftRight size={15} className="text-slate-500" />
+                <ArrowLeftRight size={15} />
                 <span>Movimiento</span>
               </Link>
 
               <Link
                 to="/productos"
-                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-xs sm:text-sm font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-xs"
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs sm:text-sm font-semibold transition-all shadow-xs backdrop-blur-sm card-mobile-active"
               >
-                <Plus size={15} className="text-slate-500" />
+                <Plus size={15} />
                 <span>Nuevo Producto</span>
               </Link>
 
               <Link
                 to="/ventas"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand text-white text-xs sm:text-sm font-semibold hover:bg-brand-hover active:scale-95 transition-all shadow-sm"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-blue-700 hover:bg-sky-50 active:scale-95 text-xs sm:text-sm font-bold transition-all shadow-md card-mobile-active"
               >
-                <ShoppingCart size={15} />
+                <ShoppingCart size={15} className="text-blue-700" />
                 <span>Nueva Venta</span>
               </Link>
             </div>
@@ -382,7 +443,10 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           
           {/* Card 1: Ventas del Mes */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col justify-between">
+          <div
+            className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md hover:border-slate-300 card-mobile-active active:scale-[0.98] transition-all group relative overflow-hidden flex flex-col justify-between"
+            style={{ animation: 'slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 80ms both' }}
+          >
             <div>
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 transition-transform group-hover:scale-105">
@@ -390,14 +454,14 @@ export default function Dashboard() {
                 </div>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
                   <ArrowUpRight size={12} />
-                  {stats.msCount} ventas
+                  {animCount} ventas
                 </span>
               </div>
               <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-1">
                 Facturación del Mes
               </p>
               <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
-                {loading ? '…' : fmt(stats.rev)}
+                {loading ? '…' : fmt(animRev)}
               </h3>
             </div>
 
@@ -410,7 +474,10 @@ export default function Dashboard() {
           </div>
 
           {/* Card 2: Capital Invertido */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col justify-between">
+          <div
+            className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md hover:border-slate-300 card-mobile-active active:scale-[0.98] transition-all group relative overflow-hidden flex flex-col justify-between"
+            style={{ animation: 'slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 160ms both' }}
+          >
             <div>
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand transition-transform group-hover:scale-105">
@@ -424,20 +491,23 @@ export default function Dashboard() {
                 Capital en Inventario
               </p>
               <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
-                {loading ? '…' : fmt(stats.inv)}
+                {loading ? '…' : fmt(animInv)}
               </h3>
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-slate-500">
-                Total físico: <strong className="text-slate-700">{fmtN(stats.units)} uds.</strong>
+                Total físico: <strong className="text-slate-700">{fmtN(animUnits)} uds.</strong>
               </span>
               <MiniSparkline color="#1B4FD8" trend="up" />
             </div>
           </div>
 
           {/* Card 3: Catálogo Activo */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col justify-between">
+          <div
+            className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md hover:border-slate-300 card-mobile-active active:scale-[0.98] transition-all group relative overflow-hidden flex flex-col justify-between"
+            style={{ animation: 'slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 240ms both' }}
+          >
             <div>
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 transition-transform group-hover:scale-105">
@@ -451,7 +521,7 @@ export default function Dashboard() {
                 Catálogo de Productos
               </p>
               <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
-                {loading ? '…' : `${stats.prods} SKUs`}
+                {loading ? '…' : `${animProds} SKUs`}
               </h3>
             </div>
 
@@ -464,7 +534,10 @@ export default function Dashboard() {
           </div>
 
           {/* Card 4: Estado Operativo de Stock */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col justify-between">
+          <div
+            className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs hover:shadow-md hover:border-slate-300 card-mobile-active active:scale-[0.98] transition-all group relative overflow-hidden flex flex-col justify-between"
+            style={{ animation: 'slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 320ms both' }}
+          >
             <div>
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-transform group-hover:scale-105 ${
@@ -479,14 +552,14 @@ export default function Dashboard() {
                     ? 'bg-amber-50 text-amber-700 border-amber-200'
                     : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                 }`}>
-                  {stats.low.length > 0 ? `${stats.low.length} en alerta` : '100% Saludable'}
+                  {stats.low.length > 0 ? `${animLow} en alerta` : '100% Saludable'}
                 </span>
               </div>
               <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-1">
                 Control de Almacén
               </p>
               <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
-                {loading ? '…' : stats.low.length > 0 ? `${stats.low.length} críticos` : 'Sin quiebres'}
+                {loading ? '…' : stats.low.length > 0 ? `${animLow} críticos` : 'Sin quiebres'}
               </h3>
             </div>
 
@@ -505,7 +578,10 @@ export default function Dashboard() {
         {/* ═════════════════════════════════════════════════════════
             3. ANALYTICS & REVENUE HUB (CHARTS SECTION)
            ═════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div
+          className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+          style={{ animation: 'slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 400ms both' }}
+        >
 
           {/* Main Chart: Flujo de Ingresos últimos 7 días */}
           <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between">
@@ -673,7 +749,10 @@ export default function Dashboard() {
         {/* ═════════════════════════════════════════════════════════
             4. OPERATIONAL WORKFLOW: RECENT ACTIVITY & STOCK CONTROL
            ═════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+          style={{ animation: 'slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 480ms both' }}
+        >
 
           {/* Left Panel: Recent Sales Ledger */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
@@ -869,7 +948,10 @@ export default function Dashboard() {
             5. CATEGORY DISTRIBUTION & INVENTORY BREAKDOWN
            ═════════════════════════════════════════════════════════ */}
         {byCat.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
+          <div
+            className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs"
+            style={{ animation: 'slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 560ms both' }}
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Layers size={16} className="text-brand" />

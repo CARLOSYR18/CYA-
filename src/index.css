@@ -166,3 +166,22 @@ html, body { touch-action: manipulation; }
 .animate-float-medium  { animation: floatMedium 5.5s ease-in-out infinite 0.7s; }
 .animate-float-reverse { animation: floatReverse 5s ease-in-out infinite 1.2s; }
 
+/* ── Universal Mobile-Safe Entrance Animations ── */
+@keyframes drawLine {
+  from { stroke-dashoffset: 160; }
+  to   { stroke-dashoffset: 0; }
+}
+
+.animate-draw-line {
+  stroke-dasharray: 160;
+  stroke-dashoffset: 160;
+  animation: drawLine 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+}
+
+.card-mobile-active {
+  -webkit-tap-highlight-color: transparent;
+}
+.card-mobile-active:active {
+  transform: scale(0.985);
+}
+
