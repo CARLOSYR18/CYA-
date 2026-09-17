@@ -20,6 +20,7 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
 
   const clientName = client?.name || sale.client_name || 'CLIENTE PARTICULAR'
   const clientPhone = client?.phone || sale.client_phone || ''
+  const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
 
   return (
     <div
@@ -27,22 +28,21 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
       className="bg-white text-slate-900 font-sans p-6 rounded-2xl border border-slate-200/90 shadow-sm max-w-[340px] mx-auto text-xs leading-relaxed select-text"
     >
       
-      {/* ─── Company Header ─── */}
+      {/* ─── Company Header con Logo Oficial CYA STORE ─── */}
       <div className="text-center pb-3 border-b border-dashed border-slate-300">
-        {company?.logo_url ? (
+        <div className="w-14 h-14 mx-auto mb-2 rounded-full overflow-hidden bg-black flex items-center justify-center shadow-xs">
           <img
-            src={company.logo_url}
-            alt="Logo"
-            className="w-14 h-14 mx-auto mb-2 object-contain rounded-lg"
+            src={company?.logo_url || '/logo.png'}
+            alt={companyDisplayName}
+            className="w-full h-full object-contain"
             crossOrigin="anonymous"
+            onError={(e) => {
+              e.currentTarget.src = '/logo-cya-badge.png'
+            }}
           />
-        ) : (
-          <div className="w-10 h-10 mx-auto mb-1.5 rounded-xl bg-slate-900 text-white font-extrabold flex items-center justify-center text-sm font-display shadow-xs">
-            {company?.name ? company.name.slice(0, 2).toUpperCase() : 'CYA'}
-          </div>
-        )}
+        </div>
         <h3 className="font-extrabold text-sm tracking-tight text-slate-900 uppercase">
-          {company?.name || 'CYA STORE'}
+          {companyDisplayName}
         </h3>
         {company?.ruc && (
           <p className="font-mono text-[11px] font-bold text-slate-700 mt-0.5">
@@ -203,8 +203,9 @@ export default function Receipt({ sale, client, products, company: propCompany }
   const total = Math.max(subtotal - discount, 0)
   const ticketCode = `B001-${sale.id ? sale.id.toString().slice(-6).toUpperCase() : '000001'}`
   const clientName = client?.name || sale.client_name || 'Cliente'
+  const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
 
-  const shareText = `*${company?.name || 'CYA STORE'}* 🧾
+  const shareText = `*${companyDisplayName}* 🧾
 *Comprobante:* ${ticketCode}
 *Cliente:* ${clientName}
 *Fecha:* ${new Date(sale.created_at).toLocaleDateString('es-PE')}
@@ -224,9 +225,8 @@ ${sale.items.map((it) => `• ${it.quantity}x ${productName(it.product_id)} = ${
     if (!visibleTicketRef.current || sharing) return
     setSharing(true)
     try {
-      const companyName = company?.name || 'CYA STORE'
       const fileName = `boleta-${(sale.id || '00000000').toString().slice(0, 8)}.png`
-      const whatsappText = `Aquí tu boleta de compra en ${companyName} — Total: S/ ${total.toFixed(2)}`
+      const whatsappText = `Aquí tu boleta de compra en ${companyDisplayName} — Total: S/ ${total.toFixed(2)}`
       const phone = client?.phone || sale.client_phone || undefined
 
       await shareReceiptAsImage(visibleTicketRef.current, {

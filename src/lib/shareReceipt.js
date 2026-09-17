@@ -1,29 +1,27 @@
 import html2canvas from 'html2canvas'
 
-// Convierte el nodo DOM de la boleta en una imagen PNG y la comparte con
-// el selector nativo del sistema (WhatsApp, correo, etc.). Si el navegador
-// no soporta compartir archivos (la mayoría de PCs), descarga la imagen y
-// abre WhatsApp con el texto, para que el usuario la adjunte a mano.
 export async function shareReceiptAsImage(element, { fileName, whatsappText, phone }) {
   const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff' })
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
   const file = new File([blob], fileName, { type: 'image/png' })
 
   const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] })
-  alert(`canShareFiles: ${canShareFiles} | fileType: ${file.type} | fileSize: ${file.size}`)
 
   if (canShareFiles) {
     try {
       await navigator.share({ files: [file], text: whatsappText })
       return { method: 'share' }
     } catch (err) {
-      alert('Error al compartir: ' + (err?.message || err))
-      return { method: 'cancelled' }
+      // AbortError = el usuario cerró el panel de compartir a propósito, no es un error real
+      if (err?.name === 'AbortError') return { method: 'cancelled' }
+
+      // Cualquier otro error (ej. NotAllowedError por el tiempo del gesto del
+      // usuario) cae al plan B en vez de quedarse en silencio.
+      alert('No se pudo abrir el panel de compartir (' + (err?.name || 'error') + '). Se descargará la imagen y se abrirá WhatsApp con el texto.')
     }
   }
 
-  // Respaldo (típicamente en escritorio): descarga la imagen y abre WhatsApp
-  // con el texto ya escrito, para que la adjunten manualmente.
+  // Plan B: descarga la imagen y abre WhatsApp con el texto, para adjuntarla a mano.
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
