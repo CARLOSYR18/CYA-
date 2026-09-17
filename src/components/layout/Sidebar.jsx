@@ -6,20 +6,20 @@ import {
 import { useAuth } from '../../context/AuthContext'
 
 const NAV_MAIN = [
-  { to: '/',            label: 'Panel',        icon: LayoutDashboard, end: true },
-  { to: '/ventas',      label: 'Ventas',        icon: ShoppingCart },
-  { to: '/compras',     label: 'Compras',       icon: Truck },
-  { to: '/productos',   label: 'Productos',     icon: Boxes },
-  { to: '/clientes',    label: 'Clientes',      icon: Users },
-  { to: '/movimientos', label: 'Movimientos',   icon: ArrowLeftRight },
+  { to: '/', label: 'Panel', icon: LayoutDashboard, end: true },
+  { to: '/ventas', label: 'Ventas', icon: ShoppingCart },
+  { to: '/compras', label: 'Compras', icon: Truck },
+  { to: '/productos', label: 'Productos', icon: Boxes },
+  { to: '/clientes', label: 'Clientes', icon: Users },
+  { to: '/movimientos', label: 'Movimientos', icon: ArrowLeftRight },
 ]
 const NAV_CAT = [
-  { to: '/categorias',   label: 'Categorías',   icon: Tags },
-  { to: '/proveedores',  label: 'Proveedores',  icon: Warehouse },
+  { to: '/categorias', label: 'Categorías', icon: Tags },
+  { to: '/proveedores', label: 'Proveedores', icon: Warehouse },
 ]
 const NAV_ADM = [
-  { to: '/usuarios',      label: 'Usuarios',    icon: UserCog },
-  { to: '/configuracion', label: 'Empresa',     icon: Settings2 },
+  { to: '/usuarios', label: 'Usuarios', icon: UserCog },
+  { to: '/configuracion', label: 'Empresa', icon: Settings2 },
 ]
 
 function Label({ children }) {
@@ -30,10 +30,9 @@ function Item({ to, label, icon: Icon, end, onClick }) {
   return (
     <NavLink to={to} end={end} onClick={onClick}
       className={({ isActive }) =>
-        `relative flex items-center gap-2.5 mx-2 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 ${
-          isActive
-            ? 'bg-blue-50 text-blue-700 font-semibold'
-            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+        `relative flex items-center gap-2.5 mx-2 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 ${isActive
+          ? 'bg-blue-50 text-blue-700 font-semibold'
+          : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
         }`
       }>
       {({ isActive }) => (

@@ -3,7 +3,7 @@ import {
   Plus, Trash2, ShoppingCart, Search, X, TrendingUp,
   DollarSign, CheckCircle2, Clock, Filter, ArrowUpDown,
   Receipt, User, Phone, Package, ChevronRight, Eye,
-  Printer, ArrowUpRight, AlertCircle
+  Printer, ArrowUpRight, AlertCircle, AlertTriangle
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
@@ -43,6 +43,8 @@ export default function Sales() {
   const [clientName, setClientName] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [status, setStatus] = useState('pagado')
+  const [dueDate, setDueDate] = useState('')
+  const [notes, setNotes] = useState('')
   const [discount, setDiscount] = useState('')
   const [items, setItems] = useState([])
   const [error, setError] = useState('')
@@ -92,6 +94,9 @@ export default function Sales() {
     }
   }, [sales])
 
+  /* ─── Overdue Sales Alert List ─── */
+  const overdueSales = useMemo(() => sales.filter((s) => salesService.isOverdue(s)), [sales])
+
   /* ─── Filtered & Sorted Sales ─── */
   const filtered = useMemo(() => {
     let result = [...sales]
@@ -126,6 +131,8 @@ export default function Sales() {
     setClientName('')
     setClientPhone('')
     setStatus('pagado')
+    setDueDate('')
+    setNotes('')
     setDiscount('')
     setItems([{ product_id: '', quantity: 1 }])
     setError('')
@@ -196,7 +203,9 @@ export default function Sales() {
         user_id: user.id,
         status,
         items: saleItems,
-        discount: Number(discount) || 0
+        discount: Number(discount) || 0,
+        due_date: dueDate || null,
+        notes: notes || null
       })
 
       setModalOpen(false)
@@ -211,6 +220,34 @@ export default function Sales() {
 
   const getClientLabel = (sale) =>
     sale.client?.name || sale.client_name || clients.find((c) => c.id === sale.client_id)?.name || 'Cliente Particular'
+
+  const renderDueBadge = (sale) => {
+    if (sale.status !== 'pendiente' || !sale.due_date) {
+      return <span className="text-slate-400 font-medium">—</span>
+    }
+    const days = salesService.daysUntilDue(sale)
+    if (salesService.isOverdue(sale)) {
+      const x = Math.abs(days)
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-2xs font-bold bg-red-100 text-red-700 border border-red-200 whitespace-nowrap">
+          Vencido hace {x} {x === 1 ? 'día' : 'días'}
+        </span>
+      )
+    }
+    if (days !== null && days >= 0 && days <= 3) {
+      const text = days === 0 ? 'Vence hoy' : `Vence en ${days} ${days === 1 ? 'día' : 'días'}`
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-2xs font-bold bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
+          {text}
+        </span>
+      )
+    }
+    return (
+      <span className="text-slate-600 font-mono text-xs whitespace-nowrap">
+        {sale.due_date}
+      </span>
+    )
+  }
 
   return (
     <AppLayout title="Gestión de Ventas">
@@ -410,6 +447,34 @@ export default function Sales() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════
+            OVERDUE ALERT BANNER (IF ANY OVERDUE SALES EXIST)
+           ═════════════════════════════════════════════════════════ */}
+        {overdueSales.length > 0 && (
+          <div className="bg-bad-dim border border-bad rounded-2xl p-4 text-bad space-y-2.5 shadow-xs">
+            <div className="flex items-center gap-2 font-bold text-sm">
+              <AlertTriangle size={18} className="shrink-0 text-bad" />
+              <span>{overdueSales.length} venta(s) pendiente(s) de pago vencidas</span>
+            </div>
+            <ul className="text-xs space-y-1 pl-6 list-disc font-medium">
+              {overdueSales.slice(0, 5).map((s) => {
+                const client = getClientLabel(s)
+                const days = Math.abs(salesService.daysUntilDue(s))
+                return (
+                  <li key={s.id}>
+                    <span className="font-semibold">{client}</span> — {days} días vencido
+                  </li>
+                )
+              })}
+              {overdueSales.length > 5 && (
+                <li className="font-semibold text-2xs uppercase tracking-wider list-none -ml-2 text-bad/80">
+                  +{overdueSales.length - 5} más
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        {/* ═════════════════════════════════════════════════════════
             3. SALES LEDGER (TABLE & MOBILE FEED)
            ═════════════════════════════════════════════════════════ */}
         {loading ? (
@@ -469,7 +534,10 @@ export default function Sales() {
                       <span className="font-mono font-bold text-xs bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200 text-slate-700">
                         {ticketId}
                       </span>
-                      <StatusBadge status={s.status || 'pagado'} />
+                      <div className="flex items-center gap-1.5">
+                        <StatusBadge status={s.status || 'pagado'} />
+                        {s.status === 'pendiente' && s.due_date && renderDueBadge(s)}
+                      </div>
                     </div>
 
                     <div className="flex items-start justify-between gap-2">
@@ -513,6 +581,7 @@ export default function Sales() {
                     <th className="py-3 px-4 text-center">Artículos</th>
                     <th className="py-3 px-4 text-right">Total</th>
                     <th className="py-3 px-4 text-center">Estado</th>
+                    <th className="py-3 px-4 text-center">Vencimiento</th>
                     <th className="py-3 px-4 text-right">Comprobante</th>
                   </tr>
                 </thead>
@@ -573,6 +642,11 @@ export default function Sales() {
                         {/* Status Badge */}
                         <td className="py-3.5 px-4 text-center">
                           <StatusBadge status={s.status || 'pagado'} />
+                        </td>
+
+                        {/* Vencimiento */}
+                        <td className="py-3.5 px-4 text-center">
+                          {renderDueBadge(s)}
                         </td>
 
                         {/* Action: Open Ticket */}
@@ -672,6 +746,35 @@ export default function Sales() {
               />
             </div>
           </div>
+
+          {/* Additional fields for pending sale status */}
+          {status === 'pendiente' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="label flex items-center gap-1">
+                  <Clock size={12} /> Fecha límite de pago
+                </label>
+                <input
+                  type="date"
+                  className="field"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label flex items-center gap-1">
+                  Descripción / nota
+                </label>
+                <textarea
+                  rows={2}
+                  className="field resize-none"
+                  placeholder="Ej. Paga la próxima semana, adelantó S/20, etc."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Line items section */}
           <div>
@@ -815,12 +918,30 @@ export default function Sales() {
         width="max-w-md"
       >
         {viewing && (
-          <ReceiptModal
-            sale={viewing}
-            client={clients.find((c) => c.id === viewing.client_id) || viewing.client}
-            products={products}
-            company={company}
-          />
+          <div className="space-y-3">
+            {(viewing.notes || viewing.due_date) && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2">
+                {viewing.due_date && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600 font-medium">Fecha límite: <strong className="font-mono text-slate-900">{viewing.due_date}</strong></span>
+                    {renderDueBadge(viewing)}
+                  </div>
+                )}
+                {viewing.notes && (
+                  <div>
+                    <span className="font-bold text-slate-700 block text-[11px] uppercase tracking-wider mb-0.5">Nota</span>
+                    <p className="text-slate-600 bg-white p-2 rounded-lg border border-slate-200 text-xs whitespace-pre-wrap">{viewing.notes}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            <ReceiptModal
+              sale={viewing}
+              client={clients.find((c) => c.id === viewing.client_id) || viewing.client}
+              products={products}
+              company={company}
+            />
+          </div>
         )}
       </Modal>
 

@@ -21,7 +21,7 @@ function TicketBody({ sale, client, products, company }) {
 
   return (
     <div className="bg-white text-slate-900 font-sans p-6 rounded-2xl border border-slate-200/90 shadow-sm max-w-[340px] mx-auto text-xs leading-relaxed select-text">
-      
+
       {/* ─── Company Header ─── */}
       <div className="text-center pb-3 border-b border-dashed border-slate-300">
         {company?.logo_url ? (
