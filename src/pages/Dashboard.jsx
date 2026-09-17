@@ -460,7 +460,7 @@ export default function Dashboard() {
               <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-1">
                 Facturación del Mes
               </p>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans whitespace-nowrap">
                 {loading ? '…' : fmt(animRev)}
               </h3>
             </div>
@@ -490,7 +490,7 @@ export default function Dashboard() {
               <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-1">
                 Capital en Inventario
               </p>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans whitespace-nowrap">
                 {loading ? '…' : fmt(animInv)}
               </h3>
             </div>
@@ -520,7 +520,7 @@ export default function Dashboard() {
               <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-1">
                 Catálogo de Productos
               </p>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans whitespace-nowrap">
                 {loading ? '…' : `${animProds} SKUs`}
               </h3>
             </div>
@@ -558,7 +558,7 @@ export default function Dashboard() {
               <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase mb-1">
                 Control de Almacén
               </p>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans whitespace-nowrap">
                 {loading ? '…' : stats.low.length > 0 ? `${animLow} críticos` : 'Sin quiebres'}
               </h3>
             </div>
