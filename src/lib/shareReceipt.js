@@ -10,13 +10,14 @@ export async function shareReceiptAsImage(element, { fileName, whatsappText, pho
   const file = new File([blob], fileName, { type: 'image/png' })
 
   const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] })
+  alert(`canShareFiles: ${canShareFiles} | fileType: ${file.type} | fileSize: ${file.size}`)
 
   if (canShareFiles) {
     try {
       await navigator.share({ files: [file], text: whatsappText })
       return { method: 'share' }
-    } catch {
-      // el usuario canceló el share nativo; no hacemos nada más
+    } catch (err) {
+      alert('Error al compartir: ' + (err?.message || err))
       return { method: 'cancelled' }
     }
   }

@@ -1,11 +1,13 @@
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Printer, Share2, Check, Copy, MessageCircle } from 'lucide-react'
-import { useState } from 'react'
+import { Printer, Check, Copy, MessageCircle, Loader2 } from 'lucide-react'
+import { shareReceiptAsImage } from '../lib/shareReceipt'
+import { companySettingsService } from '../services/companySettingsService'
 
 const money = (n) =>
   `S/ ${(Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-function TicketBody({ sale, client, products, company }) {
+const TicketBody = forwardRef(function TicketBody({ sale, client, products, company }, ref) {
   const productName = (id) => products.find((p) => p.id === id)?.name || id
   const productSku = (id) => products.find((p) => p.id === id)?.sku || ''
   const subtotal = sale.items.reduce(
@@ -20,8 +22,11 @@ function TicketBody({ sale, client, products, company }) {
   const clientPhone = client?.phone || sale.client_phone || ''
 
   return (
-    <div className="bg-white text-slate-900 font-sans p-6 rounded-2xl border border-slate-200/90 shadow-sm max-w-[340px] mx-auto text-xs leading-relaxed select-text">
-
+    <div
+      ref={ref}
+      className="bg-white text-slate-900 font-sans p-6 rounded-2xl border border-slate-200/90 shadow-sm max-w-[340px] mx-auto text-xs leading-relaxed select-text"
+    >
+      
       {/* ─── Company Header ─── */}
       <div className="text-center pb-3 border-b border-dashed border-slate-300">
         {company?.logo_url ? (
@@ -29,6 +34,7 @@ function TicketBody({ sale, client, products, company }) {
             src={company.logo_url}
             alt="Logo"
             className="w-14 h-14 mx-auto mb-2 object-contain rounded-lg"
+            crossOrigin="anonymous"
           />
         ) : (
           <div className="w-10 h-10 mx-auto mb-1.5 rounded-xl bg-slate-900 text-white font-extrabold flex items-center justify-center text-sm font-display shadow-xs">
@@ -172,10 +178,21 @@ function TicketBody({ sale, client, products, company }) {
 
     </div>
   )
-}
+})
 
-export default function Receipt({ sale, client, products, company }) {
+export default function Receipt({ sale, client, products, company: propCompany }) {
+  const [company, setCompany] = useState(propCompany || null)
   const [copied, setCopied] = useState(false)
+  const [sharing, setSharing] = useState(false)
+  const visibleTicketRef = useRef(null)
+
+  useEffect(() => {
+    if (propCompany) {
+      setCompany(propCompany)
+    } else {
+      companySettingsService.get().then(setCompany).catch(() => {})
+    }
+  }, [propCompany])
 
   const productName = (id) => products.find((p) => p.id === id)?.name || id
   const subtotal = sale.items.reduce(
@@ -203,26 +220,49 @@ ${sale.items.map((it) => `• ${it.quantity}x ${productName(it.product_id)} = ${
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleWhatsApp = () => {
-    const phone = client?.phone || sale.client_phone || ''
-    const cleanPhone = phone.replace(/\D/g, '')
-    const url = cleanPhone
-      ? `https://wa.me/51${cleanPhone}?text=${encodeURIComponent(shareText)}`
-      : `https://wa.me/?text=${encodeURIComponent(shareText)}`
-    window.open(url, '_blank')
+  const handleWhatsApp = async () => {
+    if (!visibleTicketRef.current || sharing) return
+    setSharing(true)
+    try {
+      const companyName = company?.name || 'CYA STORE'
+      const fileName = `boleta-${(sale.id || '00000000').toString().slice(0, 8)}.png`
+      const whatsappText = `Aquí tu boleta de compra en ${companyName} — Total: S/ ${total.toFixed(2)}`
+      const phone = client?.phone || sale.client_phone || undefined
+
+      await shareReceiptAsImage(visibleTicketRef.current, {
+        fileName,
+        whatsappText,
+        phone,
+      })
+    } catch (err) {
+      console.error('Error al compartir comprobante como imagen:', err)
+    } finally {
+      setSharing(false)
+    }
   }
 
   return (
     <div className="space-y-4">
-      {/* Visual Ticket Body */}
+      {/* Visual Ticket Body (Visible en el modal para html2canvas) */}
       <div className="overflow-y-auto max-h-[65vh] p-1">
-        <TicketBody sale={sale} client={client} products={products} company={company} />
+        <TicketBody
+          ref={visibleTicketRef}
+          sale={sale}
+          client={client}
+          products={products}
+          company={company}
+        />
       </div>
 
       {/* Print Portal */}
       {createPortal(
         <div id="receipt-print-area">
-          <TicketBody sale={sale} client={client} products={products} company={company} />
+          <TicketBody
+            sale={sale}
+            client={client}
+            products={products}
+            company={company}
+          />
         </div>,
         document.body
       )}
@@ -240,11 +280,21 @@ ${sale.items.map((it) => `• ${it.quantity}x ${productName(it.product_id)} = ${
 
         <button
           type="button"
+          disabled={sharing}
           onClick={handleWhatsApp}
-          className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-semibold text-xs py-2.5 px-3 rounded-xl transition-all shadow-xs"
+          className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-75 disabled:cursor-not-allowed active:scale-95 text-white font-semibold text-xs py-2.5 px-3 rounded-xl transition-all shadow-xs"
         >
-          <MessageCircle size={15} />
-          <span>WhatsApp</span>
+          {sharing ? (
+            <>
+              <Loader2 size={15} className="animate-spin" />
+              <span>Generando imagen…</span>
+            </>
+          ) : (
+            <>
+              <MessageCircle size={15} />
+              <span>WhatsApp</span>
+            </>
+          )}
         </button>
 
         <button
