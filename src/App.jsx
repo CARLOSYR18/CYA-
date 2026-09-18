@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
+import Assistant from './components/Assistant'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/configuracion" element={<ProtectedRoute adminOnly><CompanySettings /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <Assistant />
       </BrowserRouter>
     </AuthProvider>
   )
