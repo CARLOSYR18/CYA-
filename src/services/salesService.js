@@ -61,4 +61,21 @@ export const salesService = {
     }
     return { ...sale, client }
   },
+
+  // Corrige el cliente y/o la fecha de una venta ya creada (para arreglar
+  // errores de captura). No toca los productos ni el total.
+  // client_name/client_phone: si se pasan, se resuelve (o crea) el cliente
+  // correcto y se reasigna la venta a él. created_at: string ISO opcional.
+  async correct(saleId, { client_name, client_phone, created_at }) {
+    const patch = {}
+    if (client_name && client_name.trim()) {
+      const client = await clientsService.findOrCreateByName(client_name, client_phone)
+      patch.client_id = client.id
+    }
+    if (created_at) {
+      patch.created_at = created_at
+    }
+    if (Object.keys(patch).length === 0) return null
+    return base.update(saleId, patch)
+  },
 }

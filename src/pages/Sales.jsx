@@ -3,7 +3,7 @@ import {
   Plus, Trash2, ShoppingCart, Search, X, TrendingUp,
   DollarSign, CheckCircle2, Clock, Filter, ArrowUpDown,
   Receipt, User, Phone, Package, ChevronRight, Eye,
-  Printer, ArrowUpRight, AlertCircle, AlertTriangle
+  Printer, ArrowUpRight, AlertCircle, AlertTriangle, Pencil
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
@@ -25,6 +25,14 @@ const getInitials = (name = '') => {
   return (parts[0][0] + parts[1][0]).toUpperCase()
 }
 
+const toDatetimeLocal = (dateStr) => {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export default function Sales() {
   const { user } = useAuth()
   const [sales, setSales] = useState([])
@@ -38,7 +46,7 @@ export default function Sales() {
   const [statusFilter, setStatusFilter] = useState('ALL') // 'ALL' | 'pagado' | 'pendiente'
   const [sortBy, setSortBy] = useState('recent') // 'recent' | 'highest' | 'lowest'
 
-  // Modal State
+  // Modal State - Nueva Venta
   const [modalOpen, setModalOpen] = useState(false)
   const [clientName, setClientName] = useState('')
   const [clientPhone, setClientPhone] = useState('')
@@ -50,6 +58,17 @@ export default function Sales() {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [viewing, setViewing] = useState(null)
+
+  // Modal State - Corregir Venta
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingSale, setEditingSale] = useState(null)
+  const [editForm, setEditForm] = useState({
+    clientName: '',
+    clientPhone: '',
+    datetimeLocal: '',
+  })
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState('')
 
   async function loadAll() {
     setLoading(true)
@@ -215,6 +234,49 @@ export default function Sales() {
       setError(err.message || 'No se pudo registrar la venta')
     } finally {
       setSaving(false)
+    }
+  }
+
+  /* ─── Correct Sale Logic ─── */
+  function openEdit(sale) {
+    const client = sale.client || clients.find((c) => c.id === sale.client_id)
+    const currentName = client?.name || sale.client_name || ''
+    const currentPhone = client?.phone || sale.client_phone || ''
+
+    setEditingSale(sale)
+    setEditForm({
+      clientName: currentName,
+      clientPhone: currentPhone,
+      datetimeLocal: toDatetimeLocal(sale.created_at),
+    })
+    setEditError('')
+    setEditModalOpen(true)
+  }
+
+  async function handleCorrectSale(e) {
+    e.preventDefault()
+    if (!editingSale) return
+    setEditError('')
+
+    if (!editForm.clientName.trim()) {
+      setEditError('El nombre del cliente es obligatorio')
+      return
+    }
+
+    setSavingEdit(true)
+    try {
+      await salesService.correct(editingSale.id, {
+        client_name: editForm.clientName.trim(),
+        client_phone: editForm.clientPhone.trim() || undefined,
+        created_at: editForm.datetimeLocal ? new Date(editForm.datetimeLocal).toISOString() : undefined,
+      })
+      setEditModalOpen(false)
+      setEditingSale(null)
+      await loadAll()
+    } catch (err) {
+      setEditError(err.message || 'No se pudo corregir la venta')
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -556,13 +618,26 @@ export default function Sales() {
                         </p>
                       </div>
 
-                      <div className="text-right shrink-0">
+                      <div className="text-right shrink-0 flex flex-col items-end">
                         <span className="font-mono font-extrabold text-base text-slate-900 block">
                           {fmt(totalAmount)}
                         </span>
-                        <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-brand mt-0.5">
-                          Ver boleta <ChevronRight size={12} />
-                        </span>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openEdit(s)
+                            }}
+                            title="Corregir venta"
+                            className="p-1 rounded-lg text-slate-400 hover:text-brand hover:bg-brand-dim transition-colors"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <span className="inline-flex items-center gap-0.5 text-[11px] font-bold text-brand">
+                            Ver boleta <ChevronRight size={12} />
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -582,7 +657,7 @@ export default function Sales() {
                     <th className="py-3 px-4 text-right">Total</th>
                     <th className="py-3 px-4 text-center">Estado</th>
                     <th className="py-3 px-4 text-center">Vencimiento</th>
-                    <th className="py-3 px-4 text-right">Comprobante</th>
+                    <th className="py-3 px-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
@@ -649,19 +724,32 @@ export default function Sales() {
                           {renderDueBadge(s)}
                         </td>
 
-                        {/* Action: Open Ticket */}
+                        {/* Actions: Edit & Open Ticket */}
                         <td className="py-3.5 px-4 text-right">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setViewing(s)
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-xs group-hover:border-brand group-hover:text-brand transition-all"
-                          >
-                            <Receipt size={13} />
-                            <span>Boleta</span>
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openEdit(s)
+                              }}
+                              title="Corregir venta"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-brand hover:bg-brand-dim transition-colors"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setViewing(s)
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-xs group-hover:border-brand group-hover:text-brand transition-all"
+                            >
+                              <Receipt size={13} />
+                              <span>Boleta</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -943,6 +1031,94 @@ export default function Sales() {
             />
           </div>
         )}
+      </Modal>
+
+      {/* ═════════════════════════════════════════════════════════
+          6. MODAL: CORREGIR VENTA (CLIENTE Y FECHA)
+         ═════════════════════════════════════════════════════════ */}
+      <Modal
+        open={editModalOpen}
+        onClose={() => {
+          if (!savingEdit) {
+            setEditModalOpen(false)
+            setEditingSale(null)
+          }
+        }}
+        title="Corregir Venta"
+        width="max-w-md"
+      >
+        <form onSubmit={handleCorrectSale} className="space-y-4">
+          <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+            Esto no modifica los productos ni el total de la venta, solo el cliente y la fecha.
+          </p>
+
+          <div>
+            <label className="label flex items-center gap-1">
+              <User size={12} /> Nombre del cliente *
+            </label>
+            <input
+              className="field"
+              placeholder="Ej. Juan Pérez"
+              value={editForm.clientName}
+              onChange={(e) => setEditForm({ ...editForm, clientName: e.target.value })}
+              required
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="label flex items-center gap-1">
+              <Phone size={12} /> Teléfono / DNI
+            </label>
+            <input
+              className="field font-mono"
+              placeholder="987 654 321"
+              value={editForm.clientPhone}
+              onChange={(e) => setEditForm({ ...editForm, clientPhone: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="label flex items-center gap-1">
+              <Clock size={12} /> Fecha y hora *
+            </label>
+            <input
+              type="datetime-local"
+              className="field font-mono"
+              value={editForm.datetimeLocal}
+              onChange={(e) => setEditForm({ ...editForm, datetimeLocal: e.target.value })}
+              required
+            />
+          </div>
+
+          {editError && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-xl p-3">
+              <AlertCircle size={15} className="shrink-0" />
+              <span>{editError}</span>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              disabled={savingEdit}
+              onClick={() => {
+                setEditModalOpen(false)
+                setEditingSale(null)
+              }}
+              className="btn-secondary"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={savingEdit}
+              className="btn-primary"
+            >
+              {savingEdit ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          </div>
+        </form>
       </Modal>
 
     </AppLayout>
