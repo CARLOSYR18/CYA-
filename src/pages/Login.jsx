@@ -60,7 +60,7 @@ export default function Login() {
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: "url('/login-bg.jpg')" }}
       />
-      {/* Subtle daylight ambient overlay to make the card pop without washing out the office */}
+      {/* Subtle daylight ambient overlay */}
       <div className="absolute inset-0 bg-slate-900/15" />
 
       {/* ─── Top Left Company Logo (APEX ERP style layout) ─── */}
