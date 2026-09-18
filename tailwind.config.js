@@ -41,8 +41,10 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Space Grotesk"', 'sans-serif'],
-        sans:    ['Inter', 'sans-serif'],
+        display: ['Outfit', '"Space Grotesk"', 'sans-serif'],
+        sans:    ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+        outfit:  ['Outfit', 'sans-serif'],
+        jakarta: ['"Plus Jakarta Sans"', 'sans-serif'],
         mono:    ['"IBM Plex Mono"', 'monospace'],
       },
       fontSize: {

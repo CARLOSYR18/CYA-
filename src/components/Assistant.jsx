@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { X, Send, Sparkles } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { askAssistant, suggestedQuestions } from '../lib/assistant'
@@ -6,11 +7,20 @@ import { companySettingsService } from '../services/companySettingsService'
 
 export default function Assistant() {
   const { user } = useAuth()
+  const location = useLocation()
+
+  // Do not render the assistant bot on the login page or if user is not authenticated
+  if (!user || location.pathname === '/login') {
+    return null
+  }
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [company, setCompany] = useState(null)
+
+  // Intro animation states: 'showcase' (tamaño grande + bienvenida) -> 'minimizing' -> 'idle' (bolita)
+  const [introState, setIntroState] = useState('showcase')
 
   const panelRef = useRef(null)
   const buttonRef = useRef(null)
@@ -21,6 +31,23 @@ export default function Assistant() {
   useEffect(() => {
     companySettingsService.get().then(setCompany).catch(() => {})
   }, [])
+
+  // Secuencia de animación de entrada: se muestra en tamaño real y luego se encoge a bolita
+  useEffect(() => {
+    // Tras 3.2 segundos en tamaño real, inicia la transición a bolita
+    const timer = setTimeout(() => {
+      startMinimize()
+    }, 3200)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  function startMinimize() {
+    setIntroState('minimizing')
+    setTimeout(() => {
+      setIntroState('idle')
+    }, 750)
+  }
 
   // Inicializar con mensaje de bienvenida al abrir si no hay mensajes
   useEffect(() => {
@@ -70,6 +97,7 @@ export default function Assistant() {
   // Solo mostrar cuando el usuario tiene sesión activa
   if (!user) return null
 
+  const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
   const assistantName = company?.name && company.name !== 'CYA'
     ? `Asistente ${company.name}`
     : 'Asistente CYA'
@@ -104,6 +132,8 @@ export default function Assistant() {
     handleSend()
   }
 
+  const isLarge = introState === 'showcase'
+
   return (
     <>
       <style>{`
@@ -114,24 +144,78 @@ export default function Assistant() {
         .animate-float-assistant {
           animation: floatAssistant 3.5s ease-in-out infinite;
         }
+        @keyframes popInAssistant {
+          0% { opacity: 0; transform: translateY(30px) scale(0.9); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .animate-pop-in {
+          animation: popInAssistant 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
       `}</style>
 
-      {/* ─── Floating Button ─── */}
-      <div className="fixed bottom-6 right-6 z-50">
+      {/* ─── Floating Button / Intro Showcase ─── */}
+      <div
+        className={`fixed z-50 flex flex-col items-end transition-all duration-700 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${
+          isLarge
+            ? 'bottom-6 right-6 sm:bottom-8 sm:right-8'
+            : 'bottom-6 right-6'
+        }`}
+      >
+        {/* Globo de bienvenida durante el tamaño real */}
+        {isLarge && (
+          <div
+            onClick={startMinimize}
+            className="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-3.5 shadow-2xl max-w-[260px] sm:max-w-[280px] mb-3 animate-pop-in cursor-pointer hover:border-brand/40 transition-all select-none"
+            style={{ animationDuration: '0.45s' }}
+          >
+            <div className="flex items-center gap-1.5 text-brand font-bold text-xs mb-1">
+              <Sparkles size={13} className="text-amber-500 animate-pulse" />
+              <span>{assistantName}</span>
+            </div>
+            <p className="text-xs font-semibold text-slate-800 leading-snug">
+              ¡Hola! 👋 Bienvenido a {companyDisplayName}.
+            </p>
+            <p className="text-[11px] text-slate-500 mt-1 leading-tight">
+              Estoy aquí para asistirte con ventas, inventario y más.
+            </p>
+            <span className="text-[10px] text-brand font-bold block mt-1.5">
+              Haz clic para continuar →
+            </span>
+          </div>
+        )}
+
+        {/* Imagen del asistente: Se encoge y morphs de tamaño real a bolita */}
         <button
           ref={buttonRef}
           type="button"
-          onClick={() => setOpen((prev) => !prev)}
-          className="relative w-16 h-16 rounded-full shadow-2xl border-2 border-white/90 overflow-hidden bg-slate-900 cursor-pointer hover:scale-105 active:scale-95 transition-transform duration-200 group animate-float-assistant"
-          title={open ? 'Cerrar asistente' : 'Abrir asistente virtual'}
+          onClick={() => {
+            if (isLarge) {
+              startMinimize()
+            } else {
+              setOpen((prev) => !prev)
+            }
+          }}
+          className={`relative overflow-hidden bg-slate-900 border-2 border-white/95 shadow-2xl cursor-pointer transition-all duration-700 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${
+            isLarge
+              ? 'w-44 h-44 sm:w-56 sm:h-56 rounded-3xl hover:scale-[1.02] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] ring-4 ring-brand/20 animate-pop-in'
+              : 'w-16 h-16 rounded-full hover:scale-105 active:scale-95 animate-float-assistant'
+          }`}
+          title={isLarge ? 'Minimizar asistente' : open ? 'Cerrar chat' : 'Abrir asistente virtual'}
         >
           <img
             src="/assistant.png"
             alt={assistantName}
-            className="w-full h-full object-cover object-top"
+            className="w-full h-full object-cover object-top transition-transform duration-700"
           />
-          {/* Subtle online badge */}
-          <span className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" />
+
+          {/* Badge "En línea" */}
+          <span
+            className={`absolute bg-emerald-500 border-2 border-white rounded-full transition-all duration-700 ${
+              isLarge
+                ? 'bottom-2.5 right-2.5 w-4 h-4'
+                : 'bottom-1 right-1 w-3.5 h-3.5'
+            }`}
+          />
         </button>
       </div>
 
