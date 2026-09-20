@@ -3,6 +3,8 @@ import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import Assistant from './components/Assistant'
 import Login from './pages/Login'
+import SignUp from './pages/SignUp'
+import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
 import Categories from './pages/Categories'
@@ -21,6 +23,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/productos" element={<ProtectedRoute><Products /></ProtectedRoute>} />
           <Route path="/categorias" element={<ProtectedRoute><Categories /></ProtectedRoute>} />

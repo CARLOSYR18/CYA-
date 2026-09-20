@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Mail,
   Lock,
@@ -8,19 +8,26 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
+  CheckCircle2,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
-  const { login } = useAuth()
+  const { login, loginWithGoogle, loginWithMagicLink } = useAuth()
   const navigate = useNavigate()
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [activeRole, setActiveRole] = useState(null)
+
+  // Magic link state
+  const [magicLinkMode, setMagicLinkMode] = useState(false)
+  const [magicLinkSent, setMagicLinkSent] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -36,9 +43,40 @@ export default function Login() {
     }
   }
 
+  async function handleGoogleLogin() {
+    setError('')
+    setGoogleLoading(true)
+    try {
+      await loginWithGoogle()
+    } catch (err) {
+      setError(err.message || 'No se pudo iniciar sesión con Google')
+      setGoogleLoading(false)
+    }
+  }
+
+  async function handleMagicLinkSubmit(e) {
+    e.preventDefault()
+    setError('')
+    if (!email.trim()) {
+      setError('Por favor ingrese su correo electrónico')
+      return
+    }
+    setLoading(true)
+    try {
+      await loginWithMagicLink(email.trim())
+      setMagicLinkSent(true)
+    } catch (err) {
+      setError(err.message || 'No se pudo enviar el enlace de acceso')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   function fillCredentials(type) {
     setActiveRole(type)
     setError('')
+    setMagicLinkMode(false)
+    setMagicLinkSent(false)
     if (type === 'admin') {
       setEmail('admin@demo.com')
       setPassword('admin123')
@@ -46,10 +84,6 @@ export default function Login() {
       setEmail('empleado@demo.com')
       setPassword('empleado123')
     }
-  }
-
-  function handleExternalLogin(provider) {
-    setError(`El acceso con ${provider} requiere autorización previa del administrador de CYA STORE.`)
   }
 
   return (
@@ -92,157 +126,251 @@ export default function Login() {
         
         {/* Title */}
         <h1 className="font-outfit text-2xl sm:text-[26px] font-bold text-slate-900 text-center tracking-tight mb-6">
-          Iniciar Sesión
+          {magicLinkMode ? 'Enlace Mágico' : 'Iniciar Sesión'}
         </h1>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Email field */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Correo Electrónico
-            </label>
-            <div className="relative">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                <Mail size={17} />
+        {magicLinkMode ? (
+          /* ─── Magic Link Mode ─── */
+          magicLinkSent ? (
+            <div className="space-y-4 text-center py-2">
+              <div className="w-13 h-13 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600 ring-8 ring-emerald-50/50">
+                <CheckCircle2 size={30} />
               </div>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Ingrese su correo corporativo"
-                className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
-                autoFocus
-              />
-            </div>
-          </div>
-
-          {/* Password field */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Contraseña
-            </label>
-            <div className="relative">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                <Lock size={17} />
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Enlace enviado</h2>
+                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                  Te enviamos un enlace a <strong className="text-slate-800">{email}</strong>. Ábrelo desde este mismo dispositivo para iniciar sesión.
+                </p>
               </div>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Ingrese su contraseña"
-                className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
-              />
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition p-1 cursor-pointer"
-                title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                onClick={() => {
+                  setMagicLinkMode(false)
+                  setMagicLinkSent(false)
+                  setError('')
+                }}
+                className="text-xs text-[#0B203E] hover:underline font-bold cursor-pointer inline-flex items-center gap-1 pt-2"
               >
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                ‹ Volver a iniciar sesión con contraseña
               </button>
             </div>
-          </div>
+          ) : (
+            <form onSubmit={handleMagicLinkSubmit} className="space-y-4">
+              <p className="text-xs text-slate-500 text-center -mt-2 mb-2">
+                Ingresa tu correo y te enviaremos un link para entrar sin contraseña.
+              </p>
 
-          {/* Remember Me & Forgot Password row */}
-          <div className="flex items-center justify-between text-xs text-slate-600 pt-0.5">
-            <label className="flex items-center gap-2 cursor-pointer select-none font-medium">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0B203E] border-slate-300 focus:ring-[#0B203E] cursor-pointer accent-[#0B203E]"
-              />
-              <span>Mantenerme conectado</span>
-            </label>
-            <button
-              type="button"
-              onClick={() => alert('Para restablecer su contraseña, contacte al Administrador de CYA STORE.')}
-              className="text-[#18528C] hover:underline font-semibold cursor-pointer"
-            >
-              ¿Olvidó su contraseña?
-            </button>
-          </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Correo Electrónico
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                    <Mail size={17} />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="correo@empresa.com"
+                    className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                    autoFocus
+                  />
+                </div>
+              </div>
 
-          {/* Error Banner */}
-          {error && (
-            <div className="flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2.5">
-              <AlertCircle size={15} className="shrink-0 text-rose-600" />
-              <span>{error}</span>
+              {/* Error Banner */}
+              {error && (
+                <div className="flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2.5">
+                  <AlertCircle size={15} className="shrink-0 text-rose-600" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-11 bg-[#0B203E] hover:bg-[#143258] active:scale-[0.99] text-white font-bold rounded-lg text-xs sm:text-sm tracking-wider uppercase transition-all duration-150 flex items-center justify-center gap-2 shadow-md shadow-[#0B203E]/25 cursor-pointer disabled:opacity-60 mt-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin text-white" />
+                    <span>ENVIANDO ENLACE…</span>
+                  </>
+                ) : (
+                  <span>Enviar enlace de acceso</span>
+                )}
+              </button>
+
+              {/* Return to Password Login Link */}
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMagicLinkMode(false)
+                    setError('')
+                  }}
+                  className="text-xs text-[#0B203E] hover:underline font-bold cursor-pointer"
+                >
+                  ‹ Volver a iniciar sesión con contraseña
+                </button>
+              </div>
+            </form>
+          )
+        ) : (
+          /* ─── Standard Password Login Form ─── */
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Email field */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Correo Electrónico
+              </label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                  <Mail size={17} />
+                </div>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Ingrese su correo corporativo"
+                  className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                  autoFocus
+                />
+              </div>
             </div>
-          )}
 
-          {/* Primary Submit Button (Deep navy, matching reference) */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-11 bg-[#0B203E] hover:bg-[#143258] active:scale-[0.99] text-white font-bold rounded-lg text-xs sm:text-sm tracking-wider uppercase transition-all duration-150 flex items-center justify-center gap-2 shadow-md shadow-[#0B203E]/25 cursor-pointer disabled:opacity-60 mt-2"
-          >
-            {loading ? (
-              <>
-                <Loader2 size={16} className="animate-spin text-white" />
-                <span>INICIANDO SESIÓN…</span>
-              </>
-            ) : (
-              <span>INICIAR SESIÓN</span>
+            {/* Password field */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Contraseña
+              </label>
+              <div className="relative">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                  <Lock size={17} />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Ingrese su contraseña"
+                  className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition p-1 cursor-pointer"
+                  title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember Me & Forgot Password row */}
+            <div className="flex items-center justify-between text-xs text-slate-600 pt-0.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none font-medium">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#0B203E] border-slate-300 focus:ring-[#0B203E] cursor-pointer accent-[#0B203E]"
+                />
+                <span>Mantenerme conectado</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => alert('Para restablecer su contraseña, contacte al Administrador de CYA STORE.')}
+                className="text-[#18528C] hover:underline font-semibold cursor-pointer"
+              >
+                ¿Olvidó su contraseña?
+              </button>
+            </div>
+
+            {/* Error Banner */}
+            {error && (
+              <div className="flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2.5">
+                <AlertCircle size={15} className="shrink-0 text-rose-600" />
+                <span>{error}</span>
+              </div>
             )}
-          </button>
 
-          {/* Divider */}
-          <div className="relative flex items-center justify-center my-4 py-1">
-            <div className="border-t border-slate-200 w-full" />
-            <span className="bg-white px-3 text-[11px] font-medium text-slate-400 select-none absolute">
-              O iniciar sesión con:
-            </span>
-          </div>
-
-          {/* Dual External Login (Microsoft 365 & Google Workspace) */}
-          <div className="grid grid-cols-2 gap-2.5">
-            {/* Microsoft 365 */}
+            {/* Primary Submit Button */}
             <button
-              type="button"
-              onClick={() => handleExternalLogin('Microsoft 365')}
-              className="h-10.5 bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-700 font-semibold rounded-lg border border-slate-200 text-xs transition flex items-center justify-center gap-2 shadow-2xs cursor-pointer"
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 bg-[#0B203E] hover:bg-[#143258] active:scale-[0.99] text-white font-bold rounded-lg text-xs sm:text-sm tracking-wider uppercase transition-all duration-150 flex items-center justify-center gap-2 shadow-md shadow-[#0B203E]/25 cursor-pointer disabled:opacity-60 mt-2"
             >
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 23 23">
-                <path fill="#f35325" d="M1 1h10v10H1z" />
-                <path fill="#81bc06" d="M12 1h10v10H12z" />
-                <path fill="#05a6f0" d="M1 12h10v10H1z" />
-                <path fill="#ffba08" d="M12 12h10v10H12z" />
-              </svg>
-              <span>Microsoft 365</span>
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin text-white" />
+                  <span>INICIANDO SESIÓN…</span>
+                </>
+              ) : (
+                <span>INICIAR SESIÓN</span>
+              )}
             </button>
 
-            {/* Google Workspace */}
-            <button
-              type="button"
-              onClick={() => handleExternalLogin('Google Workspace')}
-              className="h-10.5 bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-700 font-semibold rounded-lg border border-slate-200 text-xs transition flex items-center justify-center gap-2 shadow-2xs cursor-pointer"
-            >
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z" />
-                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.25 21.37 7.34 24 12 24z" />
-                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.97 0 12s.46 3.84 1.26 5.42l4.02-3.15z" />
-                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.25 2.63 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
-              </svg>
-              <span>Google Workspace</span>
-            </button>
-          </div>
+            {/* Divider */}
+            <div className="relative flex items-center justify-center my-4 py-1">
+              <div className="border-t border-slate-200 w-full" />
+              <span className="bg-white px-3 text-[11px] font-medium text-slate-400 select-none absolute">
+                O continuar con:
+              </span>
+            </div>
 
-          {/* Bottom Card Helper Link */}
-          <p className="text-center text-[11px] text-slate-500 pt-2">
-            ¿No tiene una cuenta?{' '}
-            <button
-              type="button"
-              onClick={() => alert('Comuníquese con el Administrador de CYA STORE para activar un nuevo usuario corporativo.')}
-              className="text-[#0B203E] hover:underline font-bold cursor-pointer"
-            >
-              Contacte a su administrador.
-            </button>
-          </p>
-        </form>
+            {/* Google Login (Full Width) */}
+            <div>
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+                className="w-full h-10.5 bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-700 font-semibold rounded-lg border border-slate-200 text-xs transition flex items-center justify-center gap-2.5 shadow-2xs cursor-pointer disabled:opacity-60"
+              >
+                {googleLoading ? (
+                  <Loader2 size={16} className="animate-spin text-slate-600" />
+                ) : (
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z" />
+                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.25 21.37 7.34 24 12 24z" />
+                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.97 0 12s.46 3.84 1.26 5.42l4.02-3.15z" />
+                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.25 2.63 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
+                  </svg>
+                )}
+                <span>Continuar con Google</span>
+              </button>
+            </div>
+
+            {/* Magic link prompt */}
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setMagicLinkMode(true)
+                  setError('')
+                }}
+                className="text-[11px] text-slate-500 hover:text-[#0B203E] hover:underline cursor-pointer"
+              >
+                ¿Prefieres sin contraseña? <span className="font-semibold text-[#0B203E]">Inicia sesión con un enlace mágico</span>
+              </button>
+            </div>
+
+            {/* Bottom Card Helper Link */}
+            <p className="text-center text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+              ¿No tiene una cuenta?{' '}
+              <Link
+                to="/signup"
+                className="text-[#0B203E] hover:underline font-bold cursor-pointer"
+              >
+                Crear cuenta
+              </Link>
+            </p>
+          </form>
+        )}
       </div>
 
       {/* ─── Floating Demo Access Bar (Discreet & Non-intrusive) ─── */}

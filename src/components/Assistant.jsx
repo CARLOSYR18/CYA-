@@ -9,10 +9,6 @@ export default function Assistant() {
   const { user } = useAuth()
   const location = useLocation()
 
-  // Do not render the assistant bot on the login page or if user is not authenticated
-  if (!user || location.pathname === '/login') {
-    return null
-  }
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -27,27 +23,29 @@ export default function Assistant() {
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
-  // Cargar configuración de la empresa para el nombre del asistente
-  useEffect(() => {
-    companySettingsService.get().then(setCompany).catch(() => {})
-  }, [])
-
-  // Secuencia de animación de entrada: se muestra en tamaño real y luego se encoge a bolita
-  useEffect(() => {
-    // Tras 3.2 segundos en tamaño real, inicia la transición a bolita
-    const timer = setTimeout(() => {
-      startMinimize()
-    }, 3200)
-
-    return () => clearTimeout(timer)
-  }, [])
-
   function startMinimize() {
     setIntroState('minimizing')
     setTimeout(() => {
       setIntroState('idle')
     }, 750)
   }
+
+  // Cargar configuración de la empresa para el nombre del asistente
+  useEffect(() => {
+    if (!user || location.pathname === '/login') return
+    companySettingsService.get().then(setCompany).catch(() => {})
+  }, [user, location.pathname])
+
+  // Secuencia de animación de entrada: se muestra en tamaño real y luego se encoge a bolita
+  useEffect(() => {
+    if (!user || location.pathname === '/login') return
+    // Tras 3.2 segundos en tamaño real, inicia la transición a bolita
+    const timer = setTimeout(() => {
+      startMinimize()
+    }, 3200)
+
+    return () => clearTimeout(timer)
+  }, [user, location.pathname])
 
   // Inicializar con mensaje de bienvenida al abrir si no hay mensajes
   useEffect(() => {
@@ -94,8 +92,10 @@ export default function Assistant() {
     }
   }, [open])
 
-  // Solo mostrar cuando el usuario tiene sesión activa
-  if (!user) return null
+  // Do not render the assistant bot on the login page or if user is not authenticated
+  if (!user || location.pathname === '/login') {
+    return null
+  }
 
   const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
   const assistantName = company?.name && company.name !== 'CYA'
