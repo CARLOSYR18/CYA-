@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Plus, Pencil, Trash2, Search, Boxes, ImageOff, Camera, X,
   Filter, LayoutGrid, List, AlertTriangle, ArrowUpDown,
   CheckCircle2, DollarSign, Package, Layers, Sparkles,
-  ExternalLink, ChevronRight, Eye
+  ExternalLink, ChevronRight, Eye, Crown, ArrowRight
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
@@ -13,6 +14,8 @@ import { productsService } from '../services/productsService'
 import { categoriesService } from '../services/categoriesService'
 import { suppliersService } from '../services/suppliersService'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
+import { companySettingsService } from '../services/companySettingsService'
+import { getLimits } from '../lib/planLimits'
 
 const fmt = (n) =>
   `S/ ${(Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -48,6 +51,8 @@ export default function Products() {
 
   // Modals & Form State
   const [modalOpen, setModalOpen] = useState(false)
+  const [limitModalOpen, setLimitModalOpen] = useState(false)
+  const [limitMessage, setLimitMessage] = useState('')
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [imageFile, setImageFile] = useState(null)
@@ -152,6 +157,18 @@ export default function Products() {
   }
 
   async function openCreate() {
+    try {
+      const company = await companySettingsService.get()
+      const limits = getLimits(company)
+      if (products.length >= limits.maxProducts) {
+        setLimitMessage(`Alcanzaste el límite de tu plan Free (${limits.maxProducts} productos). Actualiza a Pro para agregar más.`)
+        setLimitModalOpen(true)
+        return
+      }
+    } catch (e) {
+      console.warn('Error verificando límites de productos:', e)
+    }
+
     setEditing(null)
     setError('')
     resetImg()
@@ -1156,6 +1173,47 @@ export default function Products() {
             <button onClick={handleDelete} className="btn-danger">
               Eliminar
             </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ═════════════════════════════════════════════════════════
+          LÍMITE DE PLAN ALCANZADO MODAL
+         ═════════════════════════════════════════════════════════ */}
+      <Modal
+        open={limitModalOpen}
+        onClose={() => setLimitModalOpen(false)}
+        title="Límite del Plan Alcanzado"
+        width="max-w-md"
+      >
+        <div className="space-y-4 p-2 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-xs">
+            <Crown size={24} />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-display font-bold text-slate-900 text-base">
+              Límite de productos alcanzado
+            </h4>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              {limitMessage || 'Alcanzaste el límite de tu plan Free (20 productos). Actualiza a Pro para agregar más.'}
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => setLimitModalOpen(false)}
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition cursor-pointer"
+            >
+              Cerrar
+            </button>
+            <Link
+              to="/planes"
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-blue-600/20 transition cursor-pointer"
+            >
+              <Sparkles size={13} className="text-amber-300" />
+              <span>Ver Planes</span>
+              <ArrowRight size={13} />
+            </Link>
           </div>
         </div>
       </Modal>

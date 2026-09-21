@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Plus, Pencil, UserCog, ShieldCheck, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, Pencil, UserCog, ShieldCheck, ToggleLeft, ToggleRight, Crown, ArrowRight, Sparkles } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
 import { usersService } from '../services/usersService'
 import { isSupabaseConfigured } from '../lib/supabaseClient'
+import { companySettingsService } from '../services/companySettingsService'
+import { getLimits } from '../lib/planLimits'
 
 const emptyForm = {full_name:'',email:'',password:'',role:'empleado'}
 
@@ -12,13 +15,28 @@ export default function Users() {
   const [users,setUsers]         = useState([])
   const [loading,setLoading]     = useState(true)
   const [modalOpen,setModalOpen] = useState(false)
+  const [limitModalOpen,setLimitModalOpen] = useState(false)
+  const [limitMessage,setLimitMessage]     = useState('')
   const [editing,setEditing]     = useState(null)
   const [form,setForm]           = useState(emptyForm)
   const [error,setError]         = useState('')
 
   async function loadAll(){setLoading(true);setUsers(await usersService.list());setLoading(false)}
   useEffect(()=>{loadAll()},[])
-  function openCreate(){setEditing(null);setForm(emptyForm);setError('');setModalOpen(true)}
+  async function openCreate(){
+    try {
+      const company = await companySettingsService.get()
+      const limits = getLimits(company)
+      if (users.length >= limits.maxUsers) {
+        setLimitMessage(`Alcanzaste el límite de tu plan Free (${limits.maxUsers} usuario). Actualiza a Pro para agregar más.`)
+        setLimitModalOpen(true)
+        return
+      }
+    } catch (e) {
+      console.warn('Error verificando límites de usuarios:', e)
+    }
+    setEditing(null);setForm(emptyForm);setError('');setModalOpen(true)
+  }
   function openEdit(u){setEditing(u);setForm({full_name:u.full_name,email:u.email,password:'',role:u.role});setError('');setModalOpen(true)}
 
   async function handleSubmit(e){
@@ -92,6 +110,45 @@ export default function Users() {
           {error&&<p className="text-sm text-bad bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</p>}
           <div className="flex justify-end gap-2.5 pt-2"><button type="button" onClick={()=>setModalOpen(false)} className="btn-secondary">Cancelar</button><button type="submit" className="btn-primary">{editing?'Guardar cambios':'Crear usuario'}</button></div>
         </form>
+      </Modal>
+
+      {/* Modal Límite de Usuarios Alcanzado */}
+      <Modal
+        open={limitModalOpen}
+        onClose={() => setLimitModalOpen(false)}
+        title="Límite del Plan Alcanzado"
+        width="max-w-md"
+      >
+        <div className="space-y-4 p-2 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-xs">
+            <Crown size={24} />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-display font-bold text-slate-900 text-base">
+              Límite de usuarios alcanzado
+            </h4>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              {limitMessage || 'Alcanzaste el límite de tu plan Free (1 usuario). Actualiza a Pro para agregar más.'}
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => setLimitModalOpen(false)}
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition cursor-pointer"
+            >
+              Cerrar
+            </button>
+            <Link
+              to="/planes"
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-blue-600/20 transition cursor-pointer"
+            >
+              <Sparkles size={13} className="text-amber-300" />
+              <span>Ver Planes</span>
+              <ArrowRight size={13} />
+            </Link>
+          </div>
+        </div>
       </Modal>
     </AppLayout>
   )

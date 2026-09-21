@@ -1,19 +1,25 @@
 import { useState, useRef, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
-import { X, Send, Sparkles } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { X, Send, Sparkles, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { askAssistant, suggestedQuestions } from '../lib/assistant'
+import { askAssistant, suggestedQuestions, getStoredUserName } from '../lib/assistant'
 import { companySettingsService } from '../services/companySettingsService'
 
 export default function Assistant() {
   const { user } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
 
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [company, setCompany] = useState(null)
+
+  const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
+  const assistantName = company?.name && company.name !== 'CYA'
+    ? `Asistente ${company.name}`
+    : 'Asistente CYA'
 
   // Intro animation states: 'showcase' (tamaño grande + bienvenida) -> 'minimizing' -> 'idle' (bolita)
   const [introState, setIntroState] = useState('showcase')
@@ -50,14 +56,16 @@ export default function Assistant() {
   // Inicializar con mensaje de bienvenida al abrir si no hay mensajes
   useEffect(() => {
     if (open && messages.length === 0) {
+      const storedName = getStoredUserName(user)
+      const greetingName = storedName ? ` ${storedName}` : ''
       setMessages([
         {
           role: 'assistant',
-          text: '¡Hola! Pregúntame sobre tus ventas, stock o clientes.',
+          text: `¡Hola${greetingName}! 👋 Bienvenido a ${companyDisplayName}.\n\nPregúntame sobre tus ventas, el producto más vendido, stock bajo, clientes o finanzas en tiempo real.`,
         },
       ])
     }
-  }, [open, messages.length])
+  }, [open, messages.length, user, companyDisplayName])
 
   // Auto-scroll al final del chat
   useEffect(() => {
@@ -97,11 +105,6 @@ export default function Assistant() {
     return null
   }
 
-  const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
-  const assistantName = company?.name && company.name !== 'CYA'
-    ? `Asistente ${company.name}`
-    : 'Asistente CYA'
-
   async function handleSend(questionText) {
     const q = (questionText || input).trim()
     if (!q || loading) return
@@ -111,7 +114,10 @@ export default function Assistant() {
     setLoading(true)
 
     try {
-      const answer = await askAssistant(q)
+      const answer = await askAssistant(q, {
+        user,
+        companyName: companyDisplayName,
+      })
       setMessages((prev) => [...prev, { role: 'assistant', text: answer }])
     } catch (err) {
       console.error('Error del asistente:', err)
@@ -261,10 +267,11 @@ export default function Assistant() {
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50 text-xs">
             {messages.map((msg, idx) => {
               const isUser = msg.role === 'user'
+              const isLimitReached = !isUser && msg.text && msg.text.includes('Ya usaste tus')
               return (
                 <div
                   key={idx}
-                  className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                  className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
                 >
                   <div
                     className={`px-3.5 py-2.5 max-w-[85%] whitespace-pre-wrap leading-relaxed shadow-xs ${
@@ -275,6 +282,20 @@ export default function Assistant() {
                   >
                     {msg.text}
                   </div>
+                  {isLimitReached && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpen(false)
+                        navigate('/planes')
+                      }}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[11px] font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer animate-fade-in"
+                    >
+                      <Sparkles size={12} className="text-amber-300" />
+                      <span>Ver planes</span>
+                      <ArrowRight size={12} />
+                    </button>
+                  )}
                 </div>
               )
             })}

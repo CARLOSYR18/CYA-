@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Boxes, Tags, ArrowLeftRight, ShoppingCart,
-  Truck, Users, UserCog, Warehouse, X, Settings2
+  Truck, Users, UserCog, Warehouse, X, Settings2, Sparkles, ShieldAlert
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { planService } from '../../services/planService'
 
 const NAV_MAIN = [
   { to: '/', label: 'Panel', icon: LayoutDashboard, end: true },
@@ -18,8 +20,12 @@ const NAV_CAT = [
   { to: '/proveedores', label: 'Proveedores', icon: Warehouse },
 ]
 const NAV_ADM = [
+  { to: '/planes', label: 'Tu Plan', icon: Sparkles },
   { to: '/usuarios', label: 'Usuarios', icon: UserCog },
   { to: '/configuracion', label: 'Empresa', icon: Settings2 },
+]
+const NAV_PLATFORM = [
+  { to: '/admin-plataforma', label: 'Panel Plataforma', icon: ShieldAlert },
 ]
 
 function Label({ children }) {
@@ -48,7 +54,19 @@ function Item({ to, label, icon: Icon, end, onClick }) {
 }
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { isAdmin } = useAuth()
+  const { isAdmin, isPlatformAdmin } = useAuth()
+  const [activePlan, setActivePlan] = useState(planService.getActivePlanData())
+
+  useEffect(() => {
+    const handlePlanChange = () => {
+      setActivePlan(planService.getActivePlanData())
+    }
+    window.addEventListener('cya_plan_changed', handlePlanChange)
+    return () => window.removeEventListener('cya_plan_changed', handlePlanChange)
+  }, [])
+
+  const isPro = activePlan.id !== 'free'
+
   return (
     <>
       {isOpen && (
@@ -83,7 +101,43 @@ export default function Sidebar({ isOpen, onClose }) {
             <Label>Administración</Label>
             {NAV_ADM.map(i => <Item key={i.to} {...i} onClick={onClose} />)}
           </>)}
+          {isPlatformAdmin && (<>
+            <Label>Plataforma</Label>
+            {NAV_PLATFORM.map(i => <Item key={i.to} {...i} onClick={onClose} />)}
+          </>)}
         </nav>
+
+        {/* Mini Plan Upgrade Card */}
+        <div className="px-3 pt-2 pb-1 border-t border-slate-100 shrink-0">
+          <NavLink
+            to="/planes"
+            onClick={onClose}
+            className="group flex flex-col p-3 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-md border border-slate-700/60 hover:border-blue-400/60 hover:shadow-lg transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Sparkles size={13} className={isPro ? 'text-amber-400 animate-pulse' : 'text-blue-400'} />
+                <span className="text-xs font-bold text-white tracking-tight">
+                  {activePlan.name}
+                </span>
+              </div>
+              {isPro ? (
+                <span className="text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded-md">
+                  ACTIVO
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold text-amber-300 group-hover:underline flex items-center gap-0.5">
+                  Mejorar ↗
+                </span>
+              )}
+            </div>
+            <p className="text-[10.5px] text-slate-400 mt-1.5 leading-tight">
+              {isPro
+                ? 'Acceso completo • Soporte 24/7'
+                : '10 consultas IA • 50 productos'}
+            </p>
+          </NavLink>
+        </div>
 
         {/* Footer */}
         <div className="p-3 border-t border-slate-200 shrink-0">

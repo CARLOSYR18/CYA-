@@ -15,6 +15,8 @@ import Clients from './pages/Clients'
 import Suppliers from './pages/Suppliers'
 import Users from './pages/Users'
 import CompanySettings from './pages/CompanySettings'
+import Plans from './pages/Plans'
+import PlatformAdmin from './pages/PlatformAdmin'
 import NotFound from './pages/NotFound'
 
 export default function App() {
@@ -35,6 +37,8 @@ export default function App() {
           <Route path="/proveedores" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
           <Route path="/usuarios" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
           <Route path="/configuracion" element={<ProtectedRoute adminOnly><CompanySettings /></ProtectedRoute>} />
+          <Route path="/planes" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
+          <Route path="/admin-plataforma" element={<ProtectedRoute><PlatformAdmin /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Assistant />

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Menu, ChevronDown, Bell, CheckCircle2 } from 'lucide-react'
+import { LogOut, Menu, ChevronDown, Bell, CheckCircle2, Sparkles } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabaseClient'
 import { getNotifications } from '../../lib/notifications'
@@ -202,9 +202,19 @@ export default function Topbar({ title, onOpenSidebar }) {
                 <p className="text-[13px] font-bold text-slate-800 truncate">{user?.full_name}</p>
                 <p className="text-[11px] text-slate-400 truncate">{user?.email}</p>
               </div>
-              <div className="p-1.5">
+              <div className="p-1.5 space-y-0.5">
+                <button
+                  onClick={() => {
+                    setUserOpen(false)
+                    navigate('/planes')
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-slate-700 font-medium hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <Sparkles size={14} className="text-amber-500" /> Tu Plan y Suscripción
+                </button>
+                <div className="border-t border-slate-100 my-1" />
                 <button onClick={() => { setUserOpen(false); logout() }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-red-600 font-medium hover:bg-red-50 transition-colors">
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-red-600 font-medium hover:bg-red-50 transition-colors cursor-pointer">
                   <LogOut size={14} /> Cerrar sesión
                 </button>
               </div>

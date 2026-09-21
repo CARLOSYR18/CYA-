@@ -6,6 +6,9 @@ import { categoriesService } from '../services/categoriesService'
 import { suppliersService } from '../services/suppliersService'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
 import { companySettingsService } from '../services/companySettingsService'
+import { planService } from '../services/planService'
+import { assistantUsageService } from '../services/assistantUsageService'
+import { getLimits } from './planLimits'
 import { getNotifications } from './notifications'
 import { getClientsHistory } from './clientHistory'
 
@@ -100,9 +103,55 @@ function formatDate(dateStr) {
   }
 }
 
+// ─── GESTIÓN DE MEMORIA CONVERSACIONAL (NOMBRE DE USUARIO Y EMPRESA) ───
+const USER_NAME_KEY = 'cya_assistant_userName'
+
+export function getStoredUserName(user) {
+  try {
+    const saved = localStorage.getItem(USER_NAME_KEY)
+    if (saved && saved.trim() && !saved.includes('@')) return saved.trim()
+  } catch {}
+  if (user?.full_name) {
+    const first = user.full_name.trim().split(/\s+/)[0]
+    if (first && first.length >= 2 && !first.includes('@')) return first
+  }
+  return ''
+}
+
+export function setStoredUserName(name) {
+  if (!name) return ''
+  const clean = name.trim().charAt(0).toUpperCase() + name.trim().slice(1)
+  try {
+    localStorage.setItem(USER_NAME_KEY, clean)
+  } catch {}
+  return clean
+}
+
+function extractSelfIntroduction(text) {
+  if (!text) return null
+  const cleaned = text.trim()
+  const patterns = [
+    /\b(?:me\s+llamo)\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ]{2,20})\b/i,
+    /\b(?:mi\s+nombre\s+es)\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ]{2,20})\b/i,
+    /\b(?:soy)\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ]{2,20})\b/i,
+    /\b(?:llamame|dime)\s+([a-zA-ZáéíóúÁÉÍÓÚñÑ]{2,20})\b/i,
+  ]
+  for (const regex of patterns) {
+    const match = cleaned.match(regex)
+    if (match && match[1]) {
+      const candidate = match[1].toLowerCase()
+      const forbidden = new Set(['el', 'la', 'un', 'una', 'nuevo', 'bien', 'bueno', 'asistente', 'bot', 'admin', 'usuario', 'empleado', 'cliente'])
+      if (!forbidden.has(candidate)) {
+        return candidate.charAt(0).toUpperCase() + candidate.slice(1)
+      }
+    }
+  }
+  return null
+}
+
 // ─── REGLAS DE INTENCIÓN (INTENT RULES) ───
 // Cada regla evalúa si el texto normalizado contiene alguno de sus disparadores (triggers)
-// o cumple una condición regex.
+// y recibe el contexto (userName, companyName, user)
 const intentRules = [
   // ─── 1. SALUDOS & CONVERSACIÓN BÁSICA ───
   {
@@ -112,9 +161,11 @@ const intentRules = [
       'hey', 'hello', 'hi', 'holis', 'que tal', 'saludos', 'que hubo', 'que hay',
       'alo', 'oe', 'habla', 'buenas noches asistente', 'hola asistente', 'buenas asistente',
     ],
-    handler: async () => {
+    handler: async (ctx) => {
       const greeting = getTimeGreeting()
-      return `¡Hola! ${greeting} 👋\n\nSoy tu Asistente Virtual inteligente de CYA STORE. Estoy conectado en tiempo real con tu sistema.\n\nPuedes preguntarme por:\n• 📊 Ventas de hoy, ayer, la semana o el mes\n• 📦 Stock de productos, agotados o stock bajo\n• 💰 Cuentas por cobrar y deudas vencidas\n• 👥 Mejor cliente o compras de alguien específico\n• 📈 Valor monetario total de tu inventario\n• 🚚 Compras y pedidos a proveedores\n• ❓ Guías de uso (cómo vender, crear combo, etc.)\n\n¿En qué te puedo colaborar hoy?`
+      const company = ctx?.companyName || 'CYA STORE'
+      const userGreeting = ctx?.userName ? `, ${ctx.userName}` : ''
+      return `¡Hola${userGreeting}! ${greeting} 👋\n\nSoy tu Asistente Virtual inteligente de **${company}**. Estoy conectado en tiempo real con todas las operaciones de tu negocio.\n\nPuedes consultarme sobre:\n• 📊 Ventas de hoy, ayer, la semana o el mes en ${company}\n• 🏆 ¿Cuál es el producto más vendido? o ¿cuál se vende menos?\n• 📦 Stock de productos, agotados o stock bajo\n• 💰 Cuentas por cobrar y deudas vencidas\n• 👥 Mejor cliente o historial comercial\n• 📈 Valor monetario total de tu inventario\n• 💎 Planes y suscripciones de ${company}\n• 💡 Estrategias para aumentar ventas y ganancias\n\n¿En qué te puedo colaborar hoy${userGreeting}?`
     },
   },
   {
@@ -123,8 +174,10 @@ const intentRules = [
       'como estas', 'como te va', 'como andas', 'que tal todo', 'como vas',
       'todo bien', 'que haces', 'que haces hoy',
     ],
-    handler: async () => {
-      return '¡Excelente y con toda la energía! 🚀 Monitoreando tus ventas, stock y operaciones en tiempo real para que tu negocio funcione sobre ruedas. ¿Qué te gustaría consultar?'
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const userGreeting = ctx?.userName ? ` ${ctx.userName}` : ''
+      return `¡Excelente y con toda la energía${userGreeting}! 🚀 Monitoreando las ventas, inventario y operaciones de **${company}** en tiempo real para que tu negocio crezca con fuerza. ¿Qué te gustaría revisar hoy?`
     },
   },
   {
@@ -133,8 +186,10 @@ const intentRules = [
       'gracias', 'muchas gracias', 'mil gracias', 'te agradezco', 'muy amable',
       'vale gracias', 'ok gracias', 'perfecto gracias', 'buena voz', 'thanks', 'genial gracias',
     ],
-    handler: async () => {
-      return '¡De nada! Ha sido un gusto ayudarte. 😊 Si necesitas consultar algo más sobre ventas, inventario o finanzas, aquí estaré listo.'
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const userGreeting = ctx?.userName ? ` ${ctx.userName}` : ''
+      return `¡De nada${userGreeting}! Ha sido un placer apoyarte en **${company}**. 😊 Si necesitas consultar cualquier otro dato o métrica comercial, aquí estaré listo 24/7.`
     },
   },
   {
@@ -149,9 +204,16 @@ const intentRules = [
   },
   {
     name: 'affirmation',
-    triggers: ['ok', 'vale', 'listo', 'entendido', 'perfecto', 'genial', 'excelente', 'de acuerdo', 'dale', 'chevere'],
-    handler: async () => {
-      return '¡Perfecto! Quedo a tu disposición si deseas revisar otro reporte o hacer cualquier consulta. 👍'
+    exactOnly: true,
+    triggers: [
+      'ok', 'vale', 'listo', 'entendido', 'perfecto', 'genial', 'excelente',
+      'de acuerdo', 'dale', 'chevere', 'ya', 'ok listo', 'ok gracias', 'ok entendido',
+      'todo ok', 'ok perfecto', 'ok chevere', 'ok dale', 'esta bien', 'ta bien',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const userGreeting = ctx?.userName ? ` ${ctx.userName}` : ''
+      return `¡Perfecto${userGreeting}! Quedo a tu disposición en **${company}** si deseas revisar otro reporte o hacer cualquier consulta comercial. 👍`
     },
   },
   {
@@ -846,10 +908,31 @@ const intentRules = [
     },
   },
   {
+    name: 'can_make_boletas',
+    triggers: [
+      'puedes hacer boletas', 'puedes hacer boleta', 'haces boletas', 'haces boleta',
+      'se puede hacer boletas', 'se pueden hacer boletas', 'como hacer boletas', 'como hago boletas',
+      'como emitir boletas', 'emitir boleta', 'emitir boletas', 'hacer boletas', 'generar boleta',
+      'generar boletas', 'puedes emitir boletas', 'puedes generar boletas', 'haces facturas',
+      'puedes hacer facturas', 'emite boletas', 'emites boletas', 'hacer comprobante', 'hacer comprobantes',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const userGreeting = ctx?.userName ? ` ${ctx.userName}` : ''
+      return `🧾 **¡Por supuesto${userGreeting}! En ${company} puedes generar y emitir boletas y comprobantes de venta oficiales con tu logotipo:**\n\n` +
+        `1. **Generación automática al vender:** Cada vez que registras una venta en el módulo de **Ventas** (*"+ Nueva venta"*), el sistema crea su comprobante oficial numerado con el logo de **${company}**.\n` +
+        `2. **Vista previa y detalle:** En la tabla de **Ventas**, haz clic en el ícono de **Ojo / Recibo** de cualquier venta para ver la boleta con el desglose de productos, cantidades, precios y total.\n` +
+        `3. **Envío instantáneo por WhatsApp:** Con el botón verde *"Compartir por WhatsApp"*, se genera la imagen del recibo oficial y se abre el chat del cliente listo para enviar.\n` +
+        `4. **Impresión / PDF:** Puedes imprimir el comprobante en formato ticket térmico o guardarlo en PDF.\n\n` +
+        `💡 *Como tu Asistente Virtual puedo informarte sobre tus ventas, totales y clientes en tiempo real, mientras que la emisión física o digital de la boleta se realiza desde el módulo de Ventas de ${company}.*`
+    },
+  },
+  {
     name: 'guide_receipt',
     triggers: [
-      'como compartir recibo', 'enviar por whatsapp', 'como enviar recibo',
-      'boleta', 'ticket', 'voucher', 'compartir voucher',
+      'como compartir recibo', 'enviar recibo por whatsapp', 'como enviar recibo',
+      'como compartir boleta', 'enviar boleta por whatsapp', 'compartir voucher',
+      'compartir ticket', 'como mandar el comprobante', 'enviar comprobante',
     ],
     handler: async () => {
       return `📲 **Cómo enviar el comprobante por WhatsApp:**\n\n` +
@@ -917,46 +1000,411 @@ const intentRules = [
         `3. El estado cambiará a verde *"Pagado"* y la deuda quedará saldada en el balance.`
     },
   },
+
+  // ─── 8. PRODUCTOS MÁS VENDIDOS (TOP SALES RANKING) ───
+  {
+    name: 'top_selling_products',
+    triggers: [
+      'producto se vende mas', 'productos se venden mas', 'productos mas vendidos', 'producto mas vendido',
+      'mas vendido', 'mas vendidos', 'mas vendida', 'mas vendidas', 'cual se vende mas', 'que se vende mas',
+      'k se vende mas', 'cual es el mas vendido', 'cual es el que mas se vende', 'cual es el que se vende mas',
+      'cual es el k se vende mas', 'top ventas', 'top productos', 'lo que mas sale', 'mayor venta',
+      'mas exitoso', 'que mas compran', 'producto estrella', 'mejor producto', 'mas pedidos',
+      'ranking de productos', 'ranking de ventas',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const [sales, products] = await Promise.all([salesService.list(), productsService.list()])
+      if (!sales.length) {
+        return `📦 **Productos más vendidos en ${company}:**\nTodavía no se han registrado ventas en el sistema para calcular el ranking comercial.`
+      }
+
+      // Agrupar unidades y monto vendido por producto
+      const productStats = {}
+      for (const sale of sales) {
+        if (!sale.items || !Array.isArray(sale.items)) continue
+        for (const item of sale.items) {
+          const pid = item.product_id
+          if (!productStats[pid]) {
+            const prod = products.find((p) => p.id === pid)
+            productStats[pid] = {
+              name: prod?.name || item.product_name || `Producto #${pid}`,
+              sku: prod?.sku || '',
+              stock: prod?.stock ?? 0,
+              qty: 0,
+              totalAmount: 0,
+            }
+          }
+          productStats[pid].qty += Number(item.quantity || 0)
+          productStats[pid].totalAmount += Number(item.quantity || 0) * Number(item.unit_price || 0)
+        }
+      }
+
+      const ranked = Object.values(productStats).sort((a, b) => b.qty - a.qty)
+      if (!ranked.length) {
+        return `📦 **Productos más vendidos en ${company}:**\nNo se encontraron líneas de productos en las ventas registradas.`
+      }
+
+      const top = ranked.slice(0, 5)
+      const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣']
+
+      let res = `🏆 **Top Productos Más Vendidos en ${company}:**\n\n`
+      top.forEach((p, idx) => {
+        const medal = medals[idx] || '•'
+        res += `${medal} **${p.name}**\n`
+        res += `   • Unidades vendidas: **${p.qty} uds.**\n`
+        res += `   • Facturación total: **${money(p.totalAmount)}**\n`
+        res += `   • Stock restante en almacén: ${p.stock <= 0 ? '🚨 Agotado' : `${p.stock} uds.`}\n\n`
+      })
+
+      const leader = top[0]
+      const userPref = ctx?.userName ? `${ctx.userName}, ` : ''
+      res += `💡 **Diagnóstico comercial:** ${userPref}tu producto estrella en **${company}** con mayor demanda es **${leader.name}** con **${leader.qty} unidades vendidas**.`
+      return res
+    },
+  },
+
+  // ─── 9. PRODUCTOS MENOS VENDIDOS (BAJA ROTACIÓN / SIN VENTAS) ───
+  {
+    name: 'least_selling_products',
+    triggers: [
+      'producto se vende menos', 'productos se venden menos', 'productos menos vendidos', 'producto menos vendido',
+      'menos vendido', 'menos vendidos', 'menos vendida', 'menos vendidas', 'cual se vende menos',
+      'que se vende menos', 'k se vende menos', 'cual es el que se vende menos', 'cual es el k se vende menos',
+      'lo que menos sale', 'baja rotacion', 'peores ventas', 'sin ventas', 'cero ventas',
+      'productos estancados', 'menos popular', 'que producto no se vende', 'productos sin salida',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const [sales, products] = await Promise.all([salesService.list(), productsService.list()])
+      if (!products.length) {
+        return `📦 No hay productos registrados en el inventario de **${company}**.`
+      }
+
+      // Contabilizar ventas por producto
+      const productSales = {}
+      products.forEach((p) => {
+        productSales[p.id] = { product: p, qty: 0, totalAmount: 0 }
+      })
+
+      for (const sale of sales) {
+        if (!sale.items || !Array.isArray(sale.items)) continue
+        for (const item of sale.items) {
+          if (productSales[item.product_id]) {
+            productSales[item.product_id].qty += Number(item.quantity || 0)
+            productSales[item.product_id].totalAmount += Number(item.quantity || 0) * Number(item.unit_price || 0)
+          }
+        }
+      }
+
+      const allStats = Object.values(productSales)
+      const zeroSales = allStats.filter((s) => s.qty === 0)
+      const withSales = allStats.filter((s) => s.qty > 0).sort((a, b) => a.qty - b.qty)
+
+      let res = `📉 **Productos Menos Vendidos / Baja Rotación en ${company}:**\n\n`
+
+      if (zeroSales.length > 0) {
+        res += `⚠️ **Productos con 0 ventas registradas:**\n`
+        zeroSales.slice(0, 4).forEach((s) => {
+          res += `• **${s.product.name}** (Stock en almacén: **${s.product.stock} uds.** — Capital inmovilizado: ${money(s.product.stock * s.product.price)})\n`
+        })
+        if (zeroSales.length > 4) {
+          res += `  *(y otros ${zeroSales.length - 4} productos sin ventas)*\n`
+        }
+        res += `\n`
+      }
+
+      if (withSales.length > 0) {
+        res += `📊 **Productos con menor volumen de salida:**\n`
+        withSales.slice(0, 3).forEach((s, idx) => {
+          res += `${idx + 1}. **${s.product.name}**: solo **${s.qty} uds.** vendidas (${money(s.totalAmount)})\n`
+        })
+        res += `\n`
+      }
+
+      const userPref = ctx?.userName ? `${ctx.userName}, te recomiendo ` : 'Te recomendamos '
+      res += `💡 **Estrategia para ${company}:** ${userPref}armar promociones tipo "Pack / Combo" o aplicar descuentos especiales para acelerar la rotación de este inventario.`
+      return res
+    },
+  },
+
+  // ─── 10. DUDAS, VACILACIONES Y MULETILLAS (UMM, EHH, DADA, ETC.) ───
+  {
+    name: 'hesitation_and_doubts',
+    triggers: [
+      'umm', 'um', 'ummm', 'ehh', 'eh', 'ehhh', 'mmm', 'mm', 'este', 'a ver',
+      'dada', 'duda', 'dudas', 'pregunta', 'preguntas', 'tengo una duda', 'tengo una pregunta',
+      'tengo dudas', 'tengo una dada', 'ayuda con una duda', 'consulta', 'tengo una consulta',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const userGreeting = ctx?.userName ? `, ${ctx.userName}` : ''
+      return `¡Hola${userGreeting}! Aquí estoy listo para escucharte 😊\n\n` +
+        `Dime con total confianza qué duda o consulta tienes sobre **${company}**. Puedo responderte de inmediato sobre:\n` +
+        `• 📊 **Ventas:** "¿Cuál es el producto más vendido?", "¿Cuál se vende menos?" o "¿Cuánto vendí hoy?"\n` +
+        `• 📦 **Inventario:** "¿Qué productos están por agotarse?" o "¿Cuánto stock me queda de X producto?"\n` +
+        `• 💰 **Finanzas:** "¿Quiénes me deben dinero?" o "¿Cuánto tengo por cobrar en ${company}?"\n` +
+        `• 💡 **Consejos:** "¿Cómo puedo aumentar mis ventas?" o "¿Cómo mejorar el margen de ganancia?"\n` +
+        `• 💎 **Planes:** "¿Cuánto cuesta el Plan Pro y qué incluye?"\n\n` +
+        `¿Qué te gustaría averiguar hoy${userGreeting}?`
+    },
+  },
+
+  // ─── 11. PLANES Y SUSCRIPCIÓN ───
+  {
+    name: 'current_user_plan',
+    triggers: [
+      'en que plan estoy', 'en k plan estoy', 'que plan tengo', 'cual es mi plan',
+      'mi plan actual', 'mi plan', 'plan actual', 'plan activo', 'saber mi plan',
+      'sabes en que plan estoy', 'sabes en k plan estoy', 'que plan estoy usando',
+      'mi suscripcion actual', 'estado de mi plan', 'cual es mi suscripcion',
+      'en que plan me encuentro', 'que plan tiene mi cuenta', 'en que plan estoy en este sistema',
+      'sabes que plan tengo', 'que plan tengo en este sistema',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const userGreeting = ctx?.userName ? `${ctx.userName}, ` : ''
+      const activePlan = planService.getActivePlanData()
+
+      if (activePlan.id === 'free') {
+        return `📋 **${userGreeting}actualmente tu cuenta en ${company} se encuentra en el ${activePlan.name}:**\n\n` +
+          `• **Estado:** Activo (${activePlan.badge})\n` +
+          `• **Costo:** ${activePlan.pricePeriod}\n` +
+          `• **Límites de tu plan:**\n` +
+          `  - 📦 Productos: Hasta 50 productos en inventario\n` +
+          `  - 👤 Usuarios: 1 usuario de acceso\n` +
+          `  - 🤖 Asistente IA: 10 consultas por día\n` +
+          `  - 🕒 Historial: 30 días de movimientos\n\n` +
+          `🚀 **¿Deseas desbloquear todas las funciones sin límites?**\n` +
+          `Puedes mejorar al **Plan Pro** en cualquier momento para tener productos ilimitados, boletas con logo de ${company}, Asistente IA ilimitado 24/7 y soporte 24 horas.\n\n` +
+          `👉 *Ingresa al menú lateral en la sección **"Tu Plan"** o pregúntame "cuáles son los planes" para ver todas las tarifas disponibles (Mensual S/ 30, Trimestral S/ 60, Semestral S/ 120 o Anual S/ 230).*`
+      }
+
+      return `💎 **¡${userGreeting}cuentas con el ${activePlan.name} activo en ${company}!**\n\n` +
+        `• **Estado:** Suscripción Pro Activa (${activePlan.badge})\n` +
+        `• **Tarifa:** ${activePlan.pricePeriod} (${activePlan.priceEquiv})\n` +
+        `• **Beneficios ilimitados incluidos:**\n` +
+        `  - ✅ Productos y categorías 100% ilimitados\n` +
+        `  - 🤖 Asistente IA Ilimitado 24/7 en ${company}\n` +
+        `  - 🧾 Boletas y recibos oficiales con logo propio\n` +
+        `  - 📲 Compartir comprobantes directos por WhatsApp\n` +
+        `  - 📊 Exportaciones completas a Excel y reportes ejecutivos\n` +
+        `  - 🛡️ Atención y soporte técnico prioritario 24 horas\n` +
+        `  - 🔄 Actualizaciones y copias de seguridad automáticas\n\n` +
+        `Puedes revisar la vigencia o cambiar la modalidad en la sección **"Tu Plan"** en el menú de ${company}.`
+    },
+  },
+  {
+    name: 'plans_and_pricing',
+    triggers: [
+      'planes', 'precio de planes', 'cuanto cuesta el erp', 'precios del erp',
+      'cuanto vale el sistema', 'costo del sistema', 'plan mensual', 'plan trimestral',
+      'plan semestral', 'plan anual', 'plan pro', 'plan free', 'suscripcion', 'tarifas',
+      'como pagar', 'mejorar plan', 'planes y precios', 'cuales son los planes',
+      'que planes hay', 'que planes tienen', 'ver planes', 'costo de planes',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      return `💎 **Planes y Tarifas Oficiales para ${company}:**\n\n` +
+        `• 🆓 **Plan Free (S/ 0):** Para iniciar. Hasta 50 productos, 1 usuario y 10 consultas IA/día.\n` +
+        `• ⚡ **Plan Pro Mensual (S/ 30 / mes):** Flexibilidad total mes a mes sin contratos. Todo ilimitado.\n` +
+        `• 🔥 **Plan Pro Trimestral (S/ 60 / 3 meses):** Equivale a solo S/ 20/mes (¡Ahorras S/ 10 al mes!).\n` +
+        `• 🚀 **Plan Pro Semestral (S/ 120 / 6 meses):** Equivale a S/ 20/mes con soporte VIP y mantenimiento.\n` +
+        `• 👑 **Plan Pro Anual (S/ 230 / año):** Máximo ahorro (S/ 19.16/mes), más de 1 mes gratis, soporte 24 horas y migración desde Excel.\n\n` +
+        `👉 Puedes ver los detalles y activar tu suscripción en la sección **"Tu Plan"** en el menú de **${company}**.`
+    },
+  },
+
+  // ─── 12. ESTRATEGIAS Y CONSEJOS COMERCIALES (SUPER IA) ───
+  {
+    name: 'how_to_sell_more',
+    triggers: [
+      'como vender mas', 'como aumento las ventas', 'ideas para vender mas', 'estrategia de ventas',
+      'como hacer crecer el negocio', 'como vender', 'consejos de ventas', 'tips para vender',
+      'como tener mas ventas', 'como vendo mas', 'crecer ventas', 'aumentar ingresos',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const userGreeting = ctx?.userName ? `${ctx.userName}, ` : ''
+      return `🚀 **Estrategias Prácticas para Aumentar Ventas en ${company}:**\n\n` +
+        `1. 📦 **Cero Quiebres de Stock:** ${userGreeting}revisa a diario los *"productos con stock bajo"*. Nunca pierdas una venta por no tener inventario disponible.\n` +
+        `2. 🎁 **Crea Packs y Combos Promocionales:** Junta tu producto más vendido con uno de baja rotación en un Combo con precio atractivo. Así liberas capital inmovilizado.\n` +
+        `3. 📲 **Fidelización por WhatsApp:** Cada vez que registres una venta, haz clic en *"Boleta"* y compártela de inmediato por WhatsApp con tu cliente. Un cliente que recibe comprobante digital formal compra con más confianza.\n` +
+        `4. ⏰ **Cobra a Tiempo tus Cuentas por Cobrar:** Revisa las ventas con estatus *"Pendiente"* antes de que venzan para tener liquidez y comprar más mercadería.\n` +
+        `5. ⭐ **Consiente a tus Mejores Clientes:** Pregúntame *"¿quién es mi mejor cliente?"* y ofrécele una atención preferencial o descuentos por volumen.\n\n` +
+        `¡Pon en práctica estos consejos hoy mismo en **${company}**!`
+    },
+  },
+
+  // ─── 13. MÁRGENES Y CÁLCULO DE PRECIOS ───
+  {
+    name: 'profit_margins_advice',
+    triggers: [
+      'como calcular margen', 'margen de ganancia', 'como poner precios', 'como fijar precios',
+      'calcular ganancia', 'que margen poner', 'como gano mas', 'margen comercial',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      return `📈 **Guía de Margen de Ganancia para ${company}:**\n\n` +
+        `• **Fórmula de Margen %:**\n` +
+        `  \`Margen % = ((Precio Venta - Costo) / Precio Venta) * 100\`\n\n` +
+        `• **Fórmula de Multiplicador sobre Costo:**\n` +
+        `  \`Precio Venta = Costo / (1 - (Margen Deseado % / 100))\`\n\n` +
+        `💡 **Recomendación para ${company}:**\n` +
+        `• En productos de alta rotación (los que se venden todos los días), un margen del 20% al 35% suele ser muy competitivo.\n` +
+        `• En productos exclusivos o de menor rotación, apunta a márgenes del 40% al 60% para compensar el tiempo que permanecen en almacén.`
+    },
+  },
+
+  // ─── 14. CONTROL DE INVENTARIO Y MERMAS ───
+  {
+    name: 'inventory_loss_advice',
+    triggers: [
+      'evitar perdidas', 'evitar robos', 'controlar inventario', 'mermas', 'auditoria de stock',
+      'como cuidar el stock', 'descuadre de inventario', 'perdidas de stock',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      return `🛡️ **Control de Inventario y Prevención de Pérdidas en ${company}:**\n\n` +
+        `1. 🔄 **Auditorías Rápidas Periódicas:** Cada semana escoge una categoría diferente y compara el conteo físico con el stock registrado en el sistema.\n` +
+        `2. 📝 **Usa el Módulo de "Movimientos":** Si un producto se dañó o venció, regístralo como salida con motivo *"Ajuste"* o *"Merma"*. Nunca lo dejes sin registrar.\n` +
+        `3. 👥 **Roles de Usuarios:** Asegúrate de que los vendedores solo registren ventas y compras, mientras tú como Administrador controlas la edición de precios y costos.\n\n` +
+        `El sistema de **${company}** mantiene una bitácora estricta de cada entrada y salida para tu tranquilidad.`
+    },
+  },
+
+  // ─── 15. HORA, PEQUEÑA CHARLA Y MOTIVACIÓN ───
+  {
+    name: 'time_and_date',
+    triggers: [
+      'que hora es', 'que fecha es', 'que dia es hoy', 'hora actual', 'fecha actual',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const now = new Date()
+      const timeStr = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
+      const dateStr = now.toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      return `🕒 En **${company}** son las **${timeStr}** del **${dateStr}**.\n\n¡Un momento perfecto para seguir impulsando las ventas y operaciones de tu empresa!`
+    },
+  },
+  {
+    name: 'small_talk_and_fun',
+    triggers: [
+      'chiste', 'cuenta un chiste', 'cuentame un chiste', 'dime un chiste', 'hazme reir',
+      'cuentame algo', 'algo divertido',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const jokes = [
+        `😄 ¿Por qué los libros de contabilidad nunca van al gimnasio? ¡Porque ya están llenos de balances! 📊\n\nAquí en **${company}** nos aseguramos de que todos tus números cuadren a la perfección.`,
+        `😂 ¿Qué le dice un producto agotado a otro en **${company}**? "¡Tranquilo amigo, con este ritmo de ventas pronto nos reponen!" 📦🚀`,
+      ]
+      return jokes[Math.floor(Math.random() * jokes.length)]
+    },
+  },
+  {
+    name: 'apology_or_critique',
+    triggers: [
+      'sigue siendo tonto', 'sigues siendo tonto', 'eres tonto', 'tonto', 'no seas tonto',
+      'eres bruto', 'no entiendes', 'no sabes nada', 'no sirves', 'muy tonto',
+      'no me entendiste', 'te equivocas', 'te equivocaste', 'mal asistente', 'que tonto',
+      'estas tonto', 'medio tonto', 'muy basico',
+    ],
+    handler: async (ctx) => {
+      const company = ctx?.companyName || 'CYA STORE'
+      const userGreeting = ctx?.userName ? `${ctx.userName}, ` : ''
+      return `Lamento mucho la confusión, ${userGreeting}te pido sinceras disculpas 🙏. Estoy en constante optimización para brindarte la mejor asistencia en **${company}**.\n\n` +
+        `Por favor, cuéntame exactamente qué necesitas consultar (por ejemplo: *"¿en qué plan estoy?"*, *"¿cuánto vendí hoy?"*, *"¿cuál es el producto más vendido?"* o *"¿cómo emitir boletas?"*) y con gusto te daré la respuesta precisa de **${company}**.`
+    },
+  },
 ]
 
+// ─── LIMPIADOR INTELIGENTE DE CONSULTAS (NLP & SLANG NORMALIZER) ───
+function cleanQuery(rawText) {
+  if (!rawText) return ''
+  let t = normalize(rawText)
+
+  // 1. Normalización de abreviaciones y jergas coloquiales (Perú / Latinoamérica)
+  t = t
+    .replace(/\b(k|q)\b/g, 'que')
+    .replace(/\bkiero\b/g, 'quiero')
+    .replace(/\bkual\b/g, 'cual')
+    .replace(/\bkuales\b/g, 'cuales')
+    .replace(/\bps\b/g, 'pues')
+    .replace(/\bpe\b/g, 'pues')
+    .replace(/\bns\b/g, 'no se')
+    .replace(/\btmb\b|\btmbn\b/g, 'tambien')
+    .replace(/\bdada\b/g, 'duda')
+    .replace(/\bdadas\b/g, 'dudas')
+    .replace(/\bpq\b|\bxq\b/g, 'porque')
+    .replace(/\bmas\b/g, 'mas')
+
+  // 2. Limpieza recursiva de muletillas y conectores de inicio ("ok", "bueno", "a ver", "dime", "sabes", "mira", etc.)
+  let prev = ''
+  while (prev !== t) {
+    prev = t
+    t = t
+      .replace(/^(ok|bueno|a ver|dime|sabes|sabrias decirme|puedes decirme|porfa|por favor|mira|oye|eh+|um+|mm+|este|hola|alo|asistente)\b\s*/i, '')
+      .trim()
+  }
+
+  return t
+}
+
+// ─── FINALIZADOR DE RESPUESTA: GARANTIZA MENCIÓN DE EMPRESA ───
+function finalizeResponse(text, companyName, userName) {
+  const comp = companyName || 'CYA STORE'
+  let res = text ? text.trim() : ''
+
+  // Si la respuesta no contiene el nombre de la empresa, anexamos la firma oficial
+  if (!res.toLowerCase().includes(comp.toLowerCase())) {
+    res += `\n\n🏢 *Sistema ERP • ${comp}*`
+  }
+
+  return res
+}
+
 // ─── EVALUADOR DINÁMICO DE PRODUCTOS Y CLIENTES ───
-// Si no hay un intent genérico que coincida exactamente, busca de forma inteligente:
-// 1. ¿El usuario está preguntando por un producto específico (ej: "tienes airpods", "precio del case", "stock de polo")?
-// 2. ¿El usuario está preguntando por un cliente específico (ej: "cuanto compro juan", "historial de maria")?
-// 3. ¿El usuario escribió directamente el nombre de un producto o cliente?
-async function dynamicSearch(normalizedQuery) {
-  // Palabras comunes a ignorar al extraer el término de búsqueda
+async function dynamicSearch(queryText, companyName) {
+  if (!queryText) return null
+  const company = companyName || 'CYA STORE'
+
+  // Stopwords estrictos para evitar falsos positivos
   const stopWords = new Set([
-    'tienes', 'hay', 'precio', 'de', 'del', 'la', 'el', 'los', 'las', 'un', 'una',
+    'tienes', 'hay', 'precio', 'de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas',
     'stock', 'cuanto', 'cuesta', 'vale', 'informacion', 'info', 'dame', 'sobre',
     'buscar', 'consultar', 'tendra', 'tendras', 'queda', 'quedan', 'historial',
-    'compras', 'compro', 'cliente', 'producto', 'cuantos', 'cuantas', 'unidades',
+    'compras', 'compro', 'cliente', 'producto', 'productos', 'cuantos', 'cuantas', 'unidades',
     'existe', 'esta', 'disponible', 'disponibles', 'por', 'favor',
+    'mas', 'menos', 'vende', 'venden', 'vendido', 'vendidos', 'vendida', 'vendidas',
+    'que', 'cual', 'cuales', 'k', 'q', 'quiero', 'saber', 'dime', 'ver', 'mostrar',
+    'eh', 'ehh', 'ehhh', 'um', 'umm', 'ummm', 'mm', 'mmm', 'este', 'oye', 'mira',
+    'duda', 'dudas', 'dada', 'pregunta', 'preguntas', 'combo', 'kit', 'y', 'o',
   ])
 
-  const tokens = normalizedQuery.split(' ').filter((w) => w.length > 1 && !stopWords.has(w))
+  const tokens = queryText.split(' ').filter((w) => w.length >= 3 && !stopWords.has(w))
 
   // Búsqueda en PRODUCTOS
   const products = await productsService.list()
   let matchedProduct = null
 
   // 1. Intento por coincidencia de SKU exacto o normalizado
-  matchedProduct = products.find((p) => p.sku && normalize(p.sku) === normalizedQuery)
+  matchedProduct = products.find((p) => p.sku && normalize(p.sku) === queryText)
 
   // 2. Intento por nombre exacto normalizado
   if (!matchedProduct) {
-    matchedProduct = products.find((p) => normalize(p.name) === normalizedQuery)
+    matchedProduct = products.find((p) => normalize(p.name) === queryText)
   }
 
   // 3. Intento si la query contiene el nombre completo del producto
   if (!matchedProduct) {
     matchedProduct = products.find((p) => {
       const pNorm = normalize(p.name)
-      return pNorm.length >= 3 && normalizedQuery.includes(pNorm)
+      return pNorm.length >= 4 && queryText.includes(pNorm)
     })
   }
 
-  // 4. Intento con tokens significativos (si coinciden la mayoría de palabras clave del producto)
+  // 4. Intento con tokens significativos (excluyendo stopwords)
   if (!matchedProduct && tokens.length > 0) {
     const candidates = products
       .map((p) => {
@@ -967,7 +1415,10 @@ async function dynamicSearch(normalizedQuery) {
       .filter((c) => c.score > 0)
       .sort((a, b) => b.score - a.score)
 
-    if (candidates.length > 0 && candidates[0].score >= Math.min(tokens.length, 1)) {
+    if (
+      candidates.length > 0 &&
+      (candidates[0].score >= 2 || (tokens.length === 1 && candidates[0].score === 1 && tokens[0].length >= 4))
+    ) {
       matchedProduct = candidates[0].product
     }
   }
@@ -976,11 +1427,11 @@ async function dynamicSearch(normalizedQuery) {
     const isOutOfStock = matchedProduct.stock <= 0
     const isLow = !matchedProduct.is_kit && matchedProduct.stock <= matchedProduct.min_stock && !isOutOfStock
 
-    let stockText = `✅ **Stock disponible: ${matchedProduct.stock} unidad(es)**`
+    let stockText = `✅ **Stock disponible en ${company}: ${matchedProduct.stock} unidad(es)**`
     if (isOutOfStock) {
-      stockText = `🚨 **Totalmente AGOTADO (0 unidades)**`
+      stockText = `🚨 **Totalmente AGOTADO en ${company} (0 unidades)**`
     } else if (isLow) {
-      stockText = `⚠️ **Stock bajo: solo quedan ${matchedProduct.stock} unidad(es)**`
+      stockText = `⚠️ **Stock bajo en ${company}: solo quedan ${matchedProduct.stock} unidad(es)**`
     }
 
     let extra = ''
@@ -989,7 +1440,7 @@ async function dynamicSearch(normalizedQuery) {
       extra = `\n• Tipo: **Combo / Kit** (usa ${matchedProduct.kit_quantity}x ${comp?.name || 'producto base'})`
     }
 
-    return `📦 **Información de Producto:**\n` +
+    return `📦 **Información de Producto • ${company}:**\n` +
       `• Nombre: **${matchedProduct.name}**\n` +
       `• SKU: \`${matchedProduct.sku || 'N/A'}\`\n` +
       `• Precio de venta: **${money(matchedProduct.price)}**\n` +
@@ -1001,67 +1452,137 @@ async function dynamicSearch(normalizedQuery) {
   const clientsHistory = await getClientsHistory()
   let matchedClient = null
 
-  // Coincidencia con nombre de cliente
   if (tokens.length > 0) {
     matchedClient = clientsHistory.find((c) => {
       const cNorm = normalize(c.name)
-      return normalizedQuery.includes(cNorm) || tokens.some((t) => t.length >= 3 && cNorm.includes(t))
+      return queryText.includes(cNorm) || tokens.some((t) => t.length >= 3 && cNorm.includes(t))
     })
   }
 
   if (matchedClient) {
-    return `👤 **Ficha Comercial del Cliente:**\n` +
+    return `👤 **Ficha Comercial del Cliente • ${company}:**\n` +
       `• Nombre: **${matchedClient.name}**\n` +
       `• Teléfono: ${matchedClient.phone || 'No registrado'}\n` +
       `• Total de compras: **${matchedClient.salesCount} pedido(s)**\n` +
-      `• Total gastado: **${money(matchedClient.totalSpent)}**\n` +
+      `• Total gastado en ${company}: **${money(matchedClient.totalSpent)}**\n` +
       `• Última compra: ${formatDate(matchedClient.lastPurchase)}`
   }
 
   return null
 }
 
-// ─── PUNTO DE ENTRADA PRINCIPAL ───
-export async function askAssistant(question) {
+// ─── PUNTO DE ENTRADA PRINCIPAL CON PIPELINE NLP Y MEMORIA ───
+export async function askAssistant(question, context = {}) {
   if (!question || !question.trim()) {
     return 'Por favor escribe tu consulta para poder ayudarte.'
   }
 
-  const normalized = normalize(question)
+  const company = await companySettingsService.get()
+  const limits = getLimits(company)
+  const used = await assistantUsageService.getTodayCount()
 
-  // 1. Probar reglas de intención predefinidas
-  for (const rule of intentRules) {
-    const match = rule.triggers.some((t) => {
-      const normT = normalize(t)
-      // Coincidencia exacta o contiene como frase
-      return normalized === normT || normalized.includes(normT)
-    })
-    if (match) {
-      return rule.handler()
+  if (used >= limits.assistantDailyMessages) {
+    return `Ya usaste tus ${limits.assistantDailyMessages} preguntas gratis de hoy. Actualiza a Pro en la sección "Planes" para preguntas ilimitadas.`
+  }
+  await assistantUsageService.increment()
+
+  const companyName = context.companyName || company?.name || 'CYA STORE'
+  let userName = getStoredUserName(context.user)
+
+  // 1. Detección prioritaria: ¿El usuario se está presentando? ("me llamo carlos hola", "soy Carlos", etc.)
+  const introducedName = extractSelfIntroduction(question)
+  if (introducedName) {
+    userName = setStoredUserName(introducedName)
+    const greeting = getTimeGreeting()
+    const welcome = `¡Hola, ${userName}! ${greeting} 👋 ¡Mucho gusto! Qué gran placer saludarte.\n\n` +
+      `Ya memoricé tu nombre en el sistema para atenderte siempre de manera personalizada en **${companyName}**.\n\n` +
+      `Como tu Asistente Inteligente en **${companyName}**, tengo acceso en tiempo real a tus ventas, inventario, productos más vendidos, cuentas por cobrar y compras.\n\n` +
+      `¿En qué te puedo colaborar hoy, ${userName}?`
+    return finalizeResponse(welcome, companyName, userName)
+  }
+
+  // 2. Detección prioritaria: ¿El usuario pregunta cómo se llama o si me acuerdo de él?
+  const nameQueryTriggers = [
+    'como me llamo', 'sabes mi nombre', 'te acuerdas de mi', 'te acuerdas de mi nombre',
+    'cual es mi nombre', 'quien soy', 'te sabes mi nombre', 'sabes quien soy',
+  ]
+  const rawNormalized = normalize(question)
+  const cleaned = cleanQuery(question)
+
+  if (nameQueryTriggers.some((t) => rawNormalized.includes(t) || cleaned.includes(t))) {
+    if (userName) {
+      const resp = `¡Por supuesto que sí! Tu nombre es **${userName}** y estás al mando de **${companyName}** 💼.\n\n` +
+        `Recuerdo perfectamente quién eres y todos tus datos comerciales están sincronizados en tiempo real. ¿Qué te gustaría consultar hoy, ${userName}?`
+      return finalizeResponse(resp, companyName, userName)
+    } else {
+      const resp = `Aún no me has dicho tu nombre. Puedes escribirme por ejemplo: *"me llamo Carlos"* y con gusto lo memorizaré para saludarte siempre de forma personalizada en **${companyName}**.`
+      return finalizeResponse(resp, companyName, userName)
     }
   }
 
-  // 2. Probar búsqueda dinámica (si pregunta por un producto o cliente en la base de datos)
-  const dynamicAnswer = await dynamicSearch(normalized)
-  if (dynamicAnswer) {
-    return dynamicAnswer
+  // Objeto de contexto que viaja a todos los handlers
+  const ctx = {
+    userName,
+    companyName,
+    user: context.user,
   }
 
-  // 3. Fallback inteligente y contextual con sugerencias interactivas
-  return `🤔 No encontré una respuesta exacta para "${question}".\n\n` +
-    `Sin embargo, puedo darte datos en tiempo real sobre:\n` +
-    `• 💵 **Ventas:** "ventas de hoy", "ventas de ayer", "este mes" o "ticket promedio"\n` +
+  // Variantes para probar disparadores en orden de especificidad
+  const variants = Array.from(new Set([cleaned, rawNormalized])).filter(Boolean)
+
+  // 3. Probar reglas de intención predefinidas
+  for (const q of variants) {
+    for (const rule of intentRules) {
+      const match = rule.triggers.some((t) => {
+        const normT = normalize(t)
+        const isSingleShortWord = !normT.includes(' ') && normT.length <= 5
+        // Si la regla requiere coincidencia exacta o es una palabra solitaria corta (ej: "ok", "vale", "ya", "si")
+        if (rule.exactOnly || isSingleShortWord) {
+          return q === normT
+        }
+        // Para frases multi-palabra o disparadores específicos
+        if (q === normT) return true
+        if (normT.includes(' ')) {
+          return q.includes(normT)
+        }
+        // Para palabras mayores a 5 caracteres, usar límite de palabra para evitar subcadenas espurias
+        const wordRegex = new RegExp(`(^|\\s)${normT}(\\s|$)`, 'i')
+        return wordRegex.test(q)
+      })
+      if (match) {
+        const rawRes = await rule.handler(ctx)
+        return finalizeResponse(rawRes, companyName, userName)
+      }
+    }
+  }
+
+  // 4. Probar búsqueda dinámica (productos o clientes por SKU, nombre o palabras clave)
+  const dynamicAnswer = (await dynamicSearch(cleaned, companyName)) || (await dynamicSearch(rawNormalized, companyName))
+  if (dynamicAnswer) {
+    return finalizeResponse(dynamicAnswer, companyName, userName)
+  }
+
+  // 5. Fallback inteligente y contextual que reconoce el tema general
+  const userPrefix = userName ? `${userName}, ` : ''
+  const fallback = `🤔 ${userPrefix}no encontré una coincidencia exacta para "${question}".\n\n` +
+    `Sin embargo, aquí en **${companyName}** puedo responderte en tiempo real sobre:\n` +
+    `• 🏆 **Productos:** "¿Cuál es el producto más vendido?" o "¿Cuál se vende menos?"\n` +
+    `• 📊 **Ventas:** "ventas de hoy", "ventas de ayer", "este mes" o "ticket promedio"\n` +
     `• 📦 **Stock:** "¿Qué productos tienen stock bajo?", "agotados" o busca un producto por su nombre\n` +
     `• 💰 **Finanzas:** "¿Cuánto me deben?" o "ventas vencidas"\n` +
-    `• 👥 **Clientes:** "mejor cliente" o el nombre de una persona\n` +
-    `• 🛠️ **Guías:** "¿Cómo hacer una venta?", "¿Cómo compartir recibo?", etc.\n\n` +
-    `¿Sobre qué tema te gustaría consultar?`
+    `• 💡 **Estrategias:** "¿Cómo vender más?" o "¿Cómo calcular el margen de ganancia?"\n` +
+    `• 💎 **Planes:** "¿Cuánto cuesta el Plan Pro en ${companyName}?"\n` +
+    `• 👥 **Clientes:** "mejor cliente" o el nombre de una persona\n\n` +
+    `¿Sobre qué tema de **${companyName}** te gustaría consultar?`
+
+  return finalizeResponse(fallback, companyName, userName)
 }
 
-// Sugerencias rápidas para mostrar como botones en el chat.
+// Sugerencias rápidas para mostrar como botones en el chat
 export const suggestedQuestions = [
+  '¿Cuál es el producto más vendido?',
+  '¿Cuál se vende menos?',
   '¿Cuánto vendí hoy?',
   '¿Qué productos tienen stock bajo?',
-  '¿Cuánto me deben?',
-  '¿Cuál es mi mejor cliente?',
 ]
+
