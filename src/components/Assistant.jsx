@@ -4,6 +4,11 @@ import { X, Send, Sparkles, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { askAssistant, suggestedQuestions, getStoredUserName } from '../lib/assistant'
 import { companySettingsService } from '../services/companySettingsService'
+import { productsService } from '../services/productsService'
+import { getEffectivePlan } from '../lib/planLimits'
+import { isSaleTrigger, newSaleFlowState, startSaleFlow, processSaleFlowInput } from '../lib/saleFlow'
+import { planService } from '../services/planService'
+import Receipt from './Receipt'
 
 export default function Assistant() {
   const { user } = useAuth()
@@ -15,6 +20,8 @@ export default function Assistant() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [company, setCompany] = useState(null)
+  const [products, setProducts] = useState([])
+  const [saleFlow, setSaleFlow] = useState(newSaleFlowState())
 
   const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
   const assistantName = company?.name && company.name !== 'CYA'
@@ -36,10 +43,11 @@ export default function Assistant() {
     }, 750)
   }
 
-  // Cargar configuración de la empresa para el nombre del asistente
+  // Cargar configuración de la empresa y lista de productos para boletas
   useEffect(() => {
     if (!user || location.pathname === '/login') return
     companySettingsService.get().then(setCompany).catch(() => {})
+    productsService.list().then(setProducts).catch(() => {})
   }, [user, location.pathname])
 
   // Secuencia de animación de entrada: se muestra en tamaño real y luego se encoge a bolita
@@ -114,6 +122,64 @@ export default function Assistant() {
     setLoading(true)
 
     try {
+      // 1. Si saleFlow.active es true, procesamos el flujo de venta
+      if (saleFlow.active) {
+        const result = await processSaleFlowInput(saleFlow, q, user?.id)
+        setSaleFlow(result.state)
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: result.message,
+            options: result.options || [],
+            completed: result.completed || null,
+          },
+        ])
+        if (result.completed) {
+          productsService.list().then(setProducts).catch(() => {})
+        }
+        return
+      }
+
+      // 2. Si no está activo pero dispara una venta
+      if (isSaleTrigger(q)) {
+        let currentCompany = company
+        try {
+          const fresh = await companySettingsService.get()
+          if (fresh) {
+            currentCompany = fresh
+            setCompany(fresh)
+          }
+        } catch (e) {}
+
+        const isPro = getEffectivePlan(currentCompany) === 'pro' || planService.isPro()
+        if (!isPro) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: 'assistant',
+              text: 'Hacer ventas desde el chat es una función del Plan Pro. Actualiza tu plan para desbloquearla.',
+              showPlanUpgrade: true,
+            },
+          ])
+          return
+        }
+
+        const result = await startSaleFlow(q)
+        setSaleFlow(result.state)
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: result.message,
+            options: result.options || [],
+            completed: null,
+          },
+        ])
+        return
+      }
+
+      // 3. Flujo conversacional normal con askAssistant
       const answer = await askAssistant(q, {
         user,
         companyName: companyDisplayName,
@@ -267,21 +333,60 @@ export default function Assistant() {
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50 text-xs">
             {messages.map((msg, idx) => {
               const isUser = msg.role === 'user'
-              const isLimitReached = !isUser && msg.text && msg.text.includes('Ya usaste tus')
+              const isLimitReached =
+                !isUser &&
+                msg.text &&
+                (msg.text.includes('Ya usaste tus') ||
+                  msg.showPlanUpgrade ||
+                  msg.text.includes('Hacer ventas desde el chat es una función del Plan Pro'))
               return (
                 <div
                   key={idx}
-                  className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
+                  className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} w-full`}
                 >
                   <div
-                    className={`px-3.5 py-2.5 max-w-[85%] whitespace-pre-wrap leading-relaxed shadow-xs ${
+                    className={`px-3.5 py-2.5 ${
+                      msg.completed ? 'w-full max-w-[96%]' : 'max-w-[85%]'
+                    } whitespace-pre-wrap leading-relaxed shadow-xs ${
                       isUser
                         ? 'bg-brand text-white rounded-2xl rounded-tr-xs font-medium'
                         : 'bg-white border border-slate-200/80 text-slate-800 rounded-2xl rounded-tl-xs'
                     }`}
                   >
                     {msg.text}
+
+                    {/* Boleta de venta si la venta se completó */}
+                    {msg.completed && (
+                      <div className="mt-3 pt-3 border-t border-slate-200/80 w-full overflow-hidden">
+                        <div className="max-w-[310px] mx-auto max-h-[380px] overflow-y-auto pr-0.5">
+                          <Receipt
+                            sale={msg.completed}
+                            client={msg.completed.client}
+                            products={products}
+                            company={company}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Opciones interactivas de respuesta (chips) */}
+                  {!isUser && msg.options && msg.options.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5 animate-fade-in max-w-[92%]">
+                      {msg.options.map((opt, optIdx) => (
+                        <button
+                          key={optIdx}
+                          type="button"
+                          disabled={loading}
+                          onClick={() => handleSend(opt)}
+                          className="text-left bg-white hover:bg-brand hover:text-white text-slate-700 font-medium px-2.5 py-1.5 rounded-xl text-[11px] border border-slate-200/90 shadow-2xs hover:border-brand transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   {isLimitReached && (
                     <button
                       type="button"
