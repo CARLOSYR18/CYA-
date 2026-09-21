@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Menu, ChevronDown, Bell, CheckCircle2, Sparkles } from 'lucide-react'
+import { LogOut, Menu, ChevronDown, Bell, CheckCircle2, Sparkles, ShieldAlert } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabaseClient'
 import { getNotifications } from '../../lib/notifications'
@@ -13,7 +13,7 @@ function avatarColor(name = '') {
 
 export default function Topbar({ title, onOpenSidebar }) {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, logout, isPlatformAdmin } = useAuth()
   
   // User menu state
   const [userOpen, setUserOpen] = useState(false)
@@ -190,7 +190,13 @@ export default function Topbar({ title, onOpenSidebar }) {
             </div>
             <div className="hidden sm:flex flex-col leading-tight text-left">
               <span className="text-[13px] text-slate-800 font-semibold truncate max-w-[110px]">{user?.full_name}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{user?.role === 'admin' ? 'Admin' : 'Empleado'}</span>
+              {isPlatformAdmin ? (
+                <span className="text-[9px] font-extrabold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">
+                  SUPER ADMIN
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{user?.role === 'admin' ? 'Admin' : 'Empleado'}</span>
+              )}
             </div>
             <ChevronDown size={13} className={`text-slate-400 transition-transform duration-200 ${userOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -203,15 +209,27 @@ export default function Topbar({ title, onOpenSidebar }) {
                 <p className="text-[11px] text-slate-400 truncate">{user?.email}</p>
               </div>
               <div className="p-1.5 space-y-0.5">
-                <button
-                  onClick={() => {
-                    setUserOpen(false)
-                    navigate('/planes')
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-slate-700 font-medium hover:bg-slate-50 transition-colors cursor-pointer"
-                >
-                  <Sparkles size={14} className="text-amber-500" /> Tu Plan y Suscripción
-                </button>
+                {isPlatformAdmin ? (
+                  <button
+                    onClick={() => {
+                      setUserOpen(false)
+                      navigate('/admin-plataforma')
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-purple-700 font-semibold hover:bg-purple-50 transition-colors cursor-pointer"
+                  >
+                    <ShieldAlert size={14} className="text-purple-600" /> Panel Plataforma
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setUserOpen(false)
+                      navigate('/planes')
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-slate-700 font-medium hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    <Sparkles size={14} className="text-amber-500" /> Tu Plan y Suscripción
+                  </button>
+                )}
                 <div className="border-t border-slate-100 my-1" />
                 <button onClick={() => { setUserOpen(false); logout() }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-red-600 font-medium hover:bg-red-50 transition-colors cursor-pointer">

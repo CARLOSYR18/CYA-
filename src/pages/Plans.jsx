@@ -22,7 +22,7 @@ import { planRequestsService } from '../services/planRequestsService'
 import { PLAN_PRICING, getEffectivePlan } from '../lib/planLimits'
 
 export default function Plans() {
-  const [billingMode, setBillingMode] = useState('trimestral') // 'trimestral' | 'semestral' | 'anual' | 'todos'
+  const [billingMode, setBillingMode] = useState('todos') // 'todos' | 'mensual' | 'trimestral' | 'semestral' | 'anual'
   const [company, setCompany] = useState(null)
   const [loadingCompany, setLoadingCompany] = useState(true)
   const [submittingPeriod, setSubmittingPeriod] = useState(null)
@@ -59,7 +59,7 @@ export default function Plans() {
       id: 'free',
       periodKey: 'free',
       name: 'Plan Free',
-      tagline: 'Ideal para emprendedores y pequeños negocios que recién comienzan a digitalizarse.',
+      tagline: 'Ideal para emprendedores y pequeños negocios que recién comienzan.',
       price: 0,
       pricePeriod: 'Gratis para siempre',
       priceEquiv: 'Sin costo mensual',
@@ -67,7 +67,7 @@ export default function Plans() {
       features: [
         { text: 'Hasta 20 productos en inventario', included: true, highlight: true },
         { text: '1 usuario con acceso al sistema', included: true },
-        { text: 'Asistente IA limitado (5 preguntas por día)', included: true, highlight: true },
+        { text: 'Asistente IA limitado (5 preguntas/día)', included: true, highlight: true },
         { text: 'Registro básico de ventas y compras', included: true },
         { text: 'Historial de movimientos de stock', included: true },
         { text: 'Panel de control con métricas del día', included: true },
@@ -77,88 +77,121 @@ export default function Plans() {
         { text: 'Atención y soporte prioritario 24/7', included: false },
       ],
     },
+    mensual: {
+      id: 'pro_mensual',
+      periodKey: 'mensual',
+      name: `Pro ${PLAN_PRICING.mensual?.label || 'Mensual'}`,
+      tagline: 'Acceso total a todas las funciones del ERP mes a mes sin ataduras.',
+      price: PLAN_PRICING.mensual?.price || 30,
+      months: PLAN_PRICING.mensual?.months || 1,
+      pricePeriod: `S/ ${PLAN_PRICING.mensual?.price || 30} al mes`,
+      priceEquiv: 'Facturación mensual estándar',
+      billingCycle: `Facturación cada mes (${PLAN_PRICING.mensual?.months || 1} mes)`,
+      badge: 'Flexible',
+      features: [
+        { text: 'Productos y categorías ilimitados', included: true, highlight: true },
+        { text: 'Múltiples usuarios y roles', included: true, highlight: true },
+        { text: 'Asistente IA Ilimitado 24/7', included: true, highlight: true },
+        { text: 'Emisión de boletas con logo propio', included: true },
+        { text: 'Historial de movimientos ilimitado', included: true },
+        { text: 'Envío de comprobantes por WhatsApp', included: true },
+        { text: 'Exportación completa a Excel', included: true },
+        { text: 'Atención técnica 24 horas', included: true, highlight: true },
+        { text: 'Actualizaciones continuas incluidas', included: true },
+        { text: 'Copias de seguridad en la nube', included: true },
+      ],
+    },
     trimestral: {
       id: 'pro_trimestral',
       periodKey: 'trimestral',
-      name: `Plan Pro ${PLAN_PRICING.trimestral.label}`,
-      tagline: 'Todo el poder del ERP para negocios en crecimiento que necesitan control total sin límites.',
+      name: `Pro ${PLAN_PRICING.trimestral.label}`,
+      tagline: 'Control total para negocios en crecimiento con ahorro garantizado.',
       price: PLAN_PRICING.trimestral.price,
       months: PLAN_PRICING.trimestral.months,
       pricePeriod: `S/ ${PLAN_PRICING.trimestral.price} cada ${PLAN_PRICING.trimestral.months} meses`,
-      priceEquiv: `Equivale a S/ ${(PLAN_PRICING.trimestral.price / PLAN_PRICING.trimestral.months).toFixed(0)} al mes`,
+      priceEquiv: `S/ ${(PLAN_PRICING.trimestral.price / PLAN_PRICING.trimestral.months).toFixed(0)}/mes (Ahorra 33%)`,
       billingCycle: `Facturación trimestral (${PLAN_PRICING.trimestral.months} meses)`,
       badge: 'Más Popular',
+      highlightDiscount: 'AHORRA 33% VS MENSUAL',
       features: [
         { text: 'Productos y categorías ilimitados', included: true, highlight: true },
-        { text: 'Múltiples usuarios y roles (Admin, Vendedores)', included: true, highlight: true },
-        { text: 'Asistente IA Ilimitado 24/7 (Ventas, stock y finanzas)', included: true, highlight: true },
-        { text: 'Emisión de boletas y recibos PDF con logo propio', included: true },
-        { text: 'Historial histórico de movimientos sin límites de tiempo', included: true },
-        { text: 'Envío directo de comprobantes por WhatsApp', included: true },
-        { text: 'Exportación completa a Excel y reportes ejecutivos', included: true },
-        { text: 'Atención y soporte técnico 24 horas', included: true, highlight: true },
-        { text: 'Actualizaciones continuas del sistema garantizadas', included: true },
-        { text: 'Mantenimiento preventivo y copias en la nube', included: true },
+        { text: 'Múltiples usuarios y roles', included: true, highlight: true },
+        { text: 'Asistente IA Ilimitado 24/7', included: true, highlight: true },
+        { text: 'Emisión de boletas con logo propio', included: true },
+        { text: 'Historial de movimientos ilimitado', included: true },
+        { text: 'Envío de comprobantes por WhatsApp', included: true },
+        { text: 'Exportación completa a Excel', included: true },
+        { text: 'Atención técnica 24 horas', included: true, highlight: true },
+        { text: 'Actualizaciones continuas incluidas', included: true },
+        { text: 'Copias de seguridad en la nube', included: true },
       ],
     },
     semestral: {
       id: 'pro_semestral',
       periodKey: 'semestral',
-      name: `Plan Pro ${PLAN_PRICING.semestral.label}`,
-      tagline: 'Estabilidad y tranquilidad operativa por medio año completo con todas las ventajas Pro.',
+      name: `Pro ${PLAN_PRICING.semestral.label}`,
+      tagline: 'Estabilidad y tranquilidad operativa por medio año completo.',
       price: PLAN_PRICING.semestral.price,
       months: PLAN_PRICING.semestral.months,
       pricePeriod: `S/ ${PLAN_PRICING.semestral.price} cada ${PLAN_PRICING.semestral.months} meses`,
-      priceEquiv: `Equivale a S/ ${(PLAN_PRICING.semestral.price / PLAN_PRICING.semestral.months).toFixed(0)} al mes`,
+      priceEquiv: `S/ ${(PLAN_PRICING.semestral.price / PLAN_PRICING.semestral.months).toFixed(0)}/mes (Ahorra S/ 60)`,
       billingCycle: `Facturación semestral (${PLAN_PRICING.semestral.months} meses)`,
       badge: 'Recomendado',
+      highlightDiscount: 'AHORRA S/ 60 AL SEMESTRE',
       features: [
-        { text: 'Todo lo incluido en el Plan Pro Trimestral', included: true, highlight: true },
+        { text: 'Todo lo incluido en Pro Trimestral', included: true, highlight: true },
         { text: 'Productos y usuarios ilimitados', included: true },
-        { text: 'Asistente IA Ilimitado con máxima velocidad', included: true, highlight: true },
-        { text: 'Atención y soporte prioritario 24/7 vía WhatsApp', included: true, highlight: true },
-        { text: 'Sesión de capacitación e inducción para tu personal', included: true },
-        { text: 'Mantenimiento preventivo y optimización de base de datos', included: true },
-        { text: 'Actualizaciones continuas y acceso prioritario', included: true },
-        { text: 'Copias de seguridad diarias automatizadas', included: true },
+        { text: 'Asistente IA Ilimitado ultrarrápido', included: true, highlight: true },
+        { text: 'Soporte prioritario 24/7 WhatsApp', included: true, highlight: true },
+        { text: 'Sesión de capacitación de personal', included: true },
+        { text: 'Mantenimiento preventivo de BD', included: true },
+        { text: 'Actualizaciones y novedades continuas', included: true },
+        { text: 'Copias de seguridad diarias', included: true },
       ],
     },
     anual: {
       id: 'pro_anual',
       periodKey: 'anual',
-      name: `Plan Pro ${PLAN_PRICING.anual.label}`,
-      tagline: 'La inversión más rentable para empresas consolidadas. Máximo ahorro y atención VIP exclusiva.',
+      name: `Pro ${PLAN_PRICING.anual.label}`,
+      tagline: 'La inversión más rentable: costo mensual más bajo y máxima atención VIP.',
       price: PLAN_PRICING.anual.price,
       months: PLAN_PRICING.anual.months,
       pricePeriod: `S/ ${PLAN_PRICING.anual.price} al año`,
-      priceEquiv: `Equivale a solo S/ ${(PLAN_PRICING.anual.price / PLAN_PRICING.anual.months).toFixed(2)} al mes`,
+      priceEquiv: `S/ ${(PLAN_PRICING.anual.price / PLAN_PRICING.anual.months).toFixed(2)}/mes (Ahorra S/ 130)`,
       billingCycle: `Facturación anual única (${PLAN_PRICING.anual.months} meses)`,
       badge: 'Mejor Valor • Máximo Ahorro',
-      highlightDiscount: 'AHORRA S/ 10 + 1 MES GRATIS',
+      highlightDiscount: 'AHORRA S/ 130 VS MENSUAL',
       features: [
-        { text: 'Todo lo incluido en el Plan Semestral', included: true, highlight: true },
-        { text: `Mayor ahorro garantizado (Solo S/ ${PLAN_PRICING.anual.price} al año completo)`, included: true, highlight: true },
-        { text: 'Asistente IA Ilimitado 24/7 sin ninguna restricción', included: true, highlight: true },
-        { text: 'Atención y soporte dedicado 24 horas con asesor exclusivo', included: true, highlight: true },
-        { text: 'Migración e importación masiva de productos desde Excel gratis', included: true },
-        { text: 'Mantenimiento continuo y monitoreo de servidor en tiempo real', included: true },
-        { text: 'Actualizaciones de por vida durante todo el periodo anual', included: true },
-        { text: 'Garantía de alta disponibilidad (99.9% uptime SLA)', included: true },
+        { text: 'Todo lo incluido en Pro Semestral', included: true, highlight: true },
+        { text: `Solo S/ ${PLAN_PRICING.anual.price} al año completo`, included: true, highlight: true },
+        { text: 'Asistente IA Ilimitado sin límites', included: true, highlight: true },
+        { text: 'Soporte dedicado 24 horas exclusivo', included: true, highlight: true },
+        { text: 'Migración gratis desde Excel', included: true },
+        { text: 'Monitoreo de servidor en tiempo real', included: true },
+        { text: 'Actualizaciones de por vida', included: true },
+        { text: 'Alta disponibilidad 99.9% uptime', included: true },
       ],
     },
   }
 
   // Filtrado según selector
   let displayedPlans = []
-  if (billingMode === 'trimestral') {
+  if (billingMode === 'mensual') {
+    displayedPlans = [plansData.free, plansData.mensual]
+  } else if (billingMode === 'trimestral') {
     displayedPlans = [plansData.free, plansData.trimestral]
   } else if (billingMode === 'semestral') {
     displayedPlans = [plansData.free, plansData.semestral]
   } else if (billingMode === 'anual') {
     displayedPlans = [plansData.free, plansData.anual]
   } else {
-    // 'todos'
-    displayedPlans = [plansData.free, plansData.trimestral, plansData.semestral, plansData.anual]
+    // 'todos': muestra solo los 4 planes Pro (sin Free) para mantener el formato y tamaño ideal de 4 columnas
+    displayedPlans = [
+      plansData.mensual,
+      plansData.trimestral,
+      plansData.semestral,
+      plansData.anual,
+    ]
   }
 
   // Manejador de solicitud de suscripción
@@ -199,7 +232,7 @@ export default function Plans() {
 
   return (
     <AppLayout title="Planes y Suscripción">
-      <div className="max-w-6xl mx-auto space-y-10 pb-16">
+      <div className="max-w-7xl mx-auto space-y-10 pb-16 px-2 sm:px-4">
 
         {/* ─── Toast Notification ─── */}
         {toastMessage && (
@@ -224,14 +257,40 @@ export default function Plans() {
             Comienza gratis con lo esencial o desbloquea el <strong className="text-slate-800">Plan Pro</strong> con Asistente IA ilimitado, atención técnica 24 horas, actualizaciones continuas y mantenimiento garantizado.
           </p>
 
-          {/* ─── Pill Selector (ChatGPT style: Trimestral / Semestral / Anual) ─── */}
+          {/* ─── Pill Selector (ChatGPT style: Todos / Mensual / Trimestral / Semestral / Anual) ─── */}
           <div className="pt-5 flex flex-col items-center gap-2">
             <div className="relative inline-flex flex-wrap items-center justify-center p-1 rounded-full bg-slate-900 shadow-xl border border-slate-800 gap-1">
+              {/* Ver Todos */}
+              <button
+                type="button"
+                onClick={() => setBillingMode('todos')}
+                className={`relative z-10 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
+                  billingMode === 'todos'
+                    ? 'bg-[#2E3646] text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Ver todos
+              </button>
+
+              {/* Mensual */}
+              <button
+                type="button"
+                onClick={() => setBillingMode('mensual')}
+                className={`relative z-10 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
+                  billingMode === 'mensual'
+                    ? 'bg-[#2E3646] text-white shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Mensual (S/ {PLAN_PRICING.mensual?.price || 30})
+              </button>
+
               {/* Trimestral */}
               <button
                 type="button"
                 onClick={() => setBillingMode('trimestral')}
-                className={`relative z-10 px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
+                className={`relative z-10 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
                   billingMode === 'trimestral'
                     ? 'bg-[#2E3646] text-white shadow-md'
                     : 'text-slate-400 hover:text-white'
@@ -244,7 +303,7 @@ export default function Plans() {
               <button
                 type="button"
                 onClick={() => setBillingMode('semestral')}
-                className={`relative z-10 px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
+                className={`relative z-10 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
                   billingMode === 'semestral'
                     ? 'bg-[#2E3646] text-white shadow-md'
                     : 'text-slate-400 hover:text-white'
@@ -257,37 +316,25 @@ export default function Plans() {
               <button
                 type="button"
                 onClick={() => setBillingMode('anual')}
-                className={`relative z-10 px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
+                className={`relative z-10 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 flex items-center gap-1.5 cursor-pointer ${
                   billingMode === 'anual'
                     ? 'bg-[#2E3646] text-white shadow-md'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
                 <span>Anual (S/ {PLAN_PRICING.anual.price})</span>
-                <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
                   Ahorro 🔥
                 </span>
-              </button>
-
-              {/* Ver Todos */}
-              <button
-                type="button"
-                onClick={() => setBillingMode('todos')}
-                className={`relative z-10 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
-                  billingMode === 'todos'
-                    ? 'bg-[#2E3646] text-white shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Ver todos
               </button>
             </div>
 
             <p className="text-xs text-slate-500">
-              {billingMode === 'trimestral' && `Visualizando Plan Trimestral (S/ ${PLAN_PRICING.trimestral.price} por ${PLAN_PRICING.trimestral.months} meses)`}
-              {billingMode === 'semestral' && `Visualizando Plan Semestral (S/ ${PLAN_PRICING.semestral.price} por ${PLAN_PRICING.semestral.months} meses)`}
-              {billingMode === 'anual' && `Visualizando Plan Anual (S/ ${PLAN_PRICING.anual.price} por ${PLAN_PRICING.anual.months} meses con máximo ahorro)`}
-              {billingMode === 'todos' && 'Visualizando comparación completa de todas las opciones de suscripción'}
+              {billingMode === 'todos' && 'Visualizando todos los planes en cuadrícula comparativa unificada'}
+              {billingMode === 'mensual' && `Visualizando Plan Mensual (S/ ${PLAN_PRICING.mensual?.price || 30} al mes sin compromisos)`}
+              {billingMode === 'trimestral' && `Visualizando Plan Trimestral (S/ ${PLAN_PRICING.trimestral.price} por ${PLAN_PRICING.trimestral.months} meses • S/ 20/mes • ¡Ahorras 33%!)`}
+              {billingMode === 'semestral' && `Visualizando Plan Semestral (S/ ${PLAN_PRICING.semestral.price} por ${PLAN_PRICING.semestral.months} meses • S/ 20/mes • ¡Ahorras S/ 60!)`}
+              {billingMode === 'anual' && `Visualizando Plan Anual (S/ ${PLAN_PRICING.anual.price} por ${PLAN_PRICING.anual.months} meses • S/ 19.16/mes • ¡Ahorras S/ 130!)`}
             </p>
           </div>
         </div>
@@ -330,14 +377,14 @@ export default function Plans() {
           </div>
         </div>
 
-        {/* ─── Pricing Cards Grid ─── */}
+        {/* ─── Pricing Cards Grid Unificado ─── */}
         <div
-          className={`grid gap-6 items-stretch transition-all duration-300 ${
+          className={`grid gap-6 items-stretch transition-all duration-300 w-full pt-4 ${
             displayedPlans.length === 2
               ? 'grid-cols-1 md:grid-cols-2 max-w-3xl mx-auto'
               : displayedPlans.length === 3
-              ? 'grid-cols-1 md:grid-cols-3'
-              : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
+              ? 'grid-cols-1 md:grid-cols-3 max-w-5xl mx-auto'
+              : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
           }`}
         >
           {displayedPlans.map((plan) => {
@@ -345,6 +392,7 @@ export default function Plans() {
             const isPlanAnual = plan.periodKey === 'anual'
             const isPlanTrimestral = plan.periodKey === 'trimestral'
             const isPlanSemestral = plan.periodKey === 'semestral'
+            const isPlanMensual = plan.periodKey === 'mensual'
             const isSubmitting = submittingPeriod === plan.periodKey
 
             // Estado del botón según el plan actual
@@ -353,9 +401,9 @@ export default function Plans() {
             return (
               <div
                 key={plan.id}
-                className={`relative flex flex-col rounded-3xl bg-white transition-all duration-200 ${
+                className={`relative flex flex-col rounded-3xl bg-white transition-all duration-200 h-full ${
                   isPlanAnual
-                    ? 'border-2 border-blue-600 shadow-[0_20px_50px_-10px_rgba(27,79,216,0.25)] ring-4 ring-blue-500/10'
+                    ? 'border-2 border-blue-600 shadow-[0_20px_45px_-10px_rgba(27,79,216,0.25)] ring-4 ring-blue-500/10'
                     : isButtonActive
                     ? 'border-2 border-emerald-500 shadow-lg'
                     : 'border border-slate-200 shadow-sm hover:shadow-md'
@@ -363,107 +411,157 @@ export default function Plans() {
               >
                 {/* Top Badge */}
                 {isPlanAnual ? (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[11px] font-extrabold uppercase tracking-widest px-4 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap">
-                    <Crown size={12} className="text-amber-300 fill-amber-300" />
-                    <span>Mejor Valor • Máximo Ahorro</span>
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10.5px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap z-10">
+                    <Crown size={11} className="text-amber-300 fill-amber-300" />
+                    <span>Ahorro Máximo</span>
                   </div>
                 ) : isPlanTrimestral ? (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10.5px] font-extrabold uppercase tracking-widest px-3.5 py-0.5 rounded-full shadow-md flex items-center gap-1 whitespace-nowrap">
-                    <Zap size={12} className="text-amber-400 fill-amber-400" />
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-extrabold uppercase tracking-widest px-3 py-0.5 rounded-full shadow-md flex items-center gap-1 whitespace-nowrap z-10">
+                    <Zap size={11} className="text-amber-400 fill-amber-400" />
                     <span>Más Popular</span>
                   </div>
                 ) : isPlanSemestral ? (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-indigo-900 text-white text-[10.5px] font-extrabold uppercase tracking-widest px-3.5 py-0.5 rounded-full shadow-md flex items-center gap-1 whitespace-nowrap">
-                    <Sparkles size={12} className="text-blue-300" />
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-indigo-900 text-white text-[10px] font-extrabold uppercase tracking-widest px-3 py-0.5 rounded-full shadow-md flex items-center gap-1 whitespace-nowrap z-10">
+                    <Sparkles size={11} className="text-blue-300" />
                     <span>Recomendado</span>
                   </div>
+                ) : isPlanMensual ? (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] font-extrabold uppercase tracking-widest px-3 py-0.5 rounded-full shadow-md flex items-center gap-1 whitespace-nowrap z-10">
+                    <span>Flexible</span>
+                  </div>
                 ) : isButtonActive ? (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[10.5px] font-extrabold uppercase tracking-widest px-3 py-0.5 rounded-full shadow-md flex items-center gap-1 whitespace-nowrap">
-                    <Check size={12} strokeWidth={3} />
-                    <span>Tu Plan Actual</span>
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full shadow-md flex items-center gap-1 whitespace-nowrap z-10">
+                    <Check size={11} strokeWidth={3} />
+                    <span>Tu Plan</span>
                   </div>
                 ) : null}
 
-                {/* Card Header */}
-                <div className="p-6 sm:p-7 border-b border-slate-100 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="font-display font-bold text-xl text-slate-900">
+                {/* Card Header & Pricing */}
+                <div className="p-5 border-b border-slate-100 flex flex-col pt-6">
+                  <div className="flex items-start justify-between gap-1.5 min-h-[42px]">
+                    <h2 className="font-display font-bold text-base text-slate-900 leading-tight">
                       {plan.name}
                     </h2>
                     {!isPlanFree ? (
-                      <span className="p-1.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
-                        <Sparkles size={16} />
+                      <span className="p-1 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 shrink-0">
+                        <Sparkles size={14} />
                       </span>
                     ) : (
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-2.5 py-1 rounded-lg">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
                         Básico
                       </span>
                     )}
                   </div>
 
-                  <p className="text-xs text-slate-500 mt-2 min-h-[36px] leading-relaxed">
+                  <p className="text-[11.5px] text-slate-500 mt-1 min-h-[38px] leading-relaxed">
                     {plan.tagline}
                   </p>
 
                   {/* Pricing Display */}
-                  <div className="mt-5 pt-4 border-t border-slate-100">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="font-display text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
+                  <div className="mt-3 pt-3 border-t border-slate-100">
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-display text-3xl font-black text-slate-900 tracking-tight">
                         {plan.price === 0 ? 'S/ 0' : `S/ ${plan.price}`}
                       </span>
                       <span className="text-xs font-semibold text-slate-500">
                         {plan.price === 0
                           ? 'gratis'
+                          : isPlanMensual
+                          ? '/mes'
                           : isPlanTrimestral
-                          ? `/${plan.months} meses`
+                          ? `/${plan.months}m`
                           : isPlanSemestral
-                          ? `/${plan.months} meses`
+                          ? `/${plan.months}m`
                           : '/año'}
                       </span>
                     </div>
 
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md">
+                    <div className="mt-1 min-h-[22px] flex items-center">
+                      <span className="text-[10.5px] font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md leading-tight">
                         {plan.priceEquiv}
                       </span>
                     </div>
 
-                    {plan.highlightDiscount && (
-                      <div className="mt-2 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md inline-block">
-                        🎁 {plan.highlightDiscount}
-                      </div>
-                    )}
+                    <div className="min-h-[20px] mt-1 flex items-center">
+                      {plan.highlightDiscount ? (
+                        <span className="text-[9.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md leading-tight">
+                          🎁 {plan.highlightDiscount}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Features List & CTA Button (Pushed to bottom) */}
+                <div className="p-5 bg-slate-50/40 rounded-b-3xl flex-1 flex flex-col justify-between space-y-5">
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Incluye:
+                    </p>
+
+                    <ul className="space-y-2 text-xs text-slate-700">
+                      {plan.features.map((feat, idx) => (
+                        <li
+                          key={idx}
+                          className={`flex items-start gap-2 ${
+                            !feat.included ? 'text-slate-400 line-through opacity-70' : ''
+                          }`}
+                        >
+                          {feat.included ? (
+                            <div
+                              className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                                feat.highlight
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-emerald-100 text-emerald-700'
+                              }`}
+                            >
+                              <Check size={9} strokeWidth={3} />
+                            </div>
+                          ) : (
+                            <div className="w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center shrink-0 mt-0.5">
+                              <CloseIcon size={9} strokeWidth={2.5} />
+                            </div>
+                          )}
+                          <span
+                            className={`text-[11px] leading-snug ${
+                              feat.highlight ? 'font-semibold text-slate-900' : ''
+                            }`}
+                          >
+                            {feat.text}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
 
-                  {/* CTA Button */}
-                  <div className="mt-6">
+                  {/* CTA Button siempre al fondo */}
+                  <div className="pt-3 border-t border-slate-200/60 mt-auto">
                     {isPlanFree ? (
                       !isPro ? (
                         <button
                           type="button"
                           disabled
-                          className="w-full py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-default"
+                          className="w-full py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-default"
                         >
-                          <CheckCircle2 size={16} />
+                          <CheckCircle2 size={15} />
                           Plan Activo
                         </button>
                       ) : (
                         <button
                           type="button"
                           disabled
-                          className="w-full py-3 rounded-xl bg-slate-100 text-slate-400 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-default"
+                          className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-400 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-default"
                         >
-                          Plan Básico Gratuito
+                          Plan Básico
                         </button>
                       )
                     ) : isPro ? (
-                      /* Si el usuario ya está en Pro, cambia el botón de su plan actual a "Plan activo" (deshabilitado) */
                       <button
                         type="button"
                         disabled
-                        className="w-full py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-not-allowed opacity-90"
+                        className="w-full py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-not-allowed opacity-90"
                       >
-                        <CheckCircle2 size={16} />
+                        <CheckCircle2 size={15} />
                         Plan activo
                       </button>
                     ) : (
@@ -471,60 +569,23 @@ export default function Plans() {
                         type="button"
                         disabled={isSubmitting}
                         onClick={() => handleSubscribe(plan)}
-                        className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
+                        className={`w-full py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-150 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
                           isPlanAnual
                             ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/30 hover:shadow-md'
                             : 'bg-slate-900 hover:bg-slate-800 text-white'
                         } ${isSubmitting ? 'opacity-60 cursor-wait' : ''}`}
                       >
                         {isSubmitting ? (
-                          <span>Enviando solicitud...</span>
+                          <span>Enviando…</span>
                         ) : (
                           <>
                             <span>Suscribirme</span>
-                            <ArrowRight size={14} />
+                            <ArrowRight size={13} />
                           </>
                         )}
                       </button>
                     )}
                   </div>
-                </div>
-
-                {/* Features List */}
-                <div className="p-6 sm:p-7 bg-slate-50/50 rounded-b-3xl space-y-3">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">
-                    Incluye:
-                  </p>
-
-                  <ul className="space-y-2.5 text-xs text-slate-700">
-                    {plan.features.map((feat, idx) => (
-                      <li
-                        key={idx}
-                        className={`flex items-start gap-2.5 ${
-                          !feat.included ? 'text-slate-400 line-through opacity-75' : ''
-                        }`}
-                      >
-                        {feat.included ? (
-                          <div
-                            className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                              feat.highlight
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-emerald-100 text-emerald-700'
-                            }`}
-                          >
-                            <Check size={10} strokeWidth={3} />
-                          </div>
-                        ) : (
-                          <div className="w-4 h-4 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center shrink-0 mt-0.5">
-                            <CloseIcon size={10} strokeWidth={2.5} />
-                          </div>
-                        )}
-                        <span className={feat.highlight ? 'font-semibold text-slate-900' : ''}>
-                          {feat.text}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
                 </div>
               </div>
             )
@@ -630,7 +691,7 @@ export default function Plans() {
                 ¿Por qué elegir el Plan Anual (S/ {PLAN_PRICING.anual.price})?
               </h4>
               <p className="text-slate-600">
-                El Plan Anual te ofrece el costo mensual más bajo (S/ {(PLAN_PRICING.anual.price / 12).toFixed(2)}/mes), ahorrando frente al pago trimestral o semestral, e incluye soporte dedicado 24 horas y asistencia en la migración de tu catálogo.
+                El Plan Anual te ofrece el costo mensual más bajo (S/ {(PLAN_PRICING.anual.price / 12).toFixed(2)}/mes), ahorrando frente al pago mensual, trimestral o semestral, e incluye soporte dedicado 24 horas y asistencia en la migración de tu catálogo.
               </p>
             </div>
           </div>
@@ -653,24 +714,22 @@ export default function Plans() {
               </button>
               <div className="inline-flex items-center gap-1.5 bg-white/20 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-2">
                 <CheckCircle2 size={12} />
-                <span>Solicitud Enviada</span>
+                <span>Solicitud Registrada</span>
               </div>
               <h3 className="font-display font-bold text-xl">
                 ¡Solicitud registrada con éxito!
               </h3>
               <p className="text-xs text-emerald-100 mt-1">
-                Plan Pro {confirmationModal.label} ({confirmationModal.months} meses) • S/ {confirmationModal.price}.00
+                Plan Pro {confirmationModal.label} ({confirmationModal.months} mes{confirmationModal.months > 1 ? 'es' : ''}) • S/ {confirmationModal.price}.00
               </p>
             </div>
 
             {/* Content */}
             <div className="p-6 space-y-4 text-xs text-slate-700">
-              {/* Mensaje de confirmación solicitado */}
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-semibold leading-relaxed text-center sm:text-left">
                 Solicitud enviada. Escríbenos por WhatsApp/Yape para confirmar tu pago y activaremos tu plan Pro en minutos.
               </div>
 
-              {/* Box de pago y contacto */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
                 <p className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">
                   Canales de pago disponibles:
@@ -690,7 +749,6 @@ export default function Plans() {
                 </p>
               </div>
 
-              {/* Botón WhatsApp */}
               <div className="space-y-2 pt-1">
                 <button
                   type="button"

@@ -83,7 +83,9 @@ export default function Sidebar({ isOpen, onClose }) {
             </div>
             <div className="min-w-0">
               <p className="font-display font-bold text-slate-900 text-[14.5px] leading-tight truncate">CYA STORE</p>
-              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">Gestión Empresarial</p>
+              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">
+                {isPlatformAdmin ? 'Super Administrador' : 'Gestión Empresarial'}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
@@ -91,53 +93,60 @@ export default function Sidebar({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Nav */}
+        {/* Nav: menú diferenciado para platform admin vs empresa normal */}
         <nav className="flex-1 overflow-y-auto py-2 space-y-0.5">
-          <Label>Principal</Label>
-          {NAV_MAIN.map(i => <Item key={i.to} {...i} onClick={onClose} />)}
-          <Label>Catálogo</Label>
-          {NAV_CAT.map(i => <Item key={i.to} {...i} onClick={onClose} />)}
-          {isAdmin && (<>
-            <Label>Administración</Label>
-            {NAV_ADM.map(i => <Item key={i.to} {...i} onClick={onClose} />)}
-          </>)}
-          {isPlatformAdmin && (<>
-            <Label>Plataforma</Label>
-            {NAV_PLATFORM.map(i => <Item key={i.to} {...i} onClick={onClose} />)}
-          </>)}
+          {!isPlatformAdmin ? (
+            <>
+              <Label>Principal</Label>
+              {NAV_MAIN.map(i => <Item key={i.to} {...i} onClick={onClose} />)}
+              <Label>Catálogo</Label>
+              {NAV_CAT.map(i => <Item key={i.to} {...i} onClick={onClose} />)}
+              {isAdmin && (<>
+                <Label>Administración</Label>
+                {NAV_ADM.map(i => <Item key={i.to} {...i} onClick={onClose} />)}
+              </>)}
+            </>
+          ) : (
+            <>
+              <Label>Plataforma</Label>
+              {NAV_PLATFORM.map(i => <Item key={i.to} {...i} onClick={onClose} />)}
+            </>
+          )}
         </nav>
 
-        {/* Mini Plan Upgrade Card */}
-        <div className="px-3 pt-2 pb-1 border-t border-slate-100 shrink-0">
-          <NavLink
-            to="/planes"
-            onClick={onClose}
-            className="group flex flex-col p-3 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-md border border-slate-700/60 hover:border-blue-400/60 hover:shadow-lg transition-all"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Sparkles size={13} className={isPro ? 'text-amber-400 animate-pulse' : 'text-blue-400'} />
-                <span className="text-xs font-bold text-white tracking-tight">
-                  {activePlan.name}
-                </span>
+        {/* Mini Plan Upgrade Card (solo para cuentas normales de empresa) */}
+        {!isPlatformAdmin && (
+          <div className="px-3 pt-2 pb-1 border-t border-slate-100 shrink-0">
+            <NavLink
+              to="/planes"
+              onClick={onClose}
+              className="group flex flex-col p-3 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-md border border-slate-700/60 hover:border-blue-400/60 hover:shadow-lg transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles size={13} className={isPro ? 'text-amber-400 animate-pulse' : 'text-blue-400'} />
+                  <span className="text-xs font-bold text-white tracking-tight">
+                    {activePlan.name}
+                  </span>
+                </div>
+                {isPro ? (
+                  <span className="text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded-md">
+                    ACTIVO
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-300 group-hover:underline flex items-center gap-0.5">
+                    Mejorar ↗
+                  </span>
+                )}
               </div>
-              {isPro ? (
-                <span className="text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded-md">
-                  ACTIVO
-                </span>
-              ) : (
-                <span className="text-[10px] font-bold text-amber-300 group-hover:underline flex items-center gap-0.5">
-                  Mejorar ↗
-                </span>
-              )}
-            </div>
-            <p className="text-[10.5px] text-slate-400 mt-1.5 leading-tight">
-              {isPro
-                ? 'Acceso completo • Soporte 24/7'
-                : '10 consultas IA • 50 productos'}
-            </p>
-          </NavLink>
-        </div>
+              <p className="text-[10.5px] text-slate-400 mt-1.5 leading-tight">
+                {isPro
+                  ? 'Acceso completo • Soporte 24/7'
+                  : '10 consultas IA • 50 productos'}
+              </p>
+            </NavLink>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="p-3 border-t border-slate-200 shrink-0">
@@ -146,7 +155,9 @@ export default function Sidebar({ isOpen, onClose }) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
-            <span className="text-xs font-medium text-slate-500 flex-1">Sistema activo</span>
+            <span className="text-xs font-medium text-slate-500 flex-1">
+              {isPlatformAdmin ? 'Plataforma activa' : 'Sistema activo'}
+            </span>
             <span className="text-[10px] text-slate-400 font-mono">v1.2</span>
           </div>
         </div>

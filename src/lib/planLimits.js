@@ -1,4 +1,5 @@
 export const PLAN_PRICING = {
+  mensual: { months: 1, price: 30, label: 'Mensual' },
   trimestral: { months: 3, price: 60, label: 'Trimestral' },
   semestral: { months: 6, price: 120, label: 'Semestral' },
   anual: { months: 12, price: 230, label: 'Anual' },

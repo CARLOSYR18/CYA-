@@ -115,7 +115,7 @@ export function AuthProvider({ children }) {
     if (error) throw error
   }
 
-  const needsOnboarding = isSupabaseConfigured && !!user && !user.company_id
+  const needsOnboarding = isSupabaseConfigured && !!user && !user.company_id && !user.is_platform_admin
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, signUp, completeOnboarding, needsOnboarding, loginWithGoogle, loginWithMagicLink, isAdmin: user?.role === 'admin', isPlatformAdmin: user?.is_platform_admin === true }}>

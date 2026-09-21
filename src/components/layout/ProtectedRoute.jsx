@@ -23,6 +23,9 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
   }
 
   if (!user) return <Navigate to="/login" replace />
+  if (isPlatformAdmin && location.pathname === '/') {
+    return <Navigate to="/admin-plataforma" replace />
+  }
   if (needsOnboarding && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />
   }
