@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Mail,
@@ -15,6 +15,18 @@ import { useAuth } from '../context/AuthContext'
 export default function Login() {
   const { login, loginWithGoogle, loginWithMagicLink } = useAuth()
   const navigate = useNavigate()
+
+  // Ensure login screen is ALWAYS 100% pure light mode
+  useEffect(() => {
+    document.documentElement.classList.remove('dark')
+    return () => {
+      try {
+        if (localStorage.getItem('theme') === 'dark') {
+          document.documentElement.classList.add('dark')
+        }
+      } catch {}
+    }
+  }, [])
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -87,7 +99,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen w-full relative flex flex-col items-center justify-center p-4 sm:p-6 font-sans select-none overflow-x-hidden">
+    <div className="auth-always-light min-h-screen w-full relative flex flex-col items-center justify-center p-4 sm:p-6 font-sans select-none overflow-x-hidden">
       
       {/* ─── Crisp Corporate Office Background (matching reference) ─── */}
       <div
@@ -329,12 +341,12 @@ export default function Login() {
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={googleLoading}
-                className="w-full h-10.5 bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-700 font-semibold rounded-lg border border-slate-200 text-xs transition flex items-center justify-center gap-2.5 shadow-2xs cursor-pointer disabled:opacity-60"
+                className="w-full h-11 bg-white hover:bg-slate-50 active:scale-[0.99] text-slate-700 font-semibold rounded-lg border border-slate-300 text-xs sm:text-sm transition-all flex items-center justify-center gap-2.5 shadow-xs cursor-pointer disabled:opacity-60"
               >
                 {googleLoading ? (
-                  <Loader2 size={16} className="animate-spin text-slate-600" />
+                  <Loader2 size={18} className="animate-spin text-slate-600" />
                 ) : (
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z" />
                     <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.25 21.37 7.34 24 12 24z" />
                     <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.97 0 12s.46 3.84 1.26 5.42l4.02-3.15z" />

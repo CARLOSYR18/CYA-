@@ -188,3 +188,379 @@ html, body { touch-action: manipulation; }
   transform: scale(0.985);
 }
 
+/* ═════════════════════════════════════════════════════════
+   TRUE NEUTRAL DARK MODE THEME SYSTEM
+   (Pure Charcoal / Neutral Zinc Canvas — Zero Blue Tint)
+   ═════════════════════════════════════════════════════════ */
+html.dark,
+html.dark body,
+html.dark #root {
+  background-color: #09090b !important;
+  color: #fafafa !important;
+}
+
+html.dark body {
+  background-color: #09090b !important;
+}
+
+/* Base Canvas & Neutral Surfaces */
+html.dark .bg-base-bg {
+  background-color: #09090b !important;
+}
+html.dark .bg-white {
+  background-color: #141417 !important;
+}
+html.dark .bg-base-surface {
+  background-color: #141417 !important;
+}
+html.dark .bg-base-raised {
+  background-color: #18181c !important;
+}
+html.dark .bg-slate-50 {
+  background-color: #18181c !important;
+}
+html.dark .bg-slate-50\/40 {
+  background-color: transparent !important;
+}
+html.dark .bg-slate-100 {
+  background-color: #1f1f23 !important;
+}
+html.dark .bg-slate-200 {
+  background-color: #27272a !important;
+}
+
+/* Hover Backgrounds */
+html.dark .hover\:bg-slate-50:hover {
+  background-color: #1f1f23 !important;
+}
+html.dark .hover\:bg-slate-100:hover {
+  background-color: #27272a !important;
+}
+html.dark .hover\:bg-slate-200:hover {
+  background-color: #3f3f46 !important;
+}
+
+/* Neutral Borders (Zero Blue) */
+html.dark .border-slate-100,
+html.dark .border-slate-200,
+html.dark .border-slate-200\/60,
+html.dark .border-slate-200\/80,
+html.dark .border-base-border {
+  border-color: #27272a !important;
+}
+html.dark .border-slate-300 {
+  border-color: #3f3f46 !important;
+}
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #27272a !important;
+}
+
+/* Text Colors (Crisp Neutral White & Zinc) */
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-ink-primary {
+  color: #fafafa !important;
+}
+html.dark .text-slate-700 {
+  color: #e4e4e7 !important;
+}
+html.dark .text-slate-600,
+html.dark .text-ink-secondary {
+  color: #d4d4d8 !important;
+}
+html.dark .text-slate-500,
+html.dark .text-slate-400,
+html.dark .text-ink-muted {
+  color: #a1a1aa !important;
+}
+
+/* ─── ADAPTIVE ICONS & RADIANT ICON CONTAINERS ─── */
+/* Blue */
+html.dark .bg-blue-50,
+html.dark .bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+  color: #60a5fa !important;
+  border-color: rgba(59, 130, 246, 0.25) !important;
+}
+html.dark .text-blue-600,
+html.dark .text-blue-700,
+html.dark .text-blue-800 {
+  color: #60a5fa !important;
+}
+
+/* Emerald / Green */
+html.dark .bg-emerald-50,
+html.dark .bg-emerald-100,
+html.dark .bg-green-50,
+html.dark .bg-green-100 {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+html.dark .text-emerald-600,
+html.dark .text-emerald-700,
+html.dark .text-emerald-800,
+html.dark .text-emerald-900,
+html.dark .text-emerald-950 {
+  color: #34d399 !important;
+}
+html.dark .fill-emerald-600 {
+  fill: #34d399 !important;
+}
+
+/* Amber / Gold */
+html.dark .bg-amber-50,
+html.dark .bg-amber-100,
+html.dark .bg-yellow-50 {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+html.dark .text-amber-600,
+html.dark .text-amber-700,
+html.dark .text-amber-800 {
+  color: #fbbf24 !important;
+}
+
+/* Purple / Indigo / Violet */
+html.dark .bg-purple-50,
+html.dark .bg-purple-100,
+html.dark .bg-indigo-50,
+html.dark .bg-violet-50 {
+  background-color: rgba(168, 85, 247, 0.12) !important;
+  color: #c084fc !important;
+  border-color: rgba(168, 85, 247, 0.25) !important;
+}
+html.dark .text-purple-600,
+html.dark .text-purple-700,
+html.dark .text-indigo-600,
+html.dark .text-indigo-700 {
+  color: #c084fc !important;
+}
+
+/* Red / Rose / Bad */
+html.dark .bg-red-50,
+html.dark .bg-red-100,
+html.dark .bg-rose-50,
+html.dark .bg-bad-dim {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+html.dark .text-red-600,
+html.dark .text-red-700,
+html.dark .text-rose-600,
+html.dark .text-bad {
+  color: #f87171 !important;
+}
+
+/* Header & Sidebar (Pure Charcoal #121215 with Neutral Border #27272a) */
+html.dark header {
+  background-color: #121215 !important;
+  border-bottom: 1px solid #27272a !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+html.dark aside {
+  background-color: #121215 !important;
+  border-right: 1px solid #27272a !important;
+}
+html.dark aside .hover\:bg-slate-100:hover {
+  background-color: #1f1f23 !important;
+  color: #fafafa !important;
+}
+
+/* Form Inputs & Fields */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="color"]),
+html.dark select,
+html.dark textarea,
+html.dark .field {
+  background-color: #0d0d0f !important;
+  color: #fafafa !important;
+  border-color: #27272a !important;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #71717a !important;
+}
+html.dark .label {
+  color: #a1a1aa !important;
+}
+
+/* Buttons */
+html.dark .btn-secondary {
+  background-color: #18181c !important;
+  border-color: #27272a !important;
+  color: #f4f4f5 !important;
+}
+html.dark .btn-secondary:hover {
+  background-color: #27272a !important;
+  border-color: #3f3f46 !important;
+  color: #ffffff !important;
+}
+html.dark .btn-ghost {
+  color: #a1a1aa !important;
+}
+html.dark .btn-ghost:hover {
+  background-color: #1f1f23 !important;
+  color: #fafafa !important;
+}
+
+/* Tables */
+html.dark .th,
+html.dark th {
+  background-color: #18181c !important;
+  color: #a1a1aa !important;
+  border-color: #27272a !important;
+}
+html.dark .td,
+html.dark td {
+  color: #f4f4f5 !important;
+  border-color: #27272a !important;
+}
+html.dark .tr-hover:hover,
+html.dark tr:hover td {
+  background-color: rgba(39, 39, 42, 0.5) !important;
+}
+
+/* Cards & Containers */
+html.dark .card,
+html.dark .card-section {
+  background-color: #141417 !important;
+  border-color: #27272a !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+}
+html.dark .card-header {
+  background-color: #18181c !important;
+  border-color: #27272a !important;
+}
+
+/* Dropdowns, Modals, Menus */
+html.dark .animate-scale-in {
+  background-color: #141417 !important;
+  border-color: #27272a !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Badges */
+html.dark .badge-slate {
+  background-color: #27272a !important;
+  color: #d4d4d8 !important;
+  border-color: #3f3f46 !important;
+}
+html.dark .badge-blue {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.25) !important;
+}
+html.dark .badge-green {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+html.dark .badge-amber {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+html.dark .badge-red {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+/* Dark mode scrollbars & selection */
+html.dark ::selection {
+  background: #2563eb;
+  color: #ffffff;
+}
+html.dark * {
+  scrollbar-color: #27272a transparent;
+}
+html.dark *::-webkit-scrollbar-thumb {
+  background: #27272a;
+}
+html.dark *::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* ═════════════════════════════════════════════════════════
+   AUTH LOCK: LOGIN & SIGNUP ALWAYS REMAIN PURE LIGHT
+   ═════════════════════════════════════════════════════════ */
+html.dark .auth-always-light,
+.auth-always-light {
+  color-scheme: light !important;
+  color: #0A0F1E !important;
+}
+
+html.dark .auth-always-light .bg-white,
+.auth-always-light .bg-white {
+  background-color: #ffffff !important;
+}
+
+html.dark .auth-always-light .bg-slate-50,
+.auth-always-light .bg-slate-50 {
+  background-color: #f8fafc !important;
+}
+
+html.dark .auth-always-light .bg-slate-100,
+.auth-always-light .bg-slate-100 {
+  background-color: #f1f5f9 !important;
+}
+
+html.dark .auth-always-light .bg-slate-200,
+.auth-always-light .bg-slate-200 {
+  background-color: #e2e8f0 !important;
+}
+
+html.dark .auth-always-light .border-slate-200,
+html.dark .auth-always-light .border-slate-200\/90,
+html.dark .auth-always-light .border-slate-300,
+.auth-always-light .border-slate-200,
+.auth-always-light .border-slate-200\/90,
+.auth-always-light .border-slate-300 {
+  border-color: #e2e8f0 !important;
+}
+
+html.dark .auth-always-light .text-slate-900,
+html.dark .auth-always-light .text-slate-800,
+.auth-always-light .text-slate-900,
+.auth-always-light .text-slate-800 {
+  color: #0f172a !important;
+}
+
+html.dark .auth-always-light .text-slate-700,
+html.dark .auth-always-light .text-slate-600,
+.auth-always-light .text-slate-700,
+.auth-always-light .text-slate-600 {
+  color: #334155 !important;
+}
+
+html.dark .auth-always-light .text-slate-500,
+html.dark .auth-always-light .text-slate-400,
+.auth-always-light .text-slate-500,
+.auth-always-light .text-slate-400 {
+  color: #64748b !important;
+}
+
+html.dark .auth-always-light input:not([type="checkbox"]):not([type="radio"]),
+.auth-always-light input:not([type="checkbox"]):not([type="radio"]) {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.dark .auth-always-light input:not([type="checkbox"]):not([type="radio"]):focus,
+.auth-always-light input:not([type="checkbox"]):not([type="radio"]):focus {
+  border-color: #0B203E !important;
+}
+
+html.dark .auth-always-light input::placeholder,
+.auth-always-light input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark .auth-always-light .bg-white\/95,
+.auth-always-light .bg-white\/95 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}

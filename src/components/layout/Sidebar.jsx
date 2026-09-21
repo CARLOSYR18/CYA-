@@ -37,15 +37,15 @@ function Item({ to, label, icon: Icon, end, onClick }) {
     <NavLink to={to} end={end} onClick={onClick}
       className={({ isActive }) =>
         `relative flex items-center gap-2.5 mx-2 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150 ${isActive
-          ? 'bg-blue-50 text-blue-700 font-semibold'
-          : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+          ? 'bg-blue-50 text-blue-700 dark:bg-blue-600/15 dark:text-blue-400 font-semibold'
+          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
         }`
       }>
       {({ isActive }) => (
         <>
           {isActive && <span className="absolute left-0 top-[20%] bottom-[20%] w-[3px] bg-blue-600 rounded-r-full" />}
           <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8}
-            className={isActive ? 'text-blue-600 shrink-0' : 'text-slate-400 shrink-0'} />
+            className={isActive ? 'text-blue-600 dark:text-blue-400 shrink-0' : 'text-slate-400 shrink-0'} />
           <span className="truncate">{label}</span>
         </>
       )}
@@ -72,17 +72,17 @@ export default function Sidebar({ isOpen, onClose }) {
       {isOpen && (
         <div className="fixed inset-0 bg-black/40 z-40 lg:hidden animate-fade-in" onClick={onClose} />
       )}
-      <aside className={`fixed lg:sticky top-0 inset-y-0 left-0 z-50 flex flex-col h-screen w-64 shrink-0 bg-white border-r border-slate-200 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <aside className={`fixed lg:sticky top-0 inset-y-0 left-0 z-50 flex flex-col h-screen w-64 shrink-0 bg-white dark:bg-[#121215] border-r border-slate-200 dark:border-[#27272a] transition-all duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
 
         {/* Logo */}
-        <div className="h-[64px] flex items-center justify-between px-4 border-b border-slate-200 shrink-0">
+        <div className="h-[64px] flex items-center justify-between px-4 border-b border-slate-200 dark:border-[#27272a] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-full overflow-hidden bg-black shrink-0 flex items-center justify-center">
               <img src="/logo.png" alt="CYA" className="w-full h-full object-contain"
                 onError={e => { e.currentTarget.src = '/logo-cya-badge.png' }} />
             </div>
             <div className="min-w-0">
-              <p className="font-display font-bold text-slate-900 text-[14.5px] leading-tight truncate">CYA STORE</p>
+              <p className="font-display font-bold text-slate-900 dark:text-white text-[14.5px] leading-tight truncate">CYA STORE</p>
               <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">
                 {isPlatformAdmin ? 'Super Administrador' : 'Gestión Empresarial'}
               </p>
@@ -149,13 +149,13 @@ export default function Sidebar({ isOpen, onClose }) {
         )}
 
         {/* Footer */}
-        <div className="p-3 border-t border-slate-200 shrink-0">
-          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200">
+        <div className="p-3 border-t border-slate-200 dark:border-[#27272a] shrink-0">
+          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#18181c] border border-slate-200 dark:border-[#27272a]">
             <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
-            <span className="text-xs font-medium text-slate-500 flex-1">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 flex-1">
               {isPlatformAdmin ? 'Plataforma activa' : 'Sistema activo'}
             </span>
             <span className="text-[10px] text-slate-400 font-mono">v1.2</span>

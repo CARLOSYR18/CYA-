@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   User,
@@ -15,6 +15,18 @@ import { useAuth } from '../context/AuthContext'
 export default function SignUp() {
   const { signUp } = useAuth()
   const navigate = useNavigate()
+
+  // Ensure sign up screen is ALWAYS 100% pure light mode
+  useEffect(() => {
+    document.documentElement.classList.remove('dark')
+    return () => {
+      try {
+        if (localStorage.getItem('theme') === 'dark') {
+          document.documentElement.classList.add('dark')
+        }
+      } catch {}
+    }
+  }, [])
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -44,7 +56,7 @@ export default function SignUp() {
   }
 
   return (
-    <div className="min-h-screen w-full relative flex flex-col items-center justify-center p-4 sm:p-6 font-sans select-none overflow-x-hidden">
+    <div className="auth-always-light min-h-screen w-full relative flex flex-col items-center justify-center p-4 sm:p-6 font-sans select-none overflow-x-hidden">
       {/* ─── Crisp Corporate Office Background ─── */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"

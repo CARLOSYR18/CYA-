@@ -6,7 +6,7 @@ export default function AppLayout({ title, children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-base-bg text-ink-primary overflow-x-hidden antialiased">
+    <div className="flex min-h-screen bg-base-bg dark:bg-[#09090b] text-ink-primary dark:text-zinc-100 overflow-x-hidden antialiased transition-colors duration-200">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         <Topbar title={title} onOpenSidebar={() => setSidebarOpen(true)} />
