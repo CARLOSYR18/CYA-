@@ -77,9 +77,26 @@ const TRIGGER_PATTERNS = [
   /^(?:por favor\s+)?(?:cobrar|cobra|cobrame)\s*/i,
 ]
 
+// Saludos / muletillas al inicio que no aportan a la intención
+const LEADING_FILLER = /^(?:(?:hola|buenas noches|buenas tardes|buenos dias|buenas|hey|oye|ok|bueno|mira|a ver|porfa|por favor|asistente|bot|ayudame a|ayudame|quiero que|necesito que|puedes|podrias|me puedes|me podrias|k)\b[,\s]*)+/i
+
+const SALE_NOUN = '(?:venta|ventas|boleta|boletas|ticket|factura|recibo|comprobante|pedido|despacho)'
+const SALE_VERB = '(?:hac(?:er|e|es)|hag\\w*|haz|has|hazme|realiz\\w*|registr\\w*|cre(?:ar|a|e|ame)\\w*|gener\\w*|emit\\w*|sac\\w*|ingres\\w*|anot\\w*|apunt\\w*|proces\\w*|quiero|necesito|vamos a|vamos con|se vendio|vender|vende\\w*|cobr\\w*|facturar)'
+
+// Intención de iniciar una venta en cualquier parte de la frase (tolera errores como "has una venta")
+const FLEX_SALE_INTENT = new RegExp(`\\b${SALE_VERB}\\b[^?]{0,25}\\b${SALE_NOUN}\\b|\\b(?:nueva|nuevo|otra|otro)\\s+${SALE_NOUN}\\b|\\b(?:una|la)\\s+venta\\b`, 'i')
+
 export function isSaleTrigger(text) {
-  const normalized = normalize(text)
+  let normalized = normalize(text).replace(/[¿?¡!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim()
   if (!normalized) return false
+
+  // Quitar saludos iniciales para que "hola has una venta" sea evaluado como "has una venta"
+  normalized = normalized.replace(LEADING_FILLER, '').trim()
+  if (!normalized) return false
+
+  if (FLEX_SALE_INTENT.test(normalized) && !EXCLUDE_QUESTIONS.some((re) => re.test(normalized))) {
+    return true
+  }
 
   // Si es una pregunta de reporte o estadística, no es inicio de venta
   if (EXCLUDE_QUESTIONS.some((re) => re.test(normalized))) {
@@ -104,6 +121,12 @@ export function isSaleTrigger(text) {
   return false
 }
 
+// Detecta si el mensaje del usuario confirma la venta (para mostrar la animación de generación)
+export function isSaleConfirmation(text) {
+  const n = normalize(text)
+  return /^conf/i.test(n) || /^si\b/i.test(n) || n === 'ok' || n === 'aceptar' || n === 'dale' || n === 'listo'
+}
+
 const emptyState = () => ({
   active: false,
   step: null,
@@ -119,8 +142,41 @@ export function newSaleFlowState() {
   return emptyState()
 }
 
-// Arranca el flujo de venta. Analiza descuentos, cantidades y productos desde el mensaje inicial.
+// Pregunta por el cliente solo si aún no se conoce (ej. ya lo dijo en el primer mensaje)
+function askClientStep(state, prefix = '') {
+  if (state.clientName) {
+    return {
+      state: { ...state, step: 'client_phone' },
+      message: `${prefix}Cliente: ${state.clientName}. ¿Teléfono o DNI? (opcional, escribe "omitir" si no aplica)`,
+      options: ['Omitir'],
+      completed: null,
+    }
+  }
+  return {
+    state: { ...state, step: 'client_name' },
+    message: `${prefix}¿A nombre de quién es la venta?`,
+    options: [],
+    completed: null,
+  }
+}
+
+// Arranca el flujo de venta (envoltorio que conserva el cliente dicho en el primer mensaje).
 export async function startSaleFlow(text) {
+  const clientMatch = (text || '').match(/\b(?:a nombre de|para el cliente|al cliente|cliente)\s+([A-Za-záéíóúÁÉÍÓÚñÑ]+(?:\s+[A-Za-záéíóúÁÉÍÓÚñÑ]+)?)\s*$/i)
+  const presetClient = clientMatch ? clientMatch[1].trim() : ''
+  const cleanText = clientMatch ? text.replace(clientMatch[0], ' ') : text
+  const result = await startSaleFlowInner(cleanText)
+  if (presetClient && result?.state) {
+    result.state = { ...result.state, clientName: presetClient }
+    if (result.state.step === 'client_name') {
+      const next = askClientStep(result.state, `${result.message}\n\n`)
+      return { ...result, ...next }
+    }
+  }
+  return result
+}
+
+async function startSaleFlowInner(text) {
   const products = await productsService.list()
   let raw = text.trim()
 
@@ -140,13 +196,16 @@ export async function startSaleFlow(text) {
     }
   }
 
-  // 2. Limpiar el prefijo disparador
-  let query = raw
+  // 2. Limpiar la frase disparadora (primero la frase flexible, luego los patrones fijos)
+  let query = raw.replace(LEADING_FILLER, '').trim()
+  query = query.replace(new RegExp(`\\b${SALE_VERB}\\b[^?]{0,25}?\\b${SALE_NOUN}\\b(?:\\s+(?:de|del|para|por|a))?`, 'i'), ' ').trim()
   for (const re of TRIGGER_PATTERNS) {
     query = query.replace(re, '')
   }
   query = query.replace(/\b(?:genera|generar|haz|hacer|emite|emitir|crea|crear)\s+(?:una?\s+)?(?:boleta|ticket|factura|venta)(?:\s+(?:de\s+venta|de\s+los|de\s+las|del|de\s+la|de|para|a))?\b/gi, '')
-  query = query.trim()
+  query = query.replace(/\b(?:una|la|nueva|nuevo|otra)\s+venta\b/gi, ' ')
+  // Verbos o muletillas sueltas que no son un producto (ej. "quiero", "hacer", "una")
+  query = query.replace(/^(?:(?:hola|buenas|por favor|porfa|quiero|necesito|vamos a|voy a|hacer|haz|has|hazme|una|un|venta|vender|vende|registrar|realizar|crear|generar|emitir|nueva|nuevo|otra|otro|boleta|ticket|k|que)\b[,\s]*)+/i, '').replace(/\s+/g, ' ').trim()
 
   // Limpiar artículos iniciales
   query = query.replace(/^(?:de\s+los|de\s+las|del|de\s+la|de|los|las|el|la|unos|unas|un|una)\s+/i, '').trim()
@@ -163,21 +222,16 @@ export async function startSaleFlow(text) {
   query = query.replace(/\b(?:por favor|gracias|plz|pls)\b/gi, '').trim()
 
   if (!query) {
-    return {
-      state: { ...emptyState(), active: true, step: 'select_product', discount: initialDiscount },
-      message: '¡Vamos a registrar una venta! ¿Qué producto deseas vender? Escribe el nombre o el SKU.',
-      options: products.filter((p) => p.stock > 0).slice(0, 4).map((p) => `${p.name} (stock: ${p.stock})`),
-    }
+    return catalogStep({ ...emptyState(), active: true, discount: initialDiscount }, products, '¡Vamos a registrar una venta! Elige el producto que deseas vender 👇')
   }
 
   const matches = searchProducts(products, query)
   if (matches.length === 0) {
-    const available = products.filter((p) => p.stock > 0).slice(0, 4)
-    return {
-      state: { ...emptyState(), active: true, step: 'select_product', discount: initialDiscount },
-      message: `No encontré ningún producto parecido a "${query}". Intenta escribir el nombre exacto o el SKU.${available.length ? '\n\nO elige uno de tus productos en stock:' : ''}`,
-      options: available.map((p) => `${p.name} (stock: ${p.stock})`),
-    }
+    return catalogStep(
+      { ...emptyState(), active: true, discount: initialDiscount },
+      products,
+      `No encontré "${query}". Elige uno de tus productos 👇`
+    )
   }
 
   if (matches.length === 1) {
@@ -216,7 +270,25 @@ export async function startSaleFlow(text) {
   return {
     state: { ...emptyState(), active: true, step: 'select_product', candidateProducts: matches, discount: initialDiscount },
     message: `Encontré varios productos parecidos a "${query}". ¿Cuál quieres vender?`,
-    options: matches.map((p) => `${p.name} (stock: ${p.stock})`),
+    options: matches.map(optLabel),
+  }
+}
+
+// Etiqueta que se muestra en el botón de cada producto
+function optLabel(p) {
+  return `${p.name} — ${money(p.sale_price)} · stock: ${p.stock}`
+}
+
+// Muestra todos los productos con stock (leídos de la base de datos) como botones
+function catalogStep(state, products, message) {
+  const available = (products || []).filter((p) => !p.is_kit_hidden && Number(p.stock) > 0)
+  if (available.length === 0) {
+    return { state: { ...state, step: 'select_product', candidateProducts: [] }, message: 'No tienes productos con stock disponible para vender.', options: [] }
+  }
+  return {
+    state: { ...state, step: 'select_product', candidateProducts: available },
+    message,
+    options: available.map(optLabel),
   }
 }
 
@@ -249,24 +321,26 @@ export async function processSaleFlowInput(state, text, userId) {
   switch (state.step) {
     case 'select_product': {
       const products = await productsService.list()
-      const matches = state.candidateProducts.length
-        ? state.candidateProducts.filter((p) => normalize(`${p.name} (stock: ${p.stock})`) === normalized || normalize(p.name) === normalized)
-        : searchProducts(products, text)
+      const exact = (state.candidateProducts || []).filter(
+        (p) => normalize(optLabel(p)) === normalized || normalize(p.name) === normalized
+      )
+      const matches = exact.length ? exact : searchProducts(products, text)
 
       if (matches.length === 1) return { ...selectProduct(state, matches[0]), completed: null }
       if (matches.length > 1) {
         return {
           state: { ...state, candidateProducts: matches },
           message: '¿Cuál de estos productos?',
-          options: matches.map((p) => `${p.name} (stock: ${p.stock})`),
+          options: matches.map(optLabel),
           completed: null,
         }
       }
-      return { state, message: `No encontré "${text}". Intenta con otro nombre o el SKU.`, options: [], completed: null }
+      return { ...catalogStep(state, products, `No encontré "${text}". Elige uno de tus productos 👇`), completed: null }
     }
 
     case 'select_quantity': {
-      const qty = parseInt(text.replace(/\D/g, ''), 10)
+      const WORD_NUMS = { un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 }
+      const qty = WORD_NUMS[normalized] || parseInt(text.replace(/\D/g, ''), 10)
       if (!qty || qty <= 0) {
         return { state, message: 'Escribe solo el número de unidades, por ejemplo: 2', options: ['1', '2', '3'], completed: null }
       }
@@ -293,16 +367,11 @@ export async function processSaleFlowInput(state, text, userId) {
 
     case 'more_items': {
       if (/^s/i.test(normalized)) {
-        return { state: { ...state, step: 'select_product' }, message: '¿Qué otro producto deseas vender?', options: [], completed: null }
+        return { ...catalogStep(state, await productsService.list(), 'Elige el otro producto 👇'), completed: null }
       }
       // Si ya teníamos un descuento extraído desde el inicio (ej. "con descuento de 10 soles"):
       if (state.discount > 0) {
-        return {
-          state: { ...state, step: 'client_name' },
-          message: `Descuento aplicado: ${money(state.discount)}.\n\n¿A nombre de quién es la venta?`,
-          options: [],
-          completed: null,
-        }
+        return askClientStep(state, `Descuento aplicado: ${money(state.discount)}.\n\n`)
       }
       return {
         state: { ...state, step: 'discount' },
@@ -314,12 +383,7 @@ export async function processSaleFlowInput(state, text, userId) {
 
     case 'discount': {
       const discount = /^no/i.test(normalized) ? 0 : (parseFloat(text.replace(',', '.').replace(/[^\d.]/g, '')) || 0)
-      return {
-        state: { ...state, discount, step: 'client_name' },
-        message: '¿A nombre de quién es la venta?',
-        options: [],
-        completed: null,
-      }
+      return askClientStep({ ...state, discount })
     }
 
     case 'client_name': {
@@ -346,20 +410,30 @@ export async function processSaleFlowInput(state, text, userId) {
     }
 
     case 'confirm': {
-      if (!/^conf/i.test(normalized) && !/^s[ií]/i.test(normalized) && normalized !== 'ok' && normalized !== 'aceptar') {
+      if (!isSaleConfirmation(text)) {
         return { state: emptyState(), message: 'Venta cancelada. ¿Te ayudo con algo más?', options: [], completed: null }
       }
-      const sale = await salesService.create({
-        client_name: state.clientName,
-        client_phone: state.clientPhone || null,
-        user_id: userId,
-        status: 'pagado',
-        items: state.items,
-        discount: state.discount,
-      })
+      let sale
+      try {
+        sale = await salesService.create({
+          client_name: state.clientName,
+          client_phone: state.clientPhone || null,
+          user_id: userId,
+          status: 'pagado',
+          items: state.items,
+          discount: state.discount,
+        })
+      } catch (err) {
+        return {
+          state: emptyState(),
+          message: `No pude registrar la venta: ${err?.message || 'error desconocido'}. Intenta de nuevo.`,
+          options: [],
+          completed: null,
+        }
+      }
       return {
         state: emptyState(),
-        message: '¡Venta registrada con éxito! Aquí está tu boleta:',
+        message: '✅ Boleta realizada por el asistente. Aquí la tienes:',
         options: [],
         completed: sale,
       }

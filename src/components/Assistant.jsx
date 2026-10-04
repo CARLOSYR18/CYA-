@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { X, Send, Sparkles, ArrowRight } from 'lucide-react'
+import { X, Send, Sparkles, ArrowRight, Mic, MicOff } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { askAssistant, suggestedQuestions, getStoredUserName } from '../lib/assistant'
 import { companySettingsService } from '../services/companySettingsService'
 import { productsService } from '../services/productsService'
 import { getEffectivePlan } from '../lib/planLimits'
-import { isSaleTrigger, newSaleFlowState, startSaleFlow, processSaleFlowInput } from '../lib/saleFlow'
+import { isSaleTrigger, isSaleConfirmation, newSaleFlowState, startSaleFlow, processSaleFlowInput } from '../lib/saleFlow'
 import { planService } from '../services/planService'
 import Receipt from './Receipt'
 
@@ -19,6 +19,13 @@ export default function Assistant() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [listening, setListening] = useState(false)
+  const [voiceError, setVoiceError] = useState('')
+  const recognitionRef = useRef(null)
+  const handleSendRef = useRef(null)
+  const voiceSupported =
+    typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+  const [generatingReceipt, setGeneratingReceipt] = useState(false)
   const [company, setCompany] = useState(null)
   const [products, setProducts] = useState([])
   const [saleFlow, setSaleFlow] = useState(newSaleFlowState())
@@ -69,7 +76,7 @@ export default function Assistant() {
       setMessages([
         {
           role: 'assistant',
-          text: `¡Hola${greetingName}! 👋 Bienvenido a ${companyDisplayName}.\n\nPregúntame sobre tus ventas, el producto más vendido, stock bajo, clientes o finanzas en tiempo real.`,
+          text: `¡Hola${greetingName}! 👋 Bienvenido a ${companyDisplayName}.\n\nSoy tu empleado virtual: respondo sobre ventas, stock, clientes y finanzas, y también puedo hacer ventas por ti y generar la boleta. Prueba escribiendo "haz una venta".`,
         },
       ])
     }
@@ -81,6 +88,12 @@ export default function Assistant() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, loading, open])
+
+  // Detener el micrófono al cerrar el chat o desmontar
+  useEffect(() => {
+    if (!open) recognitionRef.current?.stop()
+    return () => recognitionRef.current?.abort()
+  }, [open])
 
   // Focus en el input al abrir el panel
   useEffect(() => {
@@ -124,7 +137,13 @@ export default function Assistant() {
     try {
       // 1. Si saleFlow.active es true, procesamos el flujo de venta
       if (saleFlow.active) {
-        const result = await processSaleFlowInput(saleFlow, q, user?.id)
+        const confirming = saleFlow.step === 'confirm' && isSaleConfirmation(q)
+        if (confirming) setGeneratingReceipt(true)
+        const [result] = await Promise.all([
+          processSaleFlowInput(saleFlow, q, user?.id),
+          confirming ? new Promise((r) => setTimeout(r, 2200)) : Promise.resolve(),
+        ])
+        setGeneratingReceipt(false)
         setSaleFlow(result.state)
         setMessages((prev) => [
           ...prev,
@@ -195,7 +214,66 @@ export default function Assistant() {
         },
       ])
     } finally {
+      setGeneratingReceipt(false)
       setLoading(false)
+    }
+  }
+
+  handleSendRef.current = handleSend
+
+  // Reconocimiento de voz (Web Speech API) en español
+  function toggleVoice() {
+    if (listening) {
+      recognitionRef.current?.stop()
+      return
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) {
+      setVoiceError('Tu navegador no soporta voz. Usa Google Chrome o Edge.')
+      return
+    }
+    setVoiceError('')
+    const rec = new SR()
+    rec.lang = 'es-PE'
+    rec.interimResults = true
+    rec.continuous = false
+    rec.maxAlternatives = 1
+    let finalText = ''
+
+    rec.onstart = () => setListening(true)
+    rec.onresult = (e) => {
+      let interim = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript
+        if (e.results[i].isFinal) finalText += t
+        else interim += t
+      }
+      setInput((finalText + interim).trim())
+    }
+    rec.onerror = (e) => {
+      const map = {
+        'not-allowed': 'Permite el acceso al micrófono en tu navegador.',
+        'service-not-allowed': 'Permite el acceso al micrófono en tu navegador.',
+        'no-speech': 'No te escuché. Intenta de nuevo.',
+        'audio-capture': 'No se detectó ningún micrófono.',
+        network: 'No se pudo conectar al servicio de voz de Google. Revisa tu internet, desactiva VPN/bloqueadores y usa Google Chrome o Edge (no Brave/Opera).',
+      }
+      setVoiceError(map[e.error] || 'No pude reconocer la voz.')
+    }
+    rec.onend = () => {
+      setListening(false)
+      recognitionRef.current = null
+      const text = finalText.trim()
+      if (text) {
+        setInput('')
+        handleSendRef.current?.(text)
+      }
+    }
+    recognitionRef.current = rec
+    try {
+      rec.start()
+    } catch {
+      setListening(false)
     }
   }
 
@@ -371,8 +449,8 @@ export default function Assistant() {
                   </div>
 
                   {/* Opciones interactivas de respuesta (chips) */}
-                  {!isUser && msg.options && msg.options.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5 animate-fade-in max-w-[92%]">
+                  {!isUser && idx === messages.length - 1 && msg.options && msg.options.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5 animate-fade-in w-full max-w-[96%] max-h-52 overflow-y-auto pr-1">
                       {msg.options.map((opt, optIdx) => (
                         <button
                           key={optIdx}
@@ -427,7 +505,18 @@ export default function Assistant() {
             )}
 
             {/* Typing Indicator */}
-            {loading && (
+            {loading && generatingReceipt && (
+              <div className="flex justify-start animate-fade-in">
+                <div className="bg-white border border-brand/30 px-4 py-3 rounded-2xl rounded-tl-xs shadow-xs flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-full border-[3px] border-slate-200 border-t-brand animate-spin shrink-0" />
+                  <div className="leading-tight">
+                    <p className="text-xs font-bold text-slate-800">Generando boleta…</p>
+                    <p className="text-[10px] text-slate-500">Registrando venta y descontando stock</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {loading && !generatingReceipt && (
               <div className="flex justify-start">
                 <div className="bg-white border border-slate-200/80 px-4 py-3 rounded-2xl rounded-tl-xs shadow-xs flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -441,6 +530,9 @@ export default function Assistant() {
           </div>
 
           {/* Input Bar */}
+          {voiceError && (
+            <div className="px-3 py-1.5 bg-rose-50 text-rose-600 text-[11px] border-t border-rose-100 shrink-0">{voiceError}</div>
+          )}
           <form
             onSubmit={handleSubmit}
             className="p-2.5 bg-white border-t border-slate-100 flex items-center gap-2 shrink-0"
@@ -449,11 +541,28 @@ export default function Assistant() {
               ref={inputRef}
               type="text"
               className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-brand focus:bg-white transition-colors"
-              placeholder="Haz una pregunta sobre tu ERP…"
+              placeholder={listening ? 'Escuchando… habla ahora 🎙️' : 'Escribe o usa el micrófono…'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={loading}
             />
+            {voiceSupported && (
+              <button
+                type="button"
+                onClick={toggleVoice}
+                disabled={loading}
+                className={`relative p-2.5 rounded-xl active:scale-95 transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${
+                  listening
+                    ? 'bg-rose-500 text-white shadow-md shadow-rose-500/40'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+                title={listening ? 'Detener micrófono' : 'Hablar con el asistente'}
+                aria-label={listening ? 'Detener micrófono' : 'Hablar con el asistente'}
+              >
+                {listening && <span className="absolute inset-0 rounded-xl bg-rose-400 animate-ping opacity-60" />}
+                {listening ? <MicOff size={14} className="relative" /> : <Mic size={14} />}
+              </button>
+            )}
             <button
               type="submit"
               disabled={!input.trim() || loading}
