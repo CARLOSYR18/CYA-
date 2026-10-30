@@ -157,7 +157,7 @@ const intentRules = [
   {
     name: 'greeting',
     triggers: [
-      'hola', 'buenas', 'buenos dias', 'buenas tardes', 'buenas noches', 'buen dia',
+      'hola', 'hola hola', 'hola hola hola', 'buenas', 'buenas buenas', 'buenos dias', 'buenas tardes', 'buenas noches', 'buen dia',
       'hey', 'hello', 'hi', 'holis', 'que tal', 'saludos', 'que hubo', 'que hay',
       'alo', 'oe', 'habla', 'buenas noches asistente', 'hola asistente', 'buenas asistente',
     ],
@@ -1348,7 +1348,127 @@ function cleanQuery(rawText) {
       .trim()
   }
 
+  t = collapseRepeats(t)
+
   return t
+}
+
+// "hola hola hola" -> "hola"
+function collapseRepeats(t) {
+  return (t || '').replace(/\b([a-z0-9]+)(?:\s+\1\b)+/g, '$1').trim()
+}
+
+// ─── MOTOR DIFUSO (FUZZY NLP): tolera errores de ortografía y frases incompletas ───
+const FUZZY_STOP = new Set([
+  'de', 'la', 'el', 'los', 'las', 'un', 'una', 'mi', 'mis', 'que', 'cual', 'cuales', 'es', 'en', 'por',
+  'a', 'y', 'o', 'me', 'tengo', 'hay', 'del', 'al', 'lo', 'se', 'para', 'con', 'si', 'quiero', 'saber',
+])
+
+function levenshtein(a, b) {
+  if (a === b) return 0
+  if (Math.abs(a.length - b.length) > 2) return 9
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i])
+  for (let j = 1; j <= b.length; j++) dp[0][j] = j
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      )
+    }
+  }
+  return dp[a.length][b.length]
+}
+
+// Similitud entre dos palabras: 1 exacta, ~0.9 raíz común (venta/ventas), ~0.8 con una errata
+function wordSim(q, t) {
+  if (q === t) return 1
+  if (q.length < 4 || t.length < 4) return 0
+  if (q.startsWith(t.slice(0, Math.max(4, t.length - 2))) && t.startsWith(q.slice(0, Math.max(4, q.length - 2)))) return 0.9
+  const d = levenshtein(q, t)
+  const max = Math.max(q.length, t.length)
+  if (d <= 1 && max >= 4) return 0.85
+  if (d <= 2 && max >= 7) return 0.8
+  return 0
+}
+
+function contentTokens(text) {
+  const all = normalize(text).split(' ').filter(Boolean)
+  const content = all.filter((w) => !FUZZY_STOP.has(w))
+  return content.length ? content : all
+}
+
+// Puntaje 0..1 de qué tanto cubre la consulta a una regla (mejor disparador)
+function scoreRule(qTokens, rule) {
+  if (rule.exactOnly || !qTokens.length) return 0
+  let best = 0
+  for (const trig of rule.triggers) {
+    const tTokens = contentTokens(trig)
+    // Evita falsos positivos con disparadores de una sola palabra corta
+    if (tTokens.length === 1 && tTokens[0].length < 5) continue
+    let sum = 0
+    for (const tt of tTokens) {
+      let bestSim = 0
+      for (const qt of qTokens) bestSim = Math.max(bestSim, wordSim(qt, tt))
+      sum += bestSim
+    }
+    const coverage = sum / tTokens.length
+    // Penaliza si la consulta tiene muchísimas palabras ajenas al disparador
+    const extra = Math.max(0, qTokens.length - tTokens.length)
+    const score = coverage * (1 - Math.min(0.3, extra * 0.04))
+    if (score > best) best = score
+  }
+  return best
+}
+
+const RULE_EXAMPLES = {
+  sales_today: '¿Cuánto vendí hoy?',
+  sales_yesterday: '¿Ventas de ayer?',
+  sales_this_week: '¿Ventas de esta semana?',
+  sales_this_month: '¿Cuánto llevo este mes?',
+  sales_last_month: '¿Ventas del mes pasado?',
+  top_selling_products: '¿Producto más vendido?',
+  least_selling_products: '¿Producto menos vendido?',
+  low_stock: '¿Qué productos tienen stock bajo?',
+  out_of_stock: '¿Qué productos están agotados?',
+  inventory_value: '¿Cuánto vale mi inventario?',
+  accounts_receivable: '¿Cuánto me deben?',
+  overdue_sales: '¿Qué ventas están vencidas?',
+  best_client: '¿Quién es mi mejor cliente?',
+  top_clients: 'Top clientes',
+  average_ticket: '¿Ticket promedio?',
+  latest_sale: '¿Cuál fue la última venta?',
+  catalog_summary: 'Resumen del catálogo',
+  how_to_sell_more: '¿Cómo vender más?',
+  plans_and_pricing: '¿Cuáles son los planes?',
+  pending_purchases: '¿Compras pendientes?',
+  system_notifications: '¿Tengo alertas?',
+}
+
+const DEFAULT_SUGGESTIONS = [
+  'Haz una venta',
+  '¿Cuánto vendí hoy?',
+  '¿Producto más vendido?',
+  '¿Qué productos tienen stock bajo?',
+  '¿Cuánto me deben?',
+]
+
+// Memoria corta de conversación (para preguntas de seguimiento: "¿y ayer?")
+let lastIntent = null
+
+function followUpQuery(cleaned) {
+  if (!lastIntent || !/^y\s+/.test(cleaned)) return null
+  const rest = cleaned.replace(/^y\s+/, '')
+  if (lastIntent.startsWith('sales_')) {
+    if (/\bhoy\b/.test(rest)) return 'ventas de hoy'
+    if (/\bayer\b/.test(rest)) return 'ventas de ayer'
+    if (/semana/.test(rest)) return 'ventas de la semana'
+    if (/mes pasado|mes anterior/.test(rest)) return 'ventas del mes pasado'
+    if (/\bmes\b/.test(rest)) return 'ventas del mes'
+    if (/\bano\b|\banio\b/.test(rest)) return 'ventas del ano'
+  }
+  return null
 }
 
 // ─── FINALIZADOR DE RESPUESTA: GARANTIZA MENCIÓN DE EMPRESA ───
@@ -1528,7 +1648,8 @@ export async function askAssistant(question, context = {}) {
   }
 
   // Variantes para probar disparadores en orden de especificidad
-  const variants = Array.from(new Set([cleaned, rawNormalized])).filter(Boolean)
+  const followUp = followUpQuery(cleaned)
+  const variants = Array.from(new Set([followUp, cleaned, collapseRepeats(rawNormalized), rawNormalized])).filter(Boolean)
 
   // 3. Probar reglas de intención predefinidas
   for (const q of variants) {
@@ -1550,32 +1671,51 @@ export async function askAssistant(question, context = {}) {
         return wordRegex.test(q)
       })
       if (match) {
+        lastIntent = rule.name
         const rawRes = await rule.handler(ctx)
         return finalizeResponse(rawRes, companyName, userName)
       }
     }
   }
 
-  // 4. Probar búsqueda dinámica (productos o clientes por SKU, nombre o palabras clave)
+  // 4. Motor difuso: tolera errores de ortografía, tildes, sinónimos y frases incompletas
+  const qTokens = contentTokens(cleaned || rawNormalized)
+  const ranked = intentRules
+    .map((rule) => ({ rule, score: scoreRule(qTokens, rule) }))
+    .filter((r) => r.score >= 0.55)
+    .sort((a, b) => b.score - a.score)
+
+  if (ranked.length && ranked[0].score >= 0.82) {
+    lastIntent = ranked[0].rule.name
+    const rawRes = await ranked[0].rule.handler(ctx)
+    return finalizeResponse(rawRes, companyName, userName)
+  }
+
+  // 5. Búsqueda dinámica (productos o clientes por SKU, nombre o palabras clave)
   const dynamicAnswer = (await dynamicSearch(cleaned, companyName)) || (await dynamicSearch(rawNormalized, companyName))
   if (dynamicAnswer) {
     return finalizeResponse(dynamicAnswer, companyName, userName)
   }
 
-  // 5. Fallback inteligente y contextual que reconoce el tema general
+  // 6. Confianza media: sugerir opciones relevantes interactivas con botones
   const userPrefix = userName ? `${userName}, ` : ''
-  const fallback = `🤔 ${userPrefix}no encontré una coincidencia exacta para "${question}".\n\n` +
-    `Sin embargo, aquí en **${companyName}** puedo responderte en tiempo real sobre:\n` +
-    `• 🏆 **Productos:** "¿Cuál es el producto más vendido?" o "¿Cuál se vende menos?"\n` +
-    `• 📊 **Ventas:** "ventas de hoy", "ventas de ayer", "este mes" o "ticket promedio"\n` +
-    `• 📦 **Stock:** "¿Qué productos tienen stock bajo?", "agotados" o busca un producto por su nombre\n` +
-    `• 💰 **Finanzas:** "¿Cuánto me deben?" o "ventas vencidas"\n` +
-    `• 💡 **Estrategias:** "¿Cómo vender más?" o "¿Cómo calcular el margen de ganancia?"\n` +
-    `• 💎 **Planes:** "¿Cuánto cuesta el Plan Pro en ${companyName}?"\n` +
-    `• 👥 **Clientes:** "mejor cliente" o el nombre de una persona\n\n` +
-    `¿Sobre qué tema de **${companyName}** te gustaría consultar?`
+  const suggestions = ranked
+    .map((r) => RULE_EXAMPLES[r.rule.name])
+    .filter(Boolean)
+    .slice(0, 3)
 
-  return finalizeResponse(fallback, companyName, userName)
+  if (suggestions.length) {
+    return {
+      text: `${userPrefix}¿Te refieres a alguna de estas consultas? Elige una opción:`,
+      options: suggestions,
+    }
+  }
+
+  // 7. Respuesta inteligente sin bloques gigantes de texto, con botones interactivos
+  return {
+    text: `${userPrefix}no comprendí exactamente eso. Como asistente de ${companyName}, puedo ayudarte con lo siguiente:`,
+    options: DEFAULT_SUGGESTIONS,
+  }
 }
 
 // Sugerencias rápidas para mostrar como botones en el chat

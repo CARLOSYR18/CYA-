@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Menu, ChevronDown, Bell, CheckCircle2, Sparkles, ShieldAlert, Sun, Moon } from 'lucide-react'
+import { LogOut, Menu, ChevronDown, Bell, CheckCircle2, Sparkles, ShieldAlert, Sun, Moon, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { isSupabaseConfigured } from '../../lib/supabaseClient'
@@ -12,7 +12,7 @@ function avatarColor(name = '') {
   return COLORS[Math.abs(h) % COLORS.length]
 }
 
-export default function Topbar({ title, onOpenSidebar }) {
+export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onToggleCollapse }) {
   const navigate = useNavigate()
   const { user, logout, isPlatformAdmin } = useAuth()
   const { isDark, toggleTheme } = useTheme()
@@ -65,14 +65,31 @@ export default function Topbar({ title, onOpenSidebar }) {
     <header className="h-16 bg-white dark:bg-[#121215] border-b border-slate-200 dark:border-[#27272a] sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 shadow-xs transition-colors duration-200">
 
       {/* Left */}
-      <div className="flex items-center gap-3.5">
-        <button onClick={onOpenSidebar}
-          className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all">
+      <div className="flex items-center gap-3">
+        {/* Mobile menu trigger */}
+        <button
+          onClick={onOpenSidebar}
+          className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all cursor-pointer"
+          title="Abrir menú"
+        >
           <Menu size={20} />
         </button>
+
+        {/* Desktop sidebar collapse/expand trigger */}
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="hidden lg:flex p-2 rounded-xl text-slate-400 hover:text-brand dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+            title={isCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
+          >
+            {isCollapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
+          </button>
+        )}
+
         <div className="flex items-center gap-2.5">
           <div className="hidden sm:block w-[3px] h-5 rounded-full bg-blue-600" />
-          <h1 className="font-display font-bold text-[17px] text-slate-800 tracking-tight">{title}</h1>
+          <h1 className="font-display font-bold text-[17px] text-slate-800 dark:text-slate-100 tracking-tight">{title}</h1>
         </div>
       </div>
 
@@ -108,7 +125,7 @@ export default function Topbar({ title, onOpenSidebar }) {
 
           {notifOpen && (
             <div
-              className="absolute right-0 sm:-right-12 top-[calc(100%+8px)] w-[300px] sm:w-[360px] bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#27272a] rounded-2xl animate-scale-in z-50 overflow-hidden shadow-2xl"
+              className="absolute right-0 top-[calc(100%+8px)] w-[min(calc(100vw-32px),360px)] bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#27272a] rounded-2xl animate-scale-in z-50 overflow-hidden shadow-2xl"
               style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}
             >
               <div className="px-4 py-3 bg-slate-50 dark:bg-[#18181c] border-b border-slate-100 dark:border-[#27272a] flex items-center justify-between">

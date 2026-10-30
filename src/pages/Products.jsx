@@ -1,43 +1,27 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
-  Plus, Pencil, Trash2, Search, Boxes, ImageOff, Camera, X,
-  Filter, LayoutGrid, List, AlertTriangle, ArrowUpDown,
-  CheckCircle2, DollarSign, Package, Layers, Sparkles,
-  ExternalLink, ChevronRight, Eye, Crown, ArrowRight
+  Plus, Pencil, Trash2, Search, Boxes, ImageOff, X,
+  Filter, LayoutGrid, List, AlertTriangle, CheckCircle2,
+  DollarSign, Package, Layers, Sparkles, Crown, ArrowRight,
+  ZoomIn, ZoomOut, Download, FileSpreadsheet, ChevronRight,
+  ChevronLeft, TrendingUp, Eye
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
-import StockBadge from '../components/ui/StockBadge'
 import { productsService } from '../services/productsService'
 import { categoriesService } from '../services/categoriesService'
 import { suppliersService } from '../services/suppliersService'
-import { inventoryMovementsService } from '../services/inventoryMovementsService'
-import { companySettingsService } from '../services/companySettingsService'
-import { getLimits } from '../lib/planLimits'
 
 const fmt = (n) =>
   `S/ ${(Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const fmtN = (n) => (Number(n) || 0).toLocaleString('es-PE')
 
-const emptyForm = {
-  sku: '',
-  name: '',
-  category_id: '',
-  unit: 'unidad',
-  cost_price: '',
-  sale_price: '',
-  stock: '',
-  min_stock: '',
-  supplier_id: '',
-  image_url: '',
-  is_kit: false,
-  kit_component_id: '',
-  kit_quantity: '1',
-}
-
 export default function Products() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [suppliers, setSuppliers] = useState([])
@@ -47,20 +31,35 @@ export default function Products() {
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('ALL')
   const [stockFilter, setStockFilter] = useState('ALL') // 'ALL' | 'AVAILABLE' | 'LOW' | 'OUT' | 'KITS'
-  const [viewMode, setViewMode] = useState('table') // 'table' | 'grid'
+  const [viewMode, setViewMode] = useState('table') // 'table' (rich rows) | 'grid'
+  const [showMetrics, setShowMetrics] = useState(false)
 
-  // Modals & Form State
-  const [modalOpen, setModalOpen] = useState(false)
-  const [limitModalOpen, setLimitModalOpen] = useState(false)
-  const [limitMessage, setLimitMessage] = useState('')
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyForm)
-  const [imageFile, setImageFile] = useState(null)
-  const [imagePreview, setImagePreview] = useState('')
-  const [error, setError] = useState('')
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
+  // Delete confirmation modal
   const [confirmDelete, setConfirmDelete] = useState(null)
-  const [previewModalProd, setPreviewModalProd] = useState(null)
-  const fileInputRef = useRef(null)
+
+  // Toast / notification after returning from /productos/nuevo or /productos/editar/:id
+  const [successToast, setSuccessToast] = useState(
+    location.state?.created
+      ? `¡Producto "${location.state?.productName || ''}" registrado exitosamente!`
+      : location.state?.updated
+      ? `¡Producto "${location.state?.productName || ''}" actualizado correctamente!`
+      : ''
+  )
+
+  useEffect(() => {
+    if (successToast) {
+      const timer = setTimeout(() => setSuccessToast(''), 4500)
+      return () => clearTimeout(timer)
+    }
+  }, [successToast])
+
+  // ─── Lightbox / Image Preview with Seamless Zoom ───
+  const [lightboxProduct, setLightboxProduct] = useState(null)
+  const [zoomScale, setZoomScale] = useState(1) // 1x, 1.5x, 2x, 2.5x
 
   async function loadAll() {
     setLoading(true)
@@ -83,16 +82,6 @@ export default function Products() {
   useEffect(() => {
     loadAll()
   }, [])
-
-  useEffect(() => {
-    if (!imageFile) {
-      setImagePreview('')
-      return
-    }
-    const url = URL.createObjectURL(imageFile)
-    setImagePreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [imageFile])
 
   /* ─── Computed Statistics ─── */
   const stats = useMemo(() => {
@@ -150,116 +139,122 @@ export default function Products() {
     return result
   }, [products, search, selectedCategory, stockFilter])
 
-  function resetImg() {
-    setImageFile(null)
-    setImagePreview('')
-    if (fileInputRef.current) fileInputRef.current.value = ''
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, selectedCategory, stockFilter])
+
+  // Products with images for lightbox cycling
+  const productsWithImages = useMemo(() => {
+    return filtered.filter(p => !!p.image_url)
+  }, [filtered])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return filtered.slice(start, start + pageSize)
+  }, [filtered, currentPage, pageSize])
+
+  /* ─── Lightbox Navigation & Zoom Handlers ─── */
+  const openLightbox = (p) => {
+    if (!p.image_url) return
+    setLightboxProduct(p)
+    setZoomScale(1)
   }
 
-  async function openCreate() {
-    try {
-      const company = await companySettingsService.get()
-      const limits = getLimits(company)
-      if (products.length >= limits.maxProducts) {
-        setLimitMessage(`Alcanzaste el límite de tu plan Free (${limits.maxProducts} productos). Actualiza a Pro para agregar más.`)
-        setLimitModalOpen(true)
-        return
-      }
-    } catch (e) {
-      console.warn('Error verificando límites de productos:', e)
+  const closeLightbox = () => {
+    setLightboxProduct(null)
+    setZoomScale(1)
+  }
+
+  const handleNextImage = useCallback(() => {
+    if (!lightboxProduct || productsWithImages.length <= 1) return
+    const currIdx = productsWithImages.findIndex(p => p.id === lightboxProduct.id)
+    const nextIdx = (currIdx + 1) % productsWithImages.length
+    setLightboxProduct(productsWithImages[nextIdx])
+    setZoomScale(1)
+  }, [lightboxProduct, productsWithImages])
+
+  const handlePrevImage = useCallback(() => {
+    if (!lightboxProduct || productsWithImages.length <= 1) return
+    const currIdx = productsWithImages.findIndex(p => p.id === lightboxProduct.id)
+    const prevIdx = (currIdx - 1 + productsWithImages.length) % productsWithImages.length
+    setLightboxProduct(productsWithImages[prevIdx])
+    setZoomScale(1)
+  }, [lightboxProduct, productsWithImages])
+
+  const toggleZoom = () => {
+    setZoomScale(prev => (prev === 1 ? 1.75 : 1))
+  }
+
+  const zoomIn = (e) => {
+    e?.stopPropagation()
+    setZoomScale(z => Math.min(3, +(z + 0.35).toFixed(2)))
+  }
+
+  const zoomOut = (e) => {
+    e?.stopPropagation()
+    setZoomScale(z => Math.max(1, +(z - 0.35).toFixed(2)))
+  }
+
+  const resetZoom = (e) => {
+    e?.stopPropagation()
+    setZoomScale(1)
+  }
+
+  // Keyboard navigation for image lightbox
+  useEffect(() => {
+    if (!lightboxProduct) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') closeLightbox()
+      else if (e.key === 'ArrowRight') handleNextImage()
+      else if (e.key === 'ArrowLeft') handlePrevImage()
+      else if (e.key === '+' || e.key === '=') zoomIn()
+      else if (e.key === '-') zoomOut()
+      else if (e.key === '0') resetZoom()
     }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [lightboxProduct, handleNextImage, handlePrevImage])
 
-    setEditing(null)
-    setError('')
-    resetImg()
-    const sku = await productsService.generateSku()
-    setForm({ ...emptyForm, sku })
-    setModalOpen(true)
+  // Download image
+  const handleDownloadImage = (e) => {
+    e?.stopPropagation()
+    if (!lightboxProduct?.image_url) return
+    const link = document.createElement('a')
+    link.href = lightboxProduct.image_url
+    link.download = `${lightboxProduct.sku || 'producto'}-${lightboxProduct.name}.jpg`
+    link.target = '_blank'
+    link.click()
   }
 
-  function openEdit(p) {
-    setEditing(p)
-    setForm({
-      sku: p.sku,
-      name: p.name,
-      category_id: p.category_id || '',
-      unit: p.unit,
-      cost_price: p.cost_price,
-      sale_price: p.sale_price,
-      stock: p.stock,
-      min_stock: p.min_stock,
-      supplier_id: p.supplier_id || '',
-      image_url: p.image_url || '',
-      is_kit: p.is_kit || false,
-      kit_component_id: p.kit_component_id || '',
-      kit_quantity: String(p.kit_quantity || '1')
+  // Export to Excel / CSV
+  const handleExportExcel = () => {
+    const headers = ['Código SKU', 'Producto', 'Categoría', 'Stock', 'Unidad', 'Precio Costo (S/)', 'Precio Venta (S/)', 'Estado']
+    const rows = filtered.map(p => {
+      const cat = categories.find(c => c.id === p.category_id)?.name || 'Sin categoría'
+      const stock = Number(p.stock) || 0
+      const status = stock <= 0 ? 'Agotado' : stock <= Number(p.min_stock || 0) ? 'Stock Bajo' : 'Disponible'
+      return [
+        p.sku,
+        `"${p.name.replace(/"/g, '""')}"`,
+        `"${cat.replace(/"/g, '""')}"`,
+        stock,
+        p.unit || 'unidad',
+        Number(p.cost_price || 0).toFixed(2),
+        Number(p.sale_price || 0).toFixed(2),
+        status
+      ]
     })
-    setError('')
-    resetImg()
-    setModalOpen(true)
-  }
 
-  function closeModal() {
-    setModalOpen(false)
-    resetImg()
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    setError('')
-    if (!form.name.trim()) {
-      setError('El nombre del producto es obligatorio')
-      return
-    }
-
-    let image_url = form.image_url || ''
-    if (imageFile) {
-      try {
-        image_url = await productsService.uploadImage(imageFile)
-      } catch (err) {
-        setError(err.message || 'No se pudo subir la imagen')
-        return
-      }
-    }
-
-    const payload = {
-      sku: form.sku.trim(),
-      name: form.name.trim(),
-      category_id: form.category_id || null,
-      unit: form.unit,
-      cost_price: Number(form.cost_price) || 0,
-      sale_price: Number(form.sale_price) || 0,
-      min_stock: Number(form.min_stock) || 0,
-      supplier_id: form.supplier_id || null,
-      image_url: image_url || null,
-      is_kit: form.is_kit,
-      kit_component_id: form.is_kit ? form.kit_component_id || null : null,
-      kit_quantity: form.is_kit ? Number(form.kit_quantity) || 1 : 1,
-      ...(!form.is_kit && !editing ? { stock: Number(form.stock) || 0 } : {})
-    }
-
-    try {
-      if (editing) {
-        await productsService.update(editing.id, payload)
-        if (!form.is_kit) {
-          const delta = Number(form.stock) - Number(editing.stock)
-          if (delta !== 0) {
-            await inventoryMovementsService.register({
-              product_id: editing.id,
-              type: delta > 0 ? 'entrada' : 'salida',
-              quantity: Math.abs(delta),
-              reason: 'Ajuste manual desde edición de producto',
-            })
-          }
-        }
-      } else {
-        await productsService.create(payload)
-      }
-      closeModal()
-      loadAll()
-    } catch (err) {
-      setError(err.message || 'No se pudo guardar')
-    }
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Productos_Catalogo_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   async function handleDelete() {
@@ -270,141 +265,180 @@ export default function Products() {
   }
 
   const catName = (id) => categories.find((c) => c.id === id)?.name || 'Sin categoría'
-  const previewSrc = imagePreview || form.image_url || ''
 
   return (
     <AppLayout title="Catálogo de Productos">
-      <div className="space-y-5 max-w-7xl mx-auto pb-12">
+      <div className="space-y-4 max-w-7xl mx-auto pb-12">
 
         {/* ═════════════════════════════════════════════════════════
-            1. EXECUTIVE METRICS BAR (4 ELEGANT WHITE PILLS)
+            SUCCESS TOAST (IF RETURNED FROM /productos/nuevo O EDITAR)
            ═════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-          
-          {/* Card 1: Total SKUs */}
-          <div
-            className="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4.5 shadow-xs flex flex-col justify-between card-mobile-active active:scale-[0.98] transition-all hover:border-slate-300"
-            style={{ animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 40ms both' }}
-          >
-            <div className="flex items-center justify-between gap-1.5 mb-1.5 sm:mb-2">
-              <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
-                Total Catálogo
-              </p>
-              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0">
-                <Boxes size={14} className="sm:hidden" />
-                <Boxes size={18} className="hidden sm:block" />
+        {successToast && (
+          <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center justify-between shadow-xs animate-slide-up">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>{successToast}</span>
+            </div>
+            <button onClick={() => setSuccessToast('')} className="text-emerald-600 hover:text-emerald-800 cursor-pointer">
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* ═════════════════════════════════════════════════════════
+            TOP BAR WITH ACTIONS & NEW PRODUCT BUTTON
+           ═════════════════════════════════════════════════════════ */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-[#131627] p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-xs">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <Boxes size={18} />
               </div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                Catálogo de Productos
+              </h1>
             </div>
-            <div>
-              <h4 className="text-base sm:text-2xl font-extrabold text-slate-900 tracking-tight font-sans whitespace-nowrap overflow-hidden text-ellipsis">
-                {loading ? '…' : `${stats.totalSkus} SKUs`}
-              </h4>
-              <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 truncate">
-                {categories.length} categorías activas
-              </p>
-            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Administración de artículos, existencias, precios y galería multimedia.
+            </p>
           </div>
 
-          {/* Card 2: Unidades Físicas */}
-          <div
-            className="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4.5 shadow-xs flex flex-col justify-between card-mobile-active active:scale-[0.98] transition-all hover:border-slate-300"
-            style={{ animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 100ms both' }}
-          >
-            <div className="flex items-center justify-between gap-1.5 mb-1.5 sm:mb-2">
-              <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
-                Stock Total Físico
-              </p>
-              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand shrink-0">
-                <Package size={14} className="sm:hidden" />
-                <Package size={18} className="hidden sm:block" />
-              </div>
-            </div>
-            <div>
-              <h4 className="text-base sm:text-2xl font-extrabold text-slate-900 tracking-tight font-sans whitespace-nowrap overflow-hidden text-ellipsis">
-                {loading ? '…' : `${fmtN(stats.totalUnits)} uds.`}
-              </h4>
-              <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 truncate">En almacén central</p>
-            </div>
-          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowMetrics(v => !v)}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-xs font-semibold text-slate-600 dark:text-slate-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <TrendingUp size={14} />
+              <span>{showMetrics ? 'Ocultar Métricas' : 'Ver Métricas'}</span>
+            </button>
 
-          {/* Card 3: Valorización Estimada */}
-          <div
-            className="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4.5 shadow-xs flex flex-col justify-between card-mobile-active active:scale-[0.98] transition-all hover:border-slate-300"
-            style={{ animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 160ms both' }}
-          >
-            <div className="flex items-center justify-between gap-1.5 mb-1.5 sm:mb-2">
-              <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
-                Valorización Stock
-              </p>
-              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                <DollarSign size={14} className="sm:hidden" />
-                <DollarSign size={18} className="hidden sm:block" />
-              </div>
-            </div>
-            <div>
-              <h4 className="text-base sm:text-2xl font-extrabold text-slate-900 tracking-tight font-sans whitespace-nowrap overflow-hidden text-ellipsis">
-                {loading ? '…' : fmt(stats.inventoryValuation)}
-              </h4>
-              <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 truncate">Costo base estimado</p>
-            </div>
-          </div>
+            <button
+              onClick={handleExportExcel}
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+              title="Descargar catálogo en formato CSV / Excel"
+            >
+              <FileSpreadsheet size={14} />
+              <span>Excel</span>
+            </button>
 
-          {/* Card 4: Alertas de Reposición */}
-          <div
-            className="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4.5 shadow-xs flex flex-col justify-between card-mobile-active active:scale-[0.98] transition-all hover:border-slate-300"
-            style={{ animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 220ms both' }}
-          >
-            <div className="flex items-center justify-between gap-1.5 mb-1.5 sm:mb-2">
-              <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">
-                Control de Quiebres
-              </p>
-              <div
-                className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl border flex items-center justify-center shrink-0 ${
-                  stats.alertsCount > 0
-                    ? 'bg-amber-50 border-amber-200 text-amber-600'
-                    : 'bg-emerald-50 border-emerald-100 text-emerald-600'
-                }`}
-              >
-                {stats.alertsCount > 0 ? (
-                  <>
-                    <AlertTriangle size={14} className="sm:hidden" />
-                    <AlertTriangle size={18} className="hidden sm:block" />
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 size={14} className="sm:hidden" />
-                    <CheckCircle2 size={18} className="hidden sm:block" />
-                  </>
-                )}
-              </div>
-            </div>
-            <div>
-              <h4 className="text-base sm:text-2xl font-extrabold text-slate-900 tracking-tight font-sans whitespace-nowrap overflow-hidden text-ellipsis">
-                {loading ? '…' : stats.alertsCount > 0 ? `${stats.alertsCount} en alerta` : '100% Óptimo'}
-              </h4>
-              <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5 truncate">
-                {stats.outOfStockCount > 0 ? `${stats.outOfStockCount} agotados` : 'Sin faltantes críticos'}
-              </p>
-            </div>
+            {/* NAVIGATES TO DEDICATED FULL PAGE /productos/nuevo INSTEAD OF MODAL */}
+            <button
+              onClick={() => navigate('/productos/nuevo')}
+              className="px-4 py-2 rounded-xl bg-[#5550F2] hover:bg-[#4742E8] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm hover:shadow-indigo-500/25 active:scale-95 transition-all cursor-pointer"
+            >
+              <Plus size={15} />
+              <span>+ Nuevo Producto</span>
+            </button>
           </div>
-
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            2. INTERACTIVE FILTER & ACTION BAR
+            1. EXECUTIVE METRICS BAR (SUPPORTING LIGHT & DARK THEMES)
            ═════════════════════════════════════════════════════════ */}
-        <div
-          className="bg-white rounded-2xl border border-slate-200/80 p-3.5 sm:p-5 shadow-xs space-y-3"
-          style={{ animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 280ms both' }}
-        >
-          {/* Top Row: Search + Category + View Mode + Primary Action */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+        {showMetrics && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+            
+            {/* Card 1: Total SKUs */}
+            <div className="bg-white dark:bg-[#131627] rounded-2xl border border-slate-200/80 dark:border-white/10 p-3.5 sm:p-4.5 shadow-xs flex flex-col justify-between transition-all">
+              <div className="flex items-center justify-between gap-1.5 mb-2">
+                <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                  Total Catálogo
+                </p>
+                <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
+                  <Boxes size={16} />
+                </div>
+              </div>
+              <div>
+                <h4 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight font-sans">
+                  {loading ? '…' : `${stats.totalSkus} SKUs`}
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                  {categories.length} categorías activas
+                </p>
+              </div>
+            </div>
+
+            {/* Card 2: Unidades Físicas */}
+            <div className="bg-white dark:bg-[#131627] rounded-2xl border border-slate-200/80 dark:border-white/10 p-3.5 sm:p-4.5 shadow-xs flex flex-col justify-between transition-all">
+              <div className="flex items-center justify-between gap-1.5 mb-2">
+                <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                  Stock Total Físico
+                </p>
+                <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                  <Package size={16} />
+                </div>
+              </div>
+              <div>
+                <h4 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight font-sans">
+                  {loading ? '…' : `${fmtN(stats.totalUnits)} uds.`}
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5 truncate">En almacén central</p>
+              </div>
+            </div>
+
+            {/* Card 3: Valorización Estimada */}
+            <div className="bg-white dark:bg-[#131627] rounded-2xl border border-slate-200/80 dark:border-white/10 p-3.5 sm:p-4.5 shadow-xs flex flex-col justify-between transition-all">
+              <div className="flex items-center justify-between gap-1.5 mb-2">
+                <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                  Valorización Stock
+                </p>
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <DollarSign size={16} />
+                </div>
+              </div>
+              <div>
+                <h4 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
+                  {loading ? '…' : fmt(stats.inventoryValuation)}
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5 truncate">Costo base estimado</p>
+              </div>
+            </div>
+
+            {/* Card 4: Alertas de Quiebre */}
+            <div className="bg-white dark:bg-[#131627] rounded-2xl border border-slate-200/80 dark:border-white/10 p-3.5 sm:p-4.5 shadow-xs flex flex-col justify-between transition-all">
+              <div className="flex items-center justify-between gap-1.5 mb-2">
+                <p className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                  Control de Quiebres
+                </p>
+                <div
+                  className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${
+                    stats.alertsCount > 0
+                      ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-400'
+                      : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                  }`}
+                >
+                  {stats.alertsCount > 0 ? (
+                    <AlertTriangle size={16} />
+                  ) : (
+                    <CheckCircle2 size={16} />
+                  )}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight font-sans">
+                  {loading ? '…' : stats.alertsCount > 0 ? `${stats.alertsCount} en alerta` : '100% Óptimo'}
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                  {stats.outOfStockCount > 0 ? `${stats.outOfStockCount} agotados` : 'Sin faltantes críticos'}
+                </p>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ═════════════════════════════════════════════════════════
+            2. INTERACTIVE FILTER & SEARCH BAR
+           ═════════════════════════════════════════════════════════ */}
+        <div className="bg-white dark:bg-[#131627] rounded-2xl border border-slate-200/80 dark:border-white/10 p-4 sm:p-5 shadow-xs space-y-3">
+          {/* Top Row: Search + Category + View Mode */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             
             {/* Search Input with quick clear */}
             <div className="relative flex-1 w-full sm:max-w-md">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
-                className="w-full bg-slate-50/70 border border-slate-200 rounded-xl pl-10 pr-9 py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all outline-none"
+                className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl pl-10 pr-9 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-[#1A1D30] focus:border-indigo-500 transition-all outline-none"
                 placeholder="Buscar por nombre de producto o SKU…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -413,21 +447,21 @@ export default function Products() {
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white"
                 >
                   <X size={14} />
                 </button>
               )}
             </div>
 
-            {/* Right side controls: Category Select + View Mode + New Product */}
+            {/* Right side controls: Category Select + View Mode */}
             <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
               {/* Category Dropdown */}
-              <div className="relative flex-1 sm:w-44">
+              <div className="relative flex-1 sm:w-48">
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full bg-slate-50/70 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:bg-white focus:border-brand transition-all outline-none cursor-pointer"
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs text-slate-700 dark:text-slate-300 font-medium focus:bg-white dark:focus:bg-[#1A1D30] focus:border-indigo-500 transition-all outline-none cursor-pointer"
                 >
                   <option value="ALL">Todas las categorías</option>
                   {categories.map((c) => (
@@ -438,56 +472,47 @@ export default function Products() {
                 </select>
               </div>
 
-              {/* View Mode Toggle: Table / Grid */}
-              <div className="inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80 shrink-0">
+              {/* View Mode Toggle: Rich Rows / Grid */}
+              <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200/80 dark:border-white/10 shrink-0">
                 <button
                   type="button"
                   onClick={() => setViewMode('table')}
-                  title="Vista en tabla"
-                  className={`p-1.5 rounded-lg transition-all ${
+                  title="Vista en filas ejecutivas"
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'table'
-                      ? 'bg-white text-brand shadow-xs font-semibold'
-                      : 'text-slate-500 hover:text-slate-900'
+                      ? 'bg-white dark:bg-[#1A1D30] text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold'
+                      : 'text-slate-400 hover:text-slate-800 dark:hover:text-white'
                   }`}
                 >
-                  <List size={15} />
+                  <List size={16} />
                 </button>
                 <button
                   type="button"
                   onClick={() => setViewMode('grid')}
                   title="Vista en tarjetas"
-                  className={`p-1.5 rounded-lg transition-all ${
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'grid'
-                      ? 'bg-white text-brand shadow-xs font-semibold'
-                      : 'text-slate-500 hover:text-slate-900'
+                      ? 'bg-white dark:bg-[#1A1D30] text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold'
+                      : 'text-slate-400 hover:text-slate-800 dark:hover:text-white'
                   }`}
                 >
-                  <LayoutGrid size={15} />
+                  <LayoutGrid size={16} />
                 </button>
               </div>
-
-              {/* Primary Action Button */}
-              <button
-                onClick={openCreate}
-                className="inline-flex items-center justify-center gap-1.5 bg-brand hover:bg-brand-hover active:scale-95 text-white font-semibold text-xs sm:text-sm px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl transition-all shadow-sm shrink-0"
-              >
-                <Plus size={15} />
-                <span>Nuevo Producto</span>
-              </button>
             </div>
           </div>
 
           {/* Bottom Filter Chips: Quick Status Filter */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs pt-1 border-t border-slate-100 no-scrollbar -mx-1 px-1">
-            <span className="text-[11px] font-semibold uppercase text-slate-400 mr-1 shrink-0 flex items-center gap-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs pt-2 border-t border-slate-100 dark:border-white/10 no-scrollbar">
+            <span className="text-[11px] font-bold uppercase text-slate-400 mr-1 shrink-0 flex items-center gap-1">
               <Filter size={12} /> Estado:
             </span>
 
             {[
               { id: 'ALL', label: `Todos (${products.length})` },
-              { id: 'AVAILABLE', label: 'Disponibles', color: 'text-emerald-700' },
-              { id: 'LOW', label: `Stock Bajo (${stats.lowStockCount})`, color: 'text-amber-700' },
-              { id: 'OUT', label: `Agotados (${stats.outOfStockCount})`, color: 'text-red-700' },
+              { id: 'AVAILABLE', label: 'Disponibles' },
+              { id: 'LOW', label: `Stock Bajo (${stats.lowStockCount})` },
+              { id: 'OUT', label: `Agotados (${stats.outOfStockCount})` },
               { id: 'KITS', label: 'Combos / Kits' },
             ].map((tab) => {
               const active = stockFilter === tab.id
@@ -495,10 +520,10 @@ export default function Products() {
                 <button
                   key={tab.id}
                   onClick={() => setStockFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap shrink-0 ${
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                     active
-                      ? 'bg-brand text-white shadow-xs font-semibold'
-                      : 'bg-slate-100/70 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'bg-[#5550F2] text-white shadow-xs'
+                      : 'bg-slate-100/80 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   {tab.label}
@@ -509,15 +534,15 @@ export default function Products() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            3. PRODUCT LISTINGS (TABLE VIEW & GRID VIEW)
+            3. PRODUCT LISTINGS (SHOPIFY / STRIPE STYLE RICH ROWS)
            ═════════════════════════════════════════════════════════ */}
         {loading ? (
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-16 flex flex-col items-center justify-center text-center shadow-xs">
-            <div className="w-10 h-10 rounded-full border-2 border-brand border-t-transparent animate-spin mb-3" />
-            <p className="text-xs font-semibold text-slate-600">Cargando catálogo de productos…</p>
+          <div className="bg-white dark:bg-[#131627] rounded-2xl border border-slate-200/80 dark:border-white/10 p-16 flex flex-col items-center justify-center text-center shadow-xs">
+            <div className="w-10 h-10 rounded-full border-2 border-[#5550F2] border-t-transparent animate-spin mb-3" />
+            <p className="text-xs font-semibold text-slate-500">Cargando catálogo de productos…</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-8 shadow-xs">
+          <div className="bg-white dark:bg-[#131627] rounded-2xl border border-slate-200/80 dark:border-white/10 p-10 shadow-xs text-center">
             <EmptyState
               icon={Boxes}
               title="No se encontraron productos"
@@ -539,7 +564,7 @@ export default function Products() {
                     Restablecer filtros
                   </button>
                 ) : (
-                  <button onClick={openCreate} className="btn-primary text-xs">
+                  <button onClick={() => navigate('/productos/nuevo')} className="btn-primary text-xs">
                     <Plus size={15} /> Nuevo producto
                   </button>
                 )
@@ -548,322 +573,373 @@ export default function Products() {
           </div>
         ) : viewMode === 'grid' ? (
           /* ─── GRID / CARD VIEW ─── */
-          <div
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-            style={{ animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 320ms both' }}
-          >
-            {filtered.map((p) => {
-              const stock = Number(p.stock) || 0
-              const minStock = Number(p.min_stock) || 0
-              const isZero = stock <= 0
-              const pct = minStock > 0 ? Math.min(Math.round((stock / minStock) * 100), 100) : 100
-              const marginPct =
-                p.cost_price > 0 && p.sale_price > p.cost_price
-                  ? Math.round(((p.sale_price - p.cost_price) / p.cost_price) * 100)
-                  : null
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {paginatedProducts.map((p) => {
+                const stock = Number(p.stock) || 0
+                const minStock = Number(p.min_stock) || 0
+                const isOutOfStock = stock <= 0
+                const isLowStock = stock > 0 && stock <= minStock
+                const marginPct =
+                  p.cost_price > 0 && p.sale_price > p.cost_price
+                    ? Math.round(((p.sale_price - p.cost_price) / p.cost_price) * 100)
+                    : null
 
-              return (
-                <div
-                  key={p.id}
-                  className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between group card-mobile-active active:scale-[0.99]"
-                >
-                  <div>
-                    {/* Image Header with Badge Overlay */}
-                    <div className="relative h-44 bg-slate-100 flex items-center justify-center overflow-hidden border-b border-slate-100">
-                      {p.image_url ? (
-                        <img
-                          src={p.image_url}
-                          alt={p.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-slate-300">
-                          <ImageOff size={32} strokeWidth={1.5} />
-                          <span className="text-[10px] font-medium text-slate-400 mt-1">Sin fotografía</span>
-                        </div>
-                      )}
-
-                      {/* Top Badges */}
-                      <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start">
-                        <span className="font-mono text-[10px] font-bold bg-white/90 backdrop-blur-sm text-slate-700 px-2 py-0.5 rounded-lg border border-slate-200/80 shadow-xs">
-                          {p.sku}
-                        </span>
-                        {p.is_kit && (
-                          <span className="text-[10px] font-bold bg-blue-600 text-white px-2 py-0.5 rounded-lg shadow-xs">
-                            Combo / Kit
-                          </span>
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-white dark:bg-[#131627] rounded-2xl border border-slate-200/80 dark:border-white/10 overflow-hidden shadow-xs hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500/40 transition-all flex flex-col justify-between group"
+                  >
+                    <div>
+                      {/* Image Header */}
+                      <div
+                        onClick={() => openLightbox(p)}
+                        className={`relative h-48 bg-white dark:bg-white/5 flex items-center justify-center overflow-hidden border-b border-slate-100 dark:border-white/10 ${
+                          p.image_url ? 'cursor-pointer' : ''
+                        }`}
+                        title={p.image_url ? 'Click para ver fotografía' : ''}
+                      >
+                        {p.image_url ? (
+                          <img
+                            src={p.image_url}
+                            alt={p.name}
+                            className="w-full h-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-slate-300 dark:text-slate-600">
+                            <ImageOff size={32} strokeWidth={1.5} />
+                            <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-1">Sin fotografía</span>
+                          </div>
                         )}
+
+                        {/* Top Badges */}
+                        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start pointer-events-none">
+                          <span className="font-mono text-[10.5px] font-bold bg-white/95 dark:bg-[#1A1D30]/95 backdrop-blur-sm text-slate-700 dark:text-slate-200 px-2 py-0.5 rounded-lg border border-slate-200/80 dark:border-white/10 shadow-2xs">
+                            {p.sku}
+                          </span>
+                          {p.is_kit && (
+                            <span className="text-[10px] font-bold bg-[#5550F2] text-white px-2 py-0.5 rounded-lg shadow-xs">
+                              Combo / Kit
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Stock Status Badge */}
+                        <div className="absolute top-2.5 right-2.5 pointer-events-none">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold ${
+                              isOutOfStock
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20'
+                                : isLowStock
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isOutOfStock ? 'bg-rose-500' : isLowStock ? 'bg-amber-500' : 'bg-emerald-500'
+                              }`}
+                            />
+                            <span>{isOutOfStock ? 'Agotado' : isLowStock ? 'Stock Bajo' : 'Disponible'}</span>
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Stock Status Badge */}
-                      <div className="absolute top-2.5 right-2.5">
-                        <StockBadge stock={p.stock} minStock={p.min_stock} />
-                      </div>
-                    </div>
+                      {/* Card Content */}
+                      <div className="p-4">
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          {catName(p.category_id)}
+                        </p>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm leading-snug line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                          {p.name}
+                        </h4>
 
-                    {/* Card Content */}
-                    <div className="p-4">
-                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                        {catName(p.category_id)}
-                      </p>
-                      <h4 className="font-bold text-slate-900 text-sm leading-snug line-clamp-2 group-hover:text-brand transition-colors">
-                        {p.name}
-                      </h4>
-
-                      {/* Stock Level Bar */}
-                      <div className="mt-3.5 pt-3 border-t border-slate-100">
-                        <div className="flex items-center justify-between text-xs mb-1.5">
-                          <span className="text-slate-500 font-medium">Existencias:</span>
-                          <span className="font-mono font-bold text-slate-900">
+                        {/* Stock Level */}
+                        <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-white/10 flex items-center justify-between text-xs">
+                          <span className="text-slate-500 dark:text-slate-400 font-medium">Existencias:</span>
+                          <span
+                            className={`font-mono font-bold ${
+                              isOutOfStock
+                                ? 'text-rose-600 dark:text-rose-400'
+                                : isLowStock
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-slate-900 dark:text-white'
+                            }`}
+                          >
                             {stock} {p.unit}
                           </span>
                         </div>
-                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              isZero ? 'bg-red-500' : pct < 50 ? 'bg-amber-500' : 'bg-emerald-500'
-                            }`}
-                            style={{ width: `${Math.max(pct, 5)}%` }}
-                          />
-                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Price & Actions Footer */}
-                  <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-                    <div>
-                      <p className="font-mono font-extrabold text-base text-slate-900">
-                        {fmt(p.sale_price)}
-                      </p>
-                      {marginPct !== null && (
-                        <p className="text-[10px] font-semibold text-emerald-600">
-                          +{marginPct}% margen
+                    {/* Price & Actions Footer */}
+                    <div className="px-4 py-3 bg-slate-50/70 dark:bg-white/5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between">
+                      <div>
+                        <p className="font-mono font-extrabold text-base text-slate-900 dark:text-white">
+                          {fmt(p.sale_price)}
                         </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => openEdit(p)}
-                        title="Editar producto"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-brand hover:bg-blue-50 transition-all"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDelete(p)}
-                        title="Eliminar producto"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          /* ─── ENTERPRISE TABLE VIEW ─── */
-          <div
-            className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs"
-            style={{ animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) 320ms both' }}
-          >
-            {/* Mobile View */}
-            <div className="block sm:hidden divide-y divide-slate-100">
-              {filtered.map((p) => (
-                <div key={p.id} className="p-4 space-y-3 hover:bg-slate-50/70 transition-colors">
-                  <div className="flex items-start gap-3">
-                    <div className="shrink-0">
-                      {p.image_url ? (
-                        <img
-                          src={p.image_url}
-                          alt={p.name}
-                          className="w-14 h-14 rounded-xl object-cover border border-slate-200"
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center">
-                          <ImageOff size={18} className="text-slate-400" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-1">
-                        <p className="font-semibold text-slate-900 text-sm leading-snug truncate">
-                          {p.name}
-                        </p>
-                        {p.is_kit && (
-                          <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-brand border border-blue-100">
-                            Combo
-                          </span>
+                        {marginPct !== null && (
+                          <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                            +{marginPct}% margen
+                          </p>
                         )}
                       </div>
-                      <p className="font-mono text-xs text-slate-500 mt-0.5">{p.sku}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{catName(p.category_id)}</p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <StockBadge stock={p.stock} minStock={p.min_stock} />
-                      <span className="font-mono text-xs font-medium text-slate-700">
-                        {p.stock} {p.unit}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono font-bold text-sm text-slate-900">
-                        {fmt(p.sale_price)}
-                      </span>
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => openEdit(p)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-brand hover:bg-blue-50 transition-all"
+                          onClick={() => navigate(`/productos/editar/${p.id}`)}
+                          title="Editar producto"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-white/10 transition-colors cursor-pointer"
                         >
                           <Pencil size={15} />
                         </button>
                         <button
                           onClick={() => setConfirmDelete(p)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                          title="Eliminar producto"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
                         >
                           <Trash2 size={15} />
                         </button>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          /* ─── SHOPIFY / STRIPE STYLE: RICH CARD-ROWS WITH 68x68 PHOTO ─── */
+          <div className="bg-white dark:bg-[#131627] rounded-2xl border border-slate-200/80 dark:border-white/10 overflow-hidden shadow-xs">
+            
+            {/* Header */}
+            <div className="hidden sm:grid sm:grid-cols-12 gap-4 px-6 py-3.5 bg-slate-50/80 dark:bg-white/5 border-b border-slate-200/80 dark:border-white/10 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider items-center">
+              <div className="sm:col-span-6">Artículo / Producto</div>
+              <div className="sm:col-span-2 text-right">Existencias / Estado</div>
+              <div className="sm:col-span-2 text-right">Precio Comercial</div>
+              <div className="sm:col-span-2 text-right">Acciones</div>
             </div>
 
-            {/* Desktop View */}
-            <div className="overflow-x-auto hidden sm:block">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200/80 bg-slate-50/70 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-4 w-14">Foto</th>
-                    <th className="py-3 px-4">Código SKU</th>
-                    <th className="py-3 px-4">Producto</th>
-                    <th className="py-3 px-4">Categoría</th>
-                    <th className="py-3 px-4 text-right">Existencias</th>
-                    <th className="py-3 px-4 text-right">Precio Venta</th>
-                    <th className="py-3 px-4 text-center">Estado</th>
-                    <th className="py-3 px-4 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {filtered.map((p) => {
-                    const stock = Number(p.stock) || 0
-                    const minStock = Number(p.min_stock) || 0
-                    const pct = minStock > 0 ? Math.min(Math.round((stock / minStock) * 100), 100) : 100
-                    const isZero = stock <= 0
+            {/* Rows List */}
+            <div className="divide-y divide-slate-100 dark:divide-white/5">
+              {paginatedProducts.map((p) => {
+                const stock = Number(p.stock) || 0
+                const minStock = Number(p.min_stock) || 0
+                const isOutOfStock = stock <= 0
+                const isLowStock = stock > 0 && stock <= minStock
+                const marginPct =
+                  p.cost_price > 0 && p.sale_price > p.cost_price
+                    ? Math.round(((p.sale_price - p.cost_price) / p.cost_price) * 100)
+                    : null
+                const cat = catName(p.category_id)
 
-                    return (
-                      <tr
-                        key={p.id}
-                        className="hover:bg-slate-50/80 transition-colors group"
+                return (
+                  <div
+                    key={p.id}
+                    className="p-4 sm:px-6 sm:py-4.5 hover:bg-slate-50/70 dark:hover:bg-white/5 transition-colors group flex flex-col sm:grid sm:grid-cols-12 gap-3 sm:gap-4 sm:items-center"
+                  >
+                    {/* ── Left Column: Generous Photo (68x68 px) + Title + SKU + Category ── */}
+                    <div className="sm:col-span-6 flex items-center gap-4 min-w-0">
+                      {/* Generous Photo Box (68x68 px) */}
+                      <div
+                        onClick={() => openLightbox(p)}
+                        className={`relative w-[68px] h-[68px] rounded-2xl overflow-hidden bg-white dark:bg-white/5 border border-slate-200/80 dark:border-white/10 p-1.5 shrink-0 shadow-xs transition-all ${
+                          p.image_url ? 'cursor-pointer hover:border-indigo-400 hover:scale-105' : ''
+                        }`}
+                        title={p.image_url ? 'Click para ampliar fotografía' : 'Sin imagen'}
                       >
-                        {/* Photo */}
-                        <td className="py-3 px-4">
-                          {p.image_url ? (
-                            <img
-                              src={p.image_url}
-                              alt={p.name}
-                              className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0 shadow-xs"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 text-slate-400">
-                              <ImageOff size={16} />
-                            </div>
-                          )}
-                        </td>
+                        {p.image_url ? (
+                          <img
+                            src={p.image_url}
+                            alt={p.name}
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-600">
+                            <ImageOff size={22} strokeWidth={1.5} />
+                          </div>
+                        )}
+                      </div>
 
-                        {/* SKU */}
-                        <td className="py-3 px-4 font-mono font-bold text-slate-700">
-                          <span className="bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/70">
+                      {/* Product Identity */}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4
+                            onClick={() => navigate(`/productos/editar/${p.id}`)}
+                            className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer leading-tight truncate"
+                          >
+                            {p.name}
+                          </h4>
+                          {p.is_kit && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-500/30">
+                              Combo / Kit
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Subtitle: SKU and Category */}
+                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                          <span className="font-mono text-[11.5px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded-md">
                             {p.sku}
                           </span>
-                        </td>
+                          <span className="text-slate-300 dark:text-slate-600">·</span>
+                          <span className="inline-flex items-center gap-1 text-[11.5px]">
+                            <Layers size={12} className="text-slate-400 shrink-0" />
+                            <span>{cat}</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-                        {/* Name + Combo tag */}
-                        <td className="py-3 px-4 font-semibold text-slate-900 text-sm">
-                          <div className="flex items-center gap-2">
-                            <span>{p.name}</span>
-                            {p.is_kit && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-brand border border-blue-200">
-                                Combo
+                    {/* ── Middle Left: Stock Quantity & Status Badge ── */}
+                    <div className="sm:col-span-2 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1.5 text-right">
+                      <span className="sm:hidden text-xs text-slate-400 font-medium">Existencias:</span>
+                      <div className="text-right">
+                        <p
+                          className={`font-mono font-black text-sm sm:text-base leading-none ${
+                            isOutOfStock
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : isLowStock
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-slate-900 dark:text-white'
+                          }`}
+                        >
+                          {stock}{' '}
+                          <span className="text-xs font-normal text-slate-400">
+                            {p.unit || 'uds.'}
+                          </span>
+                        </p>
+
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 mt-1.5 rounded-full text-[10.5px] font-bold ${
+                            isOutOfStock
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200/70 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20'
+                              : isLowStock
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200/70 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200/70 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              isOutOfStock ? 'bg-rose-500' : isLowStock ? 'bg-amber-500' : 'bg-emerald-500'
+                            }`}
+                          />
+                          <span>{isOutOfStock ? 'Agotado' : isLowStock ? 'Stock Bajo' : 'Disponible'}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* ── Middle Right: Commercial Price & Cost Info ── */}
+                    <div className="sm:col-span-2 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center text-right">
+                      <span className="sm:hidden text-xs text-slate-400 font-medium">Precio Venta:</span>
+                      <div className="text-right">
+                        <p className="font-mono font-black text-base sm:text-lg text-slate-900 dark:text-white leading-tight">
+                          {fmt(p.sale_price)}
+                        </p>
+                        {Number(p.cost_price) > 0 ? (
+                          <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                            Costo: {fmt(p.cost_price)}
+                            {marginPct !== null && (
+                              <span className="text-emerald-600 dark:text-emerald-400 font-bold ml-1">
+                                (+{marginPct}%)
                               </span>
                             )}
-                          </div>
-                        </td>
+                          </p>
+                        ) : (
+                          <p className="text-[10.5px] text-slate-400 mt-0.5">Precio unitario</p>
+                        )}
+                      </div>
+                    </div>
 
-                        {/* Category */}
-                        <td className="py-3 px-4 text-slate-600 font-medium">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs">
-                            <Layers size={12} className="text-slate-400" />
-                            {catName(p.category_id)}
-                          </span>
-                        </td>
-
-                        {/* Stock Quantity + Gauge */}
-                        <td className="py-3 px-4 text-right">
-                          <div className="inline-flex flex-col items-end">
-                            <span className="font-mono font-bold text-slate-900 text-sm">
-                              {stock} {p.unit}
-                            </span>
-                            <div className="w-20 bg-slate-100 rounded-full h-1 mt-1 overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${
-                                  isZero ? 'bg-red-500' : pct < 50 ? 'bg-amber-500' : 'bg-emerald-500'
-                                }`}
-                                style={{ width: `${Math.max(pct, 5)}%` }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Price */}
-                        <td className="py-3 px-4 text-right font-mono font-bold text-sm text-slate-900">
-                          {fmt(p.sale_price)}
-                        </td>
-
-                        {/* Status */}
-                        <td className="py-3 px-4 text-center">
-                          <StockBadge stock={p.stock} minStock={p.min_stock} />
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => openEdit(p)}
-                              title="Editar producto"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-brand hover:bg-blue-50 transition-colors"
-                            >
-                              <Pencil size={15} />
-                            </button>
-                            <button
-                              onClick={() => setConfirmDelete(p)}
-                              title="Eliminar producto"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                    {/* ── Right Column: Clean Action Buttons ── */}
+                    <div className="sm:col-span-2 flex items-center justify-end gap-1.5 pt-2 sm:pt-0 border-t sm:border-0 border-slate-100 dark:border-white/5">
+                      {p.image_url && (
+                        <button
+                          type="button"
+                          onClick={() => openLightbox(p)}
+                          title="Ver fotografía ampliada"
+                          className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-white/10 transition-colors cursor-pointer border border-transparent hover:border-slate-200/80 dark:hover:border-white/10"
+                        >
+                          <Eye size={16} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/productos/editar/${p.id}`)}
+                        title="Editar producto"
+                        className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-white/10 transition-colors cursor-pointer border border-transparent hover:border-slate-200/80 dark:hover:border-white/10"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(p)}
+                        title="Eliminar producto"
+                        className="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer border border-transparent hover:border-slate-200/80 dark:hover:border-white/10"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
 
-            {/* Table Footer Summary */}
-            <div className="p-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>
-                Mostrando <strong>{filtered.length}</strong> de <strong>{products.length}</strong> productos
-              </span>
-              <span>Catálogo Central CYA Store</span>
+            {/* Pagination Controls */}
+            <div className="p-4 bg-slate-50/70 dark:bg-white/5 border-t border-slate-200/80 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400">
+              <div>
+                Mostrando{' '}
+                <strong className="text-slate-900 dark:text-white">
+                  {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+                </strong>{' '}
+                a{' '}
+                <strong className="text-slate-900 dark:text-white">
+                  {Math.min(currentPage * pageSize, filtered.length)}
+                </strong>{' '}
+                de <strong className="text-slate-900 dark:text-white">{filtered.length}</strong> productos
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="w-8 h-8 rounded-lg border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  title="Página anterior"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+
+                {Array.from({ length: totalPages }).slice(0, 8).map((_, i) => {
+                  const pageNum = i + 1
+                  const isActive = pageNum === currentPage
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-[#5550F2] text-white shadow-sm'
+                          : 'bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                })}
+
+                {totalPages > 8 && <span className="px-1 text-slate-400">…</span>}
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="w-8 h-8 rounded-lg border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10 disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+                  title="Página siguiente"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -871,285 +947,162 @@ export default function Products() {
       </div>
 
       {/* ═════════════════════════════════════════════════════════
-          4. CREATE & EDIT PRODUCT MODAL
+          SEAMLESS LIGHTBOX / IMAGE PREVIEW (NATURAL WHITE BLEND)
          ═════════════════════════════════════════════════════════ */}
-      <Modal
-        open={modalOpen}
-        onClose={closeModal}
-        title={editing ? 'Editar Producto' : 'Registrar Nuevo Producto'}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Código SKU</label>
-              <input className="field font-mono font-bold text-slate-700 bg-slate-50" value={form.sku} readOnly />
-            </div>
-            <div>
-              <label className="label">Unidad de Medida</label>
-              <select
-                className="field"
-                value={form.unit}
-                onChange={(e) => setForm({ ...form, unit: e.target.value })}
-              >
-                {['unidad', 'caja', 'paquete', 'rollo', 'kg', 'litro'].map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="label">Nombre Comercial del Producto *</label>
-            <input
-              className="field"
-              placeholder="Ej: AirPods Pro Gen 4 (con estuche de carga)"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-          </div>
-
-          {/* Photo Uploader */}
-          <div>
-            <label className="label flex items-center gap-1.5">
-              <Camera size={13} /> Fotografía del Producto
-            </label>
-            <div className="flex items-start gap-4">
-              <div
-                className="relative shrink-0 w-24 h-24 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden group cursor-pointer hover:border-brand transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {previewSrc ? (
-                  <>
-                    <img src={previewSrc} alt="" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        resetImg()
-                        setForm((f) => ({ ...f, image_url: '' }))
-                      }}
-                      className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl"
-                    >
-                      <X size={20} className="text-white" />
-                    </button>
-                  </>
-                ) : (
-                  <ImageOff size={24} className="text-slate-400" />
-                )}
+      {lightboxProduct && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 dark:bg-black/80 backdrop-blur-md transition-all duration-300 animate-in fade-in"
+          onClick={closeLightbox}
+        >
+          {/* Main Modal Container: Pure White in Light Mode so white product images merge seamlessly without a jarring box line */}
+          <div
+            className="relative w-full max-w-3xl max-h-[92vh] flex flex-col items-center justify-between bg-white dark:bg-[#131627] border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 text-slate-900 dark:text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* ── Lightbox Header ── */}
+            <div className="w-full flex items-center justify-between px-5 py-3.5 bg-slate-50/80 dark:bg-white/5 border-b border-slate-100 dark:border-white/10">
+              <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-500/30">
+                  {lightboxProduct.sku}
+                </span>
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white truncate max-w-sm sm:max-w-md">
+                  {lightboxProduct.name}
+                </h3>
               </div>
-              <div className="flex flex-col gap-1.5 pt-1">
+
+              {/* Controls Toolbar: Zoom Out, Reset, Zoom In, Download, Close */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center bg-slate-100 dark:bg-white/10 rounded-xl p-0.5 border border-slate-200/80 dark:border-white/10">
+                  <button
+                    type="button"
+                    onClick={zoomOut}
+                    disabled={zoomScale <= 1}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 disabled:opacity-30 transition-all cursor-pointer"
+                    title="Reducir zoom (-)"
+                  >
+                    <ZoomOut size={15} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={resetZoom}
+                    className="px-2 py-0.5 text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-colors cursor-pointer"
+                    title="Restablecer tamaño (100%)"
+                  >
+                    {Math.round(zoomScale * 100)}%
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={zoomIn}
+                    disabled={zoomScale >= 3}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 disabled:opacity-30 transition-all cursor-pointer"
+                    title="Aumentar zoom (+)"
+                  >
+                    <ZoomIn size={15} />
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="btn-secondary text-xs px-3 py-1.5 self-start"
+                  onClick={handleDownloadImage}
+                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 border border-slate-200/80 dark:border-white/10 text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+                  title="Descargar fotografía"
                 >
-                  <Camera size={13} />
-                  {previewSrc ? 'Cambiar fotografía' : 'Subir fotografía'}
+                  <Download size={15} />
                 </button>
-                {imageFile && (
-                  <p className="text-[11px] text-brand font-medium max-w-[200px] truncate">
-                    {imageFile.name}
-                  </p>
-                )}
-                {!imageFile && form.image_url && (
-                  <p className="text-[11px] text-emerald-600 font-medium">✓ Imagen guardada</p>
-                )}
-                <p className="text-[11px] text-slate-400">PNG, JPG o WEBP. Máx 5 MB.</p>
+
+                <button
+                  type="button"
+                  onClick={closeLightbox}
+                  className="p-2 rounded-xl bg-slate-100 hover:bg-red-50 hover:text-red-600 dark:bg-white/10 dark:hover:bg-red-500/20 dark:hover:text-red-400 text-slate-600 dark:text-slate-300 transition-all cursor-pointer ml-1"
+                  title="Cerrar vista previa (Esc)"
+                >
+                  <X size={15} />
+                </button>
               </div>
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) setImageFile(f)
-              }}
-            />
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">Categoría</label>
-              <select
-                className="field"
-                value={form.category_id}
-                onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-              >
-                <option value="">Sin categoría</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Proveedor Asociado</label>
-              <select
-                className="field"
-                value={form.supplier_id}
-                onChange={(e) => setForm({ ...form, supplier_id: e.target.value })}
-              >
-                <option value="">Sin proveedor</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+            {/* ── Lightbox Viewport & Image Display ── */}
+            <div className="relative w-full h-[52vh] sm:h-[58vh] flex items-center justify-center p-6 overflow-hidden select-none bg-white dark:bg-[#131627]">
+              
+              {/* Previous Image Arrow */}
+              {productsWithImages.length > 1 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handlePrevImage()
+                  }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-100/90 dark:bg-white/10 hover:bg-[#5550F2] hover:text-white border border-slate-200 dark:border-white/20 text-slate-700 dark:text-white flex items-center justify-center shadow-lg transition-all active:scale-90 cursor-pointer"
+                  title="Foto anterior (Flecha Izquierda)"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+              )}
 
-          {/* Combo / Kit Option */}
-          <div className="border border-slate-200 rounded-2xl p-4 space-y-3 bg-slate-50/60">
-            <label className="flex items-center gap-3 cursor-pointer select-none">
+              {/* Product Image */}
               <div
-                onClick={() =>
-                  setForm({
-                    ...form,
-                    is_kit: !form.is_kit,
-                    kit_component_id: '',
-                    kit_quantity: '1'
-                  })
-                }
-                className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${
-                  form.is_kit ? 'bg-brand' : 'bg-slate-300'
+                onClick={toggleZoom}
+                className={`relative max-w-full max-h-full flex items-center justify-center transition-transform duration-300 ease-out ${
+                  zoomScale === 1 ? 'cursor-zoom-in' : 'cursor-zoom-out'
                 }`}
+                style={{
+                  transform: `scale(${zoomScale})`,
+                  transformOrigin: 'center center'
+                }}
+                title={zoomScale === 1 ? 'Click para ampliar' : 'Click para tamaño original'}
               >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
-                    form.is_kit ? 'translate-x-5' : ''
-                  }`}
+                <img
+                  src={lightboxProduct.image_url}
+                  alt={lightboxProduct.name}
+                  className="max-h-[46vh] sm:max-h-[52vh] max-w-full object-contain transition-all"
                 />
               </div>
-              <span className="text-sm font-semibold text-slate-800">
-                Es un combo / kit (descuenta stock de otro producto)
-              </span>
-            </label>
 
-            {form.is_kit && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="label">Producto base origen</label>
-                  <select
-                    className="field"
-                    value={form.kit_component_id}
-                    onChange={(e) => setForm({ ...form, kit_component_id: e.target.value })}
-                  >
-                    <option value="">Selecciona el producto base</option>
-                    {products
-                      .filter((p) => !p.is_kit && (!editing || p.id !== editing.id))
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.sku} — {p.name} (stock: {p.stock})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Unidades base por combo</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="field"
-                    value={form.kit_quantity}
-                    onChange={(e) => setForm({ ...form, kit_quantity: e.target.value })}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">Precio de Costo (S/)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="field font-mono"
-                placeholder="0.00"
-                value={form.cost_price}
-                onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">Precio de Venta (S/) *</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="field font-mono font-bold text-brand"
-                placeholder="0.00"
-                value={form.sale_price}
-                onChange={(e) => setForm({ ...form, sale_price: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">
-                {editing ? 'Stock Actual en Almacén' : 'Stock Inicial en Almacén'}
-              </label>
-              {form.is_kit ? (
-                <div className="field bg-slate-100 text-slate-500 text-xs flex items-center">
-                  Calculado automáticamente según producto base
-                </div>
-              ) : (
-                <>
-                  <input
-                    type="number"
-                    min="0"
-                    className="field font-mono"
-                    value={form.stock}
-                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                  />
-                  {editing && (
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Al modificar el stock se registrará un ajuste manual en movimientos.
-                    </p>
-                  )}
-                </>
+              {/* Next Image Arrow */}
+              {productsWithImages.length > 1 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleNextImage()
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-slate-100/90 dark:bg-white/10 hover:bg-[#5550F2] hover:text-white border border-slate-200 dark:border-white/20 text-slate-700 dark:text-white flex items-center justify-center shadow-lg transition-all active:scale-90 cursor-pointer"
+                  title="Foto siguiente (Flecha Derecha)"
+                >
+                  <ChevronRight size={20} />
+                </button>
               )}
             </div>
-            <div>
-              <label className="label">Stock Mínimo (Alerta de Quiebre)</label>
-              <input
-                type="number"
-                min="0"
-                className="field font-mono"
-                value={form.min_stock}
-                onChange={(e) => setForm({ ...form, min_stock: e.target.value })}
-              />
+
+            {/* ── Lightbox Footer: Metadata Card ── */}
+            <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 dark:bg-white/5 border-t border-slate-100 dark:border-white/10 text-xs">
+              <div className="flex items-center gap-3">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-200/70 dark:bg-white/10 text-slate-700 dark:text-slate-300 font-bold">
+                  {catName(lightboxProduct.category_id)}
+                </span>
+                <span className="font-mono text-slate-600 dark:text-slate-300 font-bold">
+                  {lightboxProduct.stock} {lightboxProduct.unit || 'uds.'} disponibles
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-slate-500 dark:text-slate-400 font-bold uppercase text-[11px] tracking-wider">
+                  Precio de venta:
+                </span>
+                <span className="text-2xl font-black font-mono text-[#5550F2] dark:text-indigo-400">
+                  {fmt(lightboxProduct.sale_price)}
+                </span>
+              </div>
             </div>
-          </div>
 
-          {error && (
-            <p className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
-              {error}
-            </p>
-          )}
-
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
-            <button type="button" onClick={closeModal} className="btn-secondary">
-              Cancelar
-            </button>
-            <button type="submit" className="btn-primary">
-              {editing ? 'Guardar Cambios' : 'Crear Producto'}
-            </button>
           </div>
-        </form>
-      </Modal>
+        </div>
+      )}
 
       {/* ═════════════════════════════════════════════════════════
-          5. CONFIRM DELETE MODAL
+          CONFIRM DELETE MODAL
          ═════════════════════════════════════════════════════════ */}
       <Modal
         open={!!confirmDelete}
@@ -1158,12 +1111,12 @@ export default function Products() {
         width="max-w-sm"
       >
         <div className="space-y-4">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             ¿Estás seguro de que deseas eliminar permanentemente{' '}
-            <strong className="text-slate-900">{confirmDelete?.name}</strong> (SKU:{' '}
+            <strong className="text-slate-900 dark:text-white">{confirmDelete?.name}</strong> (SKU:{' '}
             <span className="font-mono">{confirmDelete?.sku}</span>)?
           </p>
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-3">
             ⚠️ Esta acción es irreversible y eliminará el registro del producto.
           </p>
           <div className="flex justify-end gap-2.5 pt-2">
@@ -1173,47 +1126,6 @@ export default function Products() {
             <button onClick={handleDelete} className="btn-danger">
               Eliminar
             </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* ═════════════════════════════════════════════════════════
-          LÍMITE DE PLAN ALCANZADO MODAL
-         ═════════════════════════════════════════════════════════ */}
-      <Modal
-        open={limitModalOpen}
-        onClose={() => setLimitModalOpen(false)}
-        title="Límite del Plan Alcanzado"
-        width="max-w-md"
-      >
-        <div className="space-y-4 p-2 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-xs">
-            <Crown size={24} />
-          </div>
-          <div className="space-y-1">
-            <h4 className="font-display font-bold text-slate-900 text-base">
-              Límite de productos alcanzado
-            </h4>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              {limitMessage || 'Alcanzaste el límite de tu plan Free (20 productos). Actualiza a Pro para agregar más.'}
-            </p>
-          </div>
-          <div className="flex items-center justify-center gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={() => setLimitModalOpen(false)}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition cursor-pointer"
-            >
-              Cerrar
-            </button>
-            <Link
-              to="/planes"
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-blue-600/20 transition cursor-pointer"
-            >
-              <Sparkles size={13} className="text-amber-300" />
-              <span>Ver Planes</span>
-              <ArrowRight size={13} />
-            </Link>
           </div>
         </div>
       </Modal>

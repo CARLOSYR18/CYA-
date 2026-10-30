@@ -80,11 +80,11 @@ const TRIGGER_PATTERNS = [
 // Saludos / muletillas al inicio que no aportan a la intención
 const LEADING_FILLER = /^(?:(?:hola|buenas noches|buenas tardes|buenos dias|buenas|hey|oye|ok|bueno|mira|a ver|porfa|por favor|asistente|bot|ayudame a|ayudame|quiero que|necesito que|puedes|podrias|me puedes|me podrias|k)\b[,\s]*)+/i
 
-const SALE_NOUN = '(?:venta|ventas|boleta|boletas|ticket|factura|recibo|comprobante|pedido|despacho)'
+const SALE_NOUN = '(?:venta|ventas|benta|bentas|evento|eventos|eventa|boleta|boletas|ticket|factura|recibo|comprobante|pedido|despacho)'
 const SALE_VERB = '(?:hac(?:er|e|es)|hag\\w*|haz|has|hazme|realiz\\w*|registr\\w*|cre(?:ar|a|e|ame)\\w*|gener\\w*|emit\\w*|sac\\w*|ingres\\w*|anot\\w*|apunt\\w*|proces\\w*|quiero|necesito|vamos a|vamos con|se vendio|vender|vende\\w*|cobr\\w*|facturar)'
 
-// Intención de iniciar una venta en cualquier parte de la frase (tolera errores como "has una venta")
-const FLEX_SALE_INTENT = new RegExp(`\\b${SALE_VERB}\\b[^?]{0,25}\\b${SALE_NOUN}\\b|\\b(?:nueva|nuevo|otra|otro)\\s+${SALE_NOUN}\\b|\\b(?:una|la)\\s+venta\\b`, 'i')
+// Intención de iniciar una venta en cualquier parte de la frase (tolera errores como "has una venta" o "quiero hacer un evento")
+const FLEX_SALE_INTENT = new RegExp(`\\b${SALE_VERB}\\b[^?]{0,25}\\b${SALE_NOUN}\\b|\\b(?:nueva|nuevo|otra|otro)\\s+${SALE_NOUN}\\b|\\b(?:una|la|un)\\s+${SALE_NOUN}\\b`, 'i')
 
 export function isSaleTrigger(text) {
   let normalized = normalize(text).replace(/[¿?¡!.,;:]+/g, ' ').replace(/\s+/g, ' ').trim()
@@ -203,9 +203,9 @@ async function startSaleFlowInner(text) {
     query = query.replace(re, '')
   }
   query = query.replace(/\b(?:genera|generar|haz|hacer|emite|emitir|crea|crear)\s+(?:una?\s+)?(?:boleta|ticket|factura|venta)(?:\s+(?:de\s+venta|de\s+los|de\s+las|del|de\s+la|de|para|a))?\b/gi, '')
-  query = query.replace(/\b(?:una|la|nueva|nuevo|otra)\s+venta\b/gi, ' ')
-  // Verbos o muletillas sueltas que no son un producto (ej. "quiero", "hacer", "una")
-  query = query.replace(/^(?:(?:hola|buenas|por favor|porfa|quiero|necesito|vamos a|voy a|hacer|haz|has|hazme|una|un|venta|vender|vende|registrar|realizar|crear|generar|emitir|nueva|nuevo|otra|otro|boleta|ticket|k|que)\b[,\s]*)+/i, '').replace(/\s+/g, ' ').trim()
+  query = query.replace(/\b(?:una|la|nueva|nuevo|otra|un)\s+(?:venta|evento|eventa|benta)\b/gi, ' ')
+  // Verbos o muletillas sueltas que no son un producto (ej. "quiero", "hacer", "una", "evento")
+  query = query.replace(/^(?:(?:hola|buenas|por favor|porfa|quiero|necesito|vamos a|voy a|hacer|haz|has|hazme|una|un|venta|evento|vender|vende|registrar|realizar|crear|generar|emitir|nueva|nuevo|otra|otro|boleta|ticket|k|que)\b[,\s]*)+/i, '').replace(/\s+/g, ' ').trim()
 
   // Limpiar artículos iniciales
   query = query.replace(/^(?:de\s+los|de\s+las|del|de\s+la|de|los|las|el|la|unos|unas|un|una)\s+/i, '').trim()
@@ -283,7 +283,11 @@ function optLabel(p) {
 function catalogStep(state, products, message) {
   const available = (products || []).filter((p) => !p.is_kit_hidden && Number(p.stock) > 0)
   if (available.length === 0) {
-    return { state: { ...state, step: 'select_product', candidateProducts: [] }, message: 'No tienes productos con stock disponible para vender.', options: [] }
+    return {
+      state: emptyState(),
+      message: 'No tienes productos con stock disponible para vender en este momento. ¿Deseas que añada stock a algún producto?',
+      options: ['Añadir stock', 'Ver inventario'],
+    }
   }
   return {
     state: { ...state, step: 'select_product', candidateProducts: available },
@@ -295,9 +299,13 @@ function catalogStep(state, products, message) {
 function selectProduct(state, product) {
   if (product.stock <= 0) {
     return {
-      state: { ...state, step: 'select_product', candidateProducts: [] },
-      message: `"${product.name}" está agotado (0 unidades). ¿Qué otro producto deseas vender?`,
-      options: [],
+      state: emptyState(),
+      message: `"${product.name}" está agotado (0 unidades). Como tu empleado, puedo reponerlo ahora mismo. ¿Cuánto stock deseas añadir?`,
+      options: [
+        `Añade 5 de stock a ${product.name}`,
+        `Añade 10 de stock a ${product.name}`,
+        `Añade 20 de stock a ${product.name}`,
+      ],
     }
   }
   const maxQuick = Math.min(product.stock, 3)

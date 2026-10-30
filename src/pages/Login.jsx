@@ -99,19 +99,19 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-always-light min-h-screen w-full relative flex flex-col items-center justify-center p-4 sm:p-6 font-sans select-none overflow-x-hidden">
+    <div className="auth-always-light min-h-screen w-full relative flex flex-col items-center justify-start sm:justify-center p-4 py-6 sm:p-6 sm:py-8 font-sans select-none overflow-y-auto overflow-x-hidden">
       
       {/* ─── Crisp Corporate Office Background (matching reference) ─── */}
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: "url('/login-bg.jpg')" }}
       />
       {/* Subtle daylight ambient overlay */}
-      <div className="absolute inset-0 bg-slate-900/15" />
+      <div className="fixed inset-0 bg-slate-900/15" />
 
-      {/* ─── Top Left Company Logo (APEX ERP style layout) ─── */}
-      <div className="absolute top-5 left-5 sm:top-8 sm:left-10 z-20 flex items-center gap-3.5">
-        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden shadow-md bg-black shrink-0 flex items-center justify-center ring-2 ring-white/90 border border-slate-300/80">
+      {/* ─── Company Logo (Centered above card on mobile, top-left on desktop) ─── */}
+      <div className="relative z-20 mb-4 sm:mb-0 sm:absolute sm:top-8 sm:left-10 flex items-center justify-center sm:justify-start gap-3 shrink-0">
+        <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-full overflow-hidden shadow-md bg-black shrink-0 flex items-center justify-center ring-2 ring-white/90 border border-slate-300/80">
           <img
             src="/logo.png"
             alt="CYA STORE Logo"
@@ -127,14 +127,14 @@ export default function Login() {
               STORE
             </span>
           </div>
-          <span className="font-jakarta text-[10px] sm:text-[10.5px] font-bold text-slate-500 tracking-[0.2em] mt-1.5 uppercase leading-none">
+          <span className="font-jakarta text-[9.5px] sm:text-[10.5px] font-bold text-slate-700 sm:text-slate-500 tracking-[0.2em] mt-1.5 uppercase leading-none">
             SOLUCIONES ERP PROFESIONALES
           </span>
         </div>
       </div>
 
       {/* ─── Central Floating Authentication Card ─── */}
-      <div className="relative z-20 w-full max-w-[420px] bg-white rounded-2xl shadow-[0_20px_60px_-10px_rgba(11,32,62,0.35)] border border-slate-200/90 p-7 sm:p-9 my-auto">
+      <div className="relative z-20 w-full max-w-[420px] bg-white rounded-2xl shadow-[0_20px_60px_-10px_rgba(11,32,62,0.35)] border border-slate-200/90 p-6 sm:p-9 sm:my-auto shrink-0">
         
         {/* Title */}
         <h1 className="font-outfit text-2xl sm:text-[26px] font-bold text-slate-900 text-center tracking-tight mb-6">
@@ -385,8 +385,8 @@ export default function Login() {
         )}
       </div>
 
-      {/* ─── Floating Demo Access Bar (Discreet & Non-intrusive) ─── */}
-      <div className="fixed bottom-4 right-4 z-30 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl shadow-lg border border-slate-200/90 flex items-center gap-2 text-xs">
+      {/* ─── Floating Demo Access Bar (Below card on mobile, fixed bottom-right on desktop) ─── */}
+      <div className="relative z-20 mt-4 mb-2 sm:mb-0 sm:fixed sm:bottom-4 sm:right-4 z-30 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl shadow-lg border border-slate-200/90 flex items-center gap-2 text-xs shrink-0">
         <div className="flex items-center gap-1.5 text-slate-500 font-bold text-[11px]">
           <Sparkles size={13} className="text-amber-500" />
           <span>Acceso Rápido:</span>

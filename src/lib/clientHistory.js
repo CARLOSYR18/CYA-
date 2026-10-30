@@ -4,9 +4,9 @@ import { salesService } from '../services/salesService'
 // El historial de clientes nace solo de las ventas, no de un CRUD manual.
 export async function getClientsHistory() {
   const [clients, sales] = await Promise.all([clientsService.list(), salesService.list()])
-  return clients
+  return (clients || [])
     .map((c) => {
-      const clientSales = sales
+      const clientSales = (sales || [])
         .filter((s) => s.client_id === c.id)
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       return {
@@ -17,6 +17,11 @@ export async function getClientsHistory() {
         sales: clientSales,
       }
     })
-    .filter((c) => c.salesCount > 0)
-    .sort((a, b) => new Date(b.lastPurchase) - new Date(a.lastPurchase))
+    .sort((a, b) => {
+      if (b.lastPurchase && a.lastPurchase) {
+        return new Date(b.lastPurchase) - new Date(a.lastPurchase)
+      }
+      return (b.salesCount || 0) - (a.salesCount || 0)
+    })
 }
+

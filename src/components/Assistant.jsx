@@ -1,14 +1,62 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { X, Send, Sparkles, ArrowRight, Mic, MicOff } from 'lucide-react'
+import { X, Send, Sparkles, ArrowRight, Mic, MicOff, Receipt as ReceiptIcon, ExternalLink, Bot } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { askAssistant, suggestedQuestions, getStoredUserName } from '../lib/assistant'
 import { companySettingsService } from '../services/companySettingsService'
 import { productsService } from '../services/productsService'
+import { clientsService } from '../services/clientsService'
+import { salesService } from '../services/salesService'
 import { getEffectivePlan } from '../lib/planLimits'
 import { isSaleTrigger, isSaleConfirmation, newSaleFlowState, startSaleFlow, processSaleFlowInput } from '../lib/saleFlow'
+import { isStockTrigger, processStockCommand } from '../lib/stockFlow'
 import { planService } from '../services/planService'
 import Receipt from './Receipt'
+
+function FormattedMessage({ text, isUser }) {
+  if (!text) return null
+  const lines = text.split('\n')
+  return (
+    <div className="space-y-1">
+      {lines.map((line, lIdx) => {
+        if (!line.trim()) {
+          return <div key={lIdx} className="h-1.5" />
+        }
+        const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g)
+        const isBullet = line.trim().startsWith('•') || line.trim().startsWith('-') || line.trim().startsWith('👉')
+        return (
+          <p key={lIdx} className={`leading-relaxed ${isBullet ? 'pl-1' : ''}`}>
+            {parts.map((part, pIdx) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return (
+                  <strong key={pIdx} className={isUser ? 'font-bold' : 'font-bold text-slate-900'}>
+                    {part.slice(2, -2)}
+                  </strong>
+                )
+              }
+              if (part.startsWith('*') && part.endsWith('*')) {
+                return (
+                  <em key={pIdx} className={isUser ? 'italic opacity-90' : 'italic text-slate-500'}>
+                    {part.slice(1, -1)}
+                  </em>
+                )
+              }
+              if (part.startsWith('`') && part.endsWith('`')) {
+                return (
+                  <code key={pIdx} className="px-1 py-0.5 rounded bg-slate-100 text-slate-800 text-[10px] font-mono font-semibold">
+                    {part.slice(1, -1)}
+                  </code>
+                )
+              }
+              const clean = part.replace(/\*\*/g, '')
+              return <span key={pIdx}>{clean}</span>
+            })}
+          </p>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function Assistant() {
   const { user } = useAuth()
@@ -26,9 +74,12 @@ export default function Assistant() {
   const voiceSupported =
     typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition)
   const [generatingReceipt, setGeneratingReceipt] = useState(false)
+  const [receiptModalData, setReceiptModalData] = useState(null)
   const [company, setCompany] = useState(null)
   const [products, setProducts] = useState([])
+  const [clients, setClients] = useState([])
   const [saleFlow, setSaleFlow] = useState(newSaleFlowState())
+  const [stockFlowState, setStockFlowState] = useState(null)
 
   const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
   const assistantName = company?.name && company.name !== 'CYA'
@@ -50,11 +101,12 @@ export default function Assistant() {
     }, 750)
   }
 
-  // Cargar configuración de la empresa y lista de productos para boletas
+  // Cargar configuración de la empresa, productos y clientes para boletas
   useEffect(() => {
     if (!user || location.pathname === '/login') return
-    companySettingsService.get().then(setCompany).catch(() => {})
-    productsService.list().then(setProducts).catch(() => {})
+    companySettingsService.get().then(setCompany).catch(() => { })
+    productsService.list().then(setProducts).catch(() => { })
+    clientsService.list().then(setClients).catch(() => { })
   }, [user, location.pathname])
 
   // Secuencia de animación de entrada: se muestra en tamaño real y luego se encoge a bolita
@@ -135,28 +187,60 @@ export default function Assistant() {
     setLoading(true)
 
     try {
+      // 0. Flujo para AÑADIR o REPONER STOCK (Empleado virtual)
+      if (isStockTrigger(q) || stockFlowState) {
+        if (saleFlow.active) {
+          setSaleFlow(newSaleFlowState())
+        }
+        const stockRes = await processStockCommand(q, stockFlowState)
+        setStockFlowState(stockRes.state || null)
+        if (stockRes.completed) {
+          productsService.list().then(setProducts).catch(() => {})
+        }
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: stockRes.message,
+            options: stockRes.options || [],
+          },
+        ])
+        return
+      }
+
       // 1. Si saleFlow.active es true, procesamos el flujo de venta
       if (saleFlow.active) {
         const confirming = saleFlow.step === 'confirm' && isSaleConfirmation(q)
-        if (confirming) setGeneratingReceipt(true)
+        if (confirming) {
+          setGeneratingReceipt(true)
+          setReceiptModalData({ status: 'generating', sale: null })
+        }
         const [result] = await Promise.all([
           processSaleFlowInput(saleFlow, q, user?.id),
           confirming ? new Promise((r) => setTimeout(r, 2200)) : Promise.resolve(),
         ])
         setGeneratingReceipt(false)
         setSaleFlow(result.state)
+
+        if (result.completed) {
+          setReceiptModalData({ status: 'ready', sale: result.completed })
+          productsService.list().then(setProducts).catch(() => { })
+          clientsService.list().then(setClients).catch(() => { })
+        } else if (confirming) {
+          setReceiptModalData(null)
+        }
+
         setMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
-            text: result.message,
+            text: result.completed
+              ? '✅ ¡Boleta realizada con éxito por el asistente! Te la he abierto en el centro de la pantalla para que puedas imprimirla, descargarla como PDF o enviarla por WhatsApp.'
+              : result.message,
             options: result.options || [],
             completed: result.completed || null,
           },
         ])
-        if (result.completed) {
-          productsService.list().then(setProducts).catch(() => {})
-        }
         return
       }
 
@@ -169,7 +253,7 @@ export default function Assistant() {
             currentCompany = fresh
             setCompany(fresh)
           }
-        } catch (e) {}
+        } catch (e) { }
 
         const isPro = getEffectivePlan(currentCompany) === 'pro' || planService.isPro()
         if (!isPro) {
@@ -203,7 +287,18 @@ export default function Assistant() {
         user,
         companyName: companyDisplayName,
       })
-      setMessages((prev) => [...prev, { role: 'assistant', text: answer }])
+      if (typeof answer === 'object' && answer !== null) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: answer.text || '',
+            options: answer.options || [],
+          },
+        ])
+      } else {
+        setMessages((prev) => [...prev, { role: 'assistant', text: answer }])
+      }
     } catch (err) {
       console.error('Error del asistente:', err)
       setMessages((prev) => [
@@ -305,30 +400,29 @@ export default function Assistant() {
 
       {/* ─── Floating Button / Intro Showcase ─── */}
       <div
-        className={`fixed z-50 flex flex-col items-end transition-all duration-700 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${
-          isLarge
-            ? 'bottom-6 right-6 sm:bottom-8 sm:right-8'
-            : 'bottom-6 right-6'
-        }`}
+        className={`fixed z-50 flex flex-col items-end transition-all duration-700 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${isLarge
+            ? 'bottom-4 right-4 sm:bottom-8 sm:right-8'
+            : 'bottom-4 right-4 sm:bottom-6 sm:right-6'
+          }`}
       >
         {/* Globo de bienvenida durante el tamaño real */}
         {isLarge && (
           <div
             onClick={startMinimize}
-            className="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-3.5 shadow-2xl max-w-[260px] sm:max-w-[280px] mb-3 animate-pop-in cursor-pointer hover:border-brand/40 transition-all select-none"
+            className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-2xl max-w-[240px] sm:max-w-[280px] mb-2 sm:mb-3 animate-pop-in cursor-pointer hover:border-brand/40 transition-all select-none"
             style={{ animationDuration: '0.45s' }}
           >
-            <div className="flex items-center gap-1.5 text-brand font-bold text-xs mb-1">
+            <div className="flex items-center gap-1.5 text-brand dark:text-blue-400 font-bold text-xs mb-1">
               <Sparkles size={13} className="text-amber-500 animate-pulse" />
               <span>{assistantName}</span>
             </div>
-            <p className="text-xs font-semibold text-slate-800 leading-snug">
+            <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 leading-snug">
               ¡Hola! 👋 Bienvenido a {companyDisplayName}.
             </p>
-            <p className="text-[11px] text-slate-500 mt-1 leading-tight">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
               Estoy aquí para asistirte con ventas, inventario y más.
             </p>
-            <span className="text-[10px] text-brand font-bold block mt-1.5">
+            <span className="text-[10px] text-brand dark:text-blue-400 font-bold block mt-1.5">
               Haz clic para continuar →
             </span>
           </div>
@@ -345,46 +439,56 @@ export default function Assistant() {
               setOpen((prev) => !prev)
             }
           }}
-          className={`relative overflow-hidden bg-slate-900 border-2 border-white/95 shadow-2xl cursor-pointer transition-all duration-700 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${
-            isLarge
-              ? 'w-44 h-44 sm:w-56 sm:h-56 rounded-3xl hover:scale-[1.02] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] ring-4 ring-brand/20 animate-pop-in'
-              : 'w-16 h-16 rounded-full hover:scale-105 active:scale-95 animate-float-assistant'
-          }`}
+          className={`relative overflow-hidden bg-gradient-to-tr from-[#1B4FD8] via-indigo-700 to-violet-600 border-2 border-white/95 shadow-2xl cursor-pointer transition-all duration-700 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${isLarge
+              ? 'w-36 h-36 sm:w-56 sm:h-56 rounded-3xl hover:scale-[1.02] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] ring-4 ring-brand/20 animate-pop-in'
+              : 'w-12 h-12 sm:w-14 sm:h-14 rounded-full hover:scale-105 active:scale-95 animate-float-assistant'
+            }`}
           title={isLarge ? 'Minimizar asistente' : open ? 'Cerrar chat' : 'Abrir asistente virtual'}
         >
           <img
-            src="/assistant.png"
-            alt={assistantName}
+            src="/logo-cya-badge.png"
+            alt=""
             className="w-full h-full object-cover object-top transition-transform duration-700"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              const fallback = e.currentTarget.parentElement?.querySelector('.assistant-icon-fallback')
+              if (fallback) fallback.classList.remove('hidden')
+            }}
           />
+          <div className="assistant-icon-fallback hidden w-full h-full absolute inset-0 items-center justify-center text-white">
+            <Bot size={isLarge ? 48 : 22} />
+          </div>
 
           {/* Badge "En línea" */}
           <span
-            className={`absolute bg-emerald-500 border-2 border-white rounded-full transition-all duration-700 ${
-              isLarge
+            className={`absolute bg-emerald-500 border-2 border-white rounded-full transition-all duration-700 ${isLarge
                 ? 'bottom-2.5 right-2.5 w-4 h-4'
-                : 'bottom-1 right-1 w-3.5 h-3.5'
-            }`}
+                : 'bottom-0.5 right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5'
+              }`}
           />
         </button>
       </div>
 
-      {/* ─── Chat Panel ─── */}
+      {/* ─── Chat Panel (Fully responsive on mobile & tablet) ─── */}
       {open && (
         <div
           ref={panelRef}
-          className="fixed bottom-24 right-6 z-50 w-80 sm:w-96 max-h-[520px] h-[490px] flex flex-col bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden animate-slide-up"
+          className="fixed inset-x-3 bottom-3 sm:inset-x-auto sm:bottom-20 sm:right-6 z-50 w-auto sm:w-96 max-h-[85vh] h-[480px] sm:h-[500px] flex flex-col bg-white dark:bg-[#131627] rounded-3xl border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden animate-slide-up"
           style={{ boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.25)' }}
         >
           {/* Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between shadow-xs shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-700 border border-white/30 shrink-0">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-700 border border-white/30 shrink-0 relative flex items-center justify-center">
                 <img
-                  src="/assistant.png"
-                  alt={assistantName}
+                  src="/logo-cya-badge.png"
+                  alt=""
                   className="w-full h-full object-cover object-top"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                  }}
                 />
+                <Bot size={16} className="text-white absolute" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -423,27 +527,40 @@ export default function Assistant() {
                   className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} w-full`}
                 >
                   <div
-                    className={`px-3.5 py-2.5 ${
-                      msg.completed ? 'w-full max-w-[96%]' : 'max-w-[85%]'
-                    } whitespace-pre-wrap leading-relaxed shadow-xs ${
-                      isUser
+                    className={`px-3.5 py-2.5 ${msg.completed ? 'w-full max-w-[96%]' : 'max-w-[85%]'
+                      } whitespace-pre-wrap leading-relaxed shadow-xs ${isUser
                         ? 'bg-brand text-white rounded-2xl rounded-tr-xs font-medium'
                         : 'bg-white border border-slate-200/80 text-slate-800 rounded-2xl rounded-tl-xs'
-                    }`}
+                      }`}
                   >
-                    {msg.text}
+                    <FormattedMessage text={msg.text} isUser={isUser} />
 
-                    {/* Boleta de venta si la venta se completó */}
+                    {/* Botón para ver la boleta oficial en pantalla grande */}
                     {msg.completed && (
-                      <div className="mt-3 pt-3 border-t border-slate-200/80 w-full overflow-hidden">
-                        <div className="max-w-[310px] mx-auto max-h-[380px] overflow-y-auto pr-0.5">
-                          <Receipt
-                            sale={msg.completed}
-                            client={msg.completed.client}
-                            products={products}
-                            company={company}
-                          />
+                      <div className="mt-3 pt-3 border-t border-slate-200/80 w-full space-y-2">
+                        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                          <div>
+                            <p className="font-bold text-slate-800 text-[11px]">
+                              Boleta B001-{(msg.completed.id || '').toString().slice(-6).toUpperCase()}
+                            </p>
+                            <p className="text-[10px] text-slate-500">
+                              Cliente: {msg.completed.client?.name || msg.completed.client_name || 'Particular'}
+                            </p>
+                          </div>
+                          <span className="font-black font-mono text-xs text-brand">
+                            S/ {Number(salesService.saleTotal(msg.completed)).toFixed(2)}
+                          </span>
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setReceiptModalData({ status: 'ready', sale: msg.completed })}
+                          className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
+                        >
+                          <ReceiptIcon size={14} className="text-amber-400" />
+                          <span>Ver boleta al medio (WhatsApp / PDF)</span>
+                          <ExternalLink size={13} className="text-slate-400" />
+                        </button>
                       </div>
                     )}
                   </div>
@@ -551,11 +668,10 @@ export default function Assistant() {
                 type="button"
                 onClick={toggleVoice}
                 disabled={loading}
-                className={`relative p-2.5 rounded-xl active:scale-95 transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${
-                  listening
+                className={`relative p-2.5 rounded-xl active:scale-95 transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${listening
                     ? 'bg-rose-500 text-white shadow-md shadow-rose-500/40'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                  }`}
                 title={listening ? 'Detener micrófono' : 'Hablar con el asistente'}
                 aria-label={listening ? 'Detener micrófono' : 'Hablar con el asistente'}
               >
