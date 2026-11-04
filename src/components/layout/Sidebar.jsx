@@ -3,10 +3,11 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Boxes, Tags, ArrowLeftRight, ShoppingCart,
   Truck, Users, UserCog, Warehouse, X, Settings2, Sparkles, ShieldAlert,
-  ChevronsLeft, ChevronsRight
+  ChevronsLeft, ChevronsRight, UserCircle
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { planService } from '../../services/planService'
+import { companySettingsService } from '../../services/companySettingsService'
 
 const NAV_MAIN = [
   { to: '/', label: 'Panel', icon: LayoutDashboard, end: true },
@@ -19,6 +20,9 @@ const NAV_MAIN = [
 const NAV_CAT = [
   { to: '/categorias', label: 'Categorías', icon: Tags },
   { to: '/proveedores', label: 'Proveedores', icon: Warehouse },
+]
+const NAV_USER = [
+  { to: '/perfil', label: 'Mi Perfil', icon: UserCircle },
 ]
 const NAV_ADM = [
   { to: '/planes', label: 'Tu Plan', icon: Sparkles },
@@ -75,6 +79,17 @@ function Item({ to, label, icon: Icon, end, onClick, isCollapsed }) {
 export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) {
   const { isAdmin, isPlatformAdmin } = useAuth()
   const [activePlan, setActivePlan] = useState(planService.getActivePlanData())
+  const [company, setCompany] = useState(() => companySettingsService.getCached())
+
+  useEffect(() => {
+    companySettingsService.get().then(c => { if (c) setCompany(c) }).catch(() => {})
+    const handleCompanyChange = (e) => {
+      if (e.detail) setCompany(e.detail)
+      else companySettingsService.get().then(c => { if (c) setCompany(c) }).catch(() => {})
+    }
+    window.addEventListener('cya_company_updated', handleCompanyChange)
+    return () => window.removeEventListener('cya_company_updated', handleCompanyChange)
+  }, [])
 
   useEffect(() => {
     const handlePlanChange = () => {
@@ -118,13 +133,13 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         <div className={`h-[64px] flex items-center ${effectiveCollapsed ? 'justify-center px-2' : 'justify-between px-4'} border-b border-slate-200 dark:border-[#27272a] shrink-0`}>
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className="w-9 h-9 rounded-full overflow-hidden bg-black shrink-0 flex items-center justify-center"
-              title={effectiveCollapsed ? 'CYA STORE' : undefined}
+              className={`h-10 ${effectiveCollapsed ? 'w-10' : 'min-w-[40px] max-w-[60px]'} rounded-xl overflow-hidden bg-white dark:bg-zinc-800 shrink-0 flex items-center justify-center border border-slate-200/80 dark:border-white/10 shadow-2xs p-1`}
+              title={effectiveCollapsed ? (company?.name || 'CYA STORE') : undefined}
             >
               <img
-                src="/logo.png"
-                alt="CYA"
-                className="w-full h-full object-contain"
+                src={company?.logo_url || '/logo.png'}
+                alt={company?.name || 'CYA'}
+                className="max-h-full max-w-full w-auto h-auto object-contain"
                 onError={(e) => {
                   e.currentTarget.src = '/logo-cya-badge.png'
                 }}
@@ -133,10 +148,10 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
             {!effectiveCollapsed && (
               <div className="min-w-0">
                 <p className="font-display font-bold text-slate-900 dark:text-white text-[14.5px] leading-tight truncate">
-                  CYA STORE
+                  {company?.name || 'CYA STORE'}
                 </p>
                 <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5 truncate">
-                  {isPlatformAdmin ? 'Super Administrador' : 'Gestión Empresarial'}
+                  {isPlatformAdmin ? 'Super Administrador' : (company?.ruc ? `RUC: ${company.ruc}` : 'Gestión Empresarial')}
                 </p>
               </div>
             )}
@@ -159,6 +174,10 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
               {NAV_CAT.map((i) => (
                 <Item key={i.to} {...i} onClick={onClose} isCollapsed={effectiveCollapsed} />
               ))}
+              <Label isCollapsed={effectiveCollapsed}>Mi Cuenta</Label>
+              {NAV_USER.map((i) => (
+                <Item key={i.to} {...i} onClick={onClose} isCollapsed={effectiveCollapsed} />
+              ))}
               {isAdmin && (
                 <>
                   <Label isCollapsed={effectiveCollapsed}>Administración</Label>
@@ -178,46 +197,69 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
           )}
         </nav>
 
-        {/* Mini Plan Upgrade Card */}
+        {/* Mini Plan Upgrade Card for Admin / Profile Card for Employee */}
         {!isPlatformAdmin && (
           <div className={`${effectiveCollapsed ? 'p-2 flex justify-center' : 'px-3 py-2'} border-t border-slate-200/80 dark:border-[#27272a] shrink-0 bg-white dark:bg-[#121215]`}>
-            {effectiveCollapsed ? (
-              <NavLink
-                to="/planes"
-                onClick={onClose}
-                className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-amber-400 flex items-center justify-center border border-slate-700/60 hover:scale-105 transition-transform"
-                title={`${activePlan.name} ${isPro ? '(ACTIVO)' : ''}`}
-              >
-                <Sparkles size={16} className={isPro ? 'animate-pulse' : ''} />
-              </NavLink>
+            {isAdmin ? (
+              effectiveCollapsed ? (
+                <NavLink
+                  to="/planes"
+                  onClick={onClose}
+                  className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-amber-400 flex items-center justify-center border border-slate-700/60 hover:scale-105 transition-transform"
+                  title={`${activePlan.name} ${isPro ? '(ACTIVO)' : ''}`}
+                >
+                  <Sparkles size={16} className={isPro ? 'animate-pulse' : ''} />
+                </NavLink>
+              ) : (
+                <NavLink
+                  to="/planes"
+                  onClick={onClose}
+                  className="group flex flex-col p-3 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-sm border border-slate-700/60 hover:border-blue-400/60 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles size={13} className={isPro ? 'text-amber-400 animate-pulse' : 'text-blue-400'} />
+                      <span className="text-xs font-bold text-white tracking-tight truncate">
+                        {activePlan.name}
+                      </span>
+                    </div>
+                    {isPro ? (
+                      <span className="text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded-md shrink-0">
+                        ACTIVO
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-300 group-hover:underline flex items-center gap-0.5 shrink-0">
+                        Mejorar ↗
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10.5px] text-slate-400 mt-1.5 leading-tight">
+                    {isPro
+                      ? 'Acceso completo • Soporte 24/7'
+                      : '10 consultas IA • 50 productos'}
+                  </p>
+                </NavLink>
+              )
             ) : (
               <NavLink
-                to="/planes"
+                to="/perfil"
                 onClick={onClose}
-                className="group flex flex-col p-3 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-sm border border-slate-700/60 hover:border-blue-400/60 hover:shadow-md transition-all"
+                className={`group flex items-center ${effectiveCollapsed ? 'justify-center p-1.5' : 'gap-2.5 p-2.5'} rounded-2xl bg-slate-50 dark:bg-zinc-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-200/80 dark:border-zinc-800 transition-all`}
+                title={effectiveCollapsed ? 'Mi Perfil' : undefined}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles size={13} className={isPro ? 'text-amber-400 animate-pulse' : 'text-blue-400'} />
-                    <span className="text-xs font-bold text-white tracking-tight truncate">
-                      {activePlan.name}
-                    </span>
-                  </div>
-                  {isPro ? (
-                    <span className="text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded-md shrink-0">
-                      ACTIVO
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-amber-300 group-hover:underline flex items-center gap-0.5 shrink-0">
-                      Mejorar ↗
-                    </span>
-                  )}
+                <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 flex items-center justify-center font-bold text-xs shrink-0">
+                  <UserCircle size={18} />
                 </div>
-                <p className="text-[10.5px] text-slate-400 mt-1.5 leading-tight">
-                  {isPro
-                    ? 'Acceso completo • Soporte 24/7'
-                    : '10 consultas IA • 50 productos'}
-                </p>
+                {!effectiveCollapsed && (
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                      Mi Perfil
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate">
+                      Colaborador Activo
+                    </p>
+                  </div>
+                )}
               </NavLink>
             )}
           </div>

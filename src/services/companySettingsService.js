@@ -4,6 +4,7 @@ import { getCurrentCompanyId } from '../lib/companyContext'
 import { paymentMethodsService } from './paymentMethodsService'
 
 const EXTRA_SETTINGS_KEY = 'cya_company_extra_settings'
+const COMPANY_CACHE_KEY = 'cya_company_cache'
 
 function getCachedExtraSettings() {
   try {
@@ -21,24 +22,55 @@ function saveCachedExtraSettings(patch) {
   } catch {}
 }
 
+function getStoredCompany() {
+  try {
+    const raw = localStorage.getItem(COMPANY_CACHE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function saveStoredCompany(data) {
+  try {
+    if (!data) return
+    localStorage.setItem(COMPANY_CACHE_KEY, JSON.stringify(data))
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cya_company_updated', { detail: data }))
+    }
+  } catch {}
+}
+
 export const companySettingsService = {
+  getCached() {
+    return getStoredCompany()
+  },
+
   async get() {
     const extra = getCachedExtraSettings()
+    const cached = getStoredCompany()
 
     if (isSupabaseConfigured) {
       const companyId = await getCurrentCompanyId()
-      if (!companyId) return { name: 'Mi Empresa', ruc: '', address: '', phone: '', logo_url: '', ...extra }
+      if (!companyId) return cached || { name: 'Mi Empresa', ruc: '', address: '', phone: '', logo_url: '', ...extra }
       const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).single()
-      if (error) throw error
+      if (error) {
+        if (cached) return { ...extra, ...cached }
+        throw error
+      }
       if (data) {
         paymentMethodsService.hydrateFromCompany({ ...data, ...extra })
       }
-      return { ...extra, ...data }
+      const full = { ...extra, ...data }
+      saveStoredCompany(full)
+      return full
     }
     const rows = localDb.getTable('company_settings')
     const current = rows[0] || { name: 'Mi Empresa', ruc: '', address: '', phone: '', logo_url: '' }
     paymentMethodsService.hydrateFromCompany({ ...current, ...extra })
-    return { ...extra, ...current }
+    const full = { ...extra, ...current }
+    saveStoredCompany(full)
+    return full
   },
 
   async save(data) {
@@ -48,9 +80,14 @@ export const companySettingsService = {
       footer_message: data.footer_message || '',
     })
 
+    let result = null
+
     if (isSupabaseConfigured) {
       const companyId = await getCurrentCompanyId()
-      if (!companyId) return data
+      if (!companyId) {
+        saveStoredCompany(data)
+        return data
+      }
 
       let payload = { ...data }
       let lastError = null
@@ -69,7 +106,8 @@ export const companySettingsService = {
           if (updated) {
             paymentMethodsService.hydrateFromCompany({ ...updated, ...data })
           }
-          return { ...data, ...updated }
+          result = { ...data, ...updated }
+          break
         }
 
         lastError = error
@@ -82,30 +120,37 @@ export const companySettingsService = {
         }
       }
 
-      console.warn('Supabase update advertencia, intentando con columnas base:', lastError)
+      if (!result) {
+        console.warn('Supabase update advertencia, intentando con columnas base:', lastError)
+        // Fallback seguro con columnas esenciales garantizadas
+        const corePayload = {
+          name: data.name,
+          ruc: data.ruc,
+          address: data.address,
+          phone: data.phone,
+          email: data.email,
+          logo_url: data.logo_url,
+        }
+        const { data: fallbackUpdated, error: fallbackError } = await supabase
+          .from('companies')
+          .update(corePayload)
+          .eq('id', companyId)
+          .select()
+          .single()
 
-      // Fallback seguro con columnas esenciales garantizadas
-      const corePayload = {
-        name: data.name,
-        ruc: data.ruc,
-        address: data.address,
-        phone: data.phone,
-        email: data.email,
-        logo_url: data.logo_url,
+        if (fallbackError) throw fallbackError
+        result = { ...data, ...fallbackUpdated }
       }
-      const { data: fallbackUpdated, error: fallbackError } = await supabase
-        .from('companies')
-        .update(corePayload)
-        .eq('id', companyId)
-        .select()
-        .single()
-
-      if (fallbackError) throw fallbackError
-      return { ...data, ...fallbackUpdated }
+    } else {
+      const rows = localDb.getTable('company_settings')
+      if (rows[0]) {
+        result = localDb.update('company_settings', rows[0].id, data)
+      } else {
+        result = localDb.insert('company_settings', data)
+      }
     }
 
-    const rows = localDb.getTable('company_settings')
-    if (rows[0]) return localDb.update('company_settings', rows[0].id, data)
-    return localDb.insert('company_settings', data)
+    saveStoredCompany(result)
+    return result
   },
 }

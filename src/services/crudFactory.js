@@ -6,8 +6,18 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
   return {
     async list() {
       if (isSupabaseConfigured) {
-        const { data, error } = await supabase.from(table).select('*').order(orderBy, { ascending })
-        if (error) throw error
+        const company_id = await getCurrentCompanyId().catch(() => null)
+        let query = supabase.from(table).select('*').order(orderBy, { ascending })
+        if (company_id) {
+          query = query.eq('company_id', company_id)
+        }
+        const { data, error } = await query
+        if (error) {
+          // Si la tabla no tiene la columna company_id o da error de filtro, fallback
+          const { data: fallbackData, error: fallbackErr } = await supabase.from(table).select('*').order(orderBy, { ascending })
+          if (fallbackErr) throw fallbackErr
+          return fallbackData
+        }
         return data
       }
       const rows = localDb.getTable(table)

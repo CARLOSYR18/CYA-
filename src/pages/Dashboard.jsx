@@ -10,7 +10,7 @@ import {
 import AppLayout, { useLayout } from '../components/layout/AppLayout'
 import ReceiptModal from '../components/Receipt'
 import PaymentQrModal from '../components/PaymentQrModal'
-import { DashboardKpiSkeleton, DashboardSalesMasterSkeleton, Skeleton } from '../components/ui/Skeleton'
+import { DashboardKpiSkeleton, DashboardSalesMasterSkeleton, DashboardAnalyticsSkeleton, Skeleton } from '../components/ui/Skeleton'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { productsService } from '../services/productsService'
@@ -20,7 +20,9 @@ import { clientsService } from '../services/clientsService'
 import { purchasesService } from '../services/purchasesService'
 import { companySettingsService } from '../services/companySettingsService'
 import { paymentMethodsService } from '../services/paymentMethodsService'
+import { inventoryMovementsService } from '../services/inventoryMovementsService'
 import { getNotifications } from '../lib/notifications'
+import DashboardAnalytics from '../components/DashboardAnalytics'
 
 /* ═════════════════════════════════════════════════════════════
    CYA STORE ERP — DASHBOARD CON DATOS Y LÓGICA 100% REALES
@@ -47,8 +49,17 @@ function DashboardContent() {
   const [sales, setSales] = useState([])
   const [categories, setCategories] = useState([])
   const [clients, setClients] = useState([])
-  const [company, setCompany] = useState(null)
+  const [movements, setMovements] = useState([])
+  const [company, setCompany] = useState(() => companySettingsService.getCached())
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const handleCompanyUpdate = (e) => {
+      if (e.detail) setCompany(e.detail)
+    }
+    window.addEventListener('cya_company_updated', handleCompanyUpdate)
+    return () => window.removeEventListener('cya_company_updated', handleCompanyUpdate)
+  }, [])
 
   // Interactive UI States (Default: Sol Peruano 'S/')
   const [currency, setCurrency] = useState(() => {
@@ -132,18 +143,20 @@ function DashboardContent() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [p, s, c, cl, co] = await Promise.all([
-        productsService.list(),
-        salesService.list(),
-        categoriesService.list(),
-        clientsService.list(),
-        companySettingsService.get()
+      const [p, s, c, cl, co, m] = await Promise.all([
+        productsService.list().catch(() => []),
+        salesService.list().catch(() => []),
+        categoriesService.list().catch(() => []),
+        clientsService.list().catch(() => []),
+        companySettingsService.get().catch(() => null),
+        inventoryMovementsService.list().catch(() => [])
       ])
       setProducts(p || [])
       setSales(s || [])
       setCategories(c || [])
       setClients(cl || [])
       setCompany(co || null)
+      setMovements(m || [])
 
       // Mapear ventas 100% REALES del proyecto
       if (s && s.length > 0) {
@@ -548,8 +561,13 @@ function DashboardContent() {
           @media (min-width: 640px) {
             .fn-card {
               border-radius: 22px;
-              padding: 22px;
+              padding: 18px 16px;
               min-height: 195px;
+            }
+          }
+          @media (min-width: 1440px) {
+            .fn-card {
+              padding: 22px;
             }
           }
           .fn-card:hover {
@@ -559,13 +577,13 @@ function DashboardContent() {
           html.dark .fn-card,
           .dark .fn-card {
             background: #131627 !important;
-            border-color: rgba(255, 255, 255, 0.08) !important;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45) !important;
+            border: 1px solid rgba(255, 255, 255, 0.35) !important;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
           }
           html.dark .fn-card:hover,
           .dark .fn-card:hover {
-            border-color: rgba(99, 102, 241, 0.35) !important;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+            border-color: rgba(255, 255, 255, 0.65) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.20) !important;
           }
 
           /* Filter Pills */
@@ -599,12 +617,12 @@ function DashboardContent() {
           html.dark .fn-filter-pill,
           .dark .fn-filter-pill {
             background: #131627 !important;
-            border-color: rgba(255, 255, 255, 0.08) !important;
-            color: #94A3B8 !important;
+            border: 1px solid rgba(255, 255, 255, 0.32) !important;
+            color: #CBD5E1 !important;
           }
           html.dark .fn-filter-pill:hover,
           .dark .fn-filter-pill:hover {
-            border-color: rgba(255, 255, 255, 0.22) !important;
+            border-color: rgba(255, 255, 255, 0.60) !important;
             color: #ffffff !important;
             background: #1A1E36 !important;
           }
@@ -612,26 +630,21 @@ function DashboardContent() {
             background: transparent !important;
           }
 
-          /* The Master Sales & Billing Container (Light & Dark Mode) */
+          /* The Master Sales & Billing Container (Always Dark Luxury Finnova Pro) */
           .fn-dark-container {
-            background: #ffffff;
+            background: #111424 !important;
             border-radius: 22px;
             padding: 18px 14px;
-            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04), 0 2px 6px -2px rgba(0, 0, 0, 0.02);
-            border: 1px solid #ECEEF3;
+            box-shadow: 0 24px 60px -15px rgba(8, 10, 24, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+            border: 1px solid rgba(255, 255, 255, 0.22) !important;
             transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+            color: #ffffff;
           }
           @media (min-width: 640px) {
             .fn-dark-container {
               border-radius: 30px;
               padding: 26px 28px;
             }
-          }
-          html.dark .fn-dark-container,
-          .dark .fn-dark-container {
-            background: #111424 !important;
-            border-color: rgba(255, 255, 255, 0.08) !important;
-            box-shadow: 0 24px 60px -15px rgba(8, 10, 24, 0.65) !important;
           }
 
           /* Left Invoices List */
@@ -643,10 +656,10 @@ function DashboardContent() {
             border-radius: 16px;
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            color: #1E293B;
-            background: #F8FAFC;
+            color: #ffffff !important;
+            background: rgba(255, 255, 255, 0.04) !important;
             gap: 10px;
-            border: 1px solid #EEF2F6;
+            border: 1px solid rgba(255, 255, 255, 0.16) !important;
           }
           @media (min-width: 640px) {
             .fn-invoice-row {
@@ -656,66 +669,54 @@ function DashboardContent() {
             }
           }
           .fn-invoice-row:hover:not(.active) {
-            background: #F1F5F9;
-            border-color: #CBD5E1;
-          }
-          html.dark .fn-invoice-row,
-          .dark .fn-invoice-row {
-            color: #ffffff !important;
-            background: transparent !important;
-            border-color: transparent !important;
-          }
-          html.dark .fn-invoice-row:hover:not(.active),
-          .dark .fn-invoice-row:hover:not(.active) {
-            background: rgba(255, 255, 255, 0.05) !important;
-            border-color: rgba(255, 255, 255, 0.08) !important;
+            background: rgba(255, 255, 255, 0.08) !important;
+            border-color: rgba(255, 255, 255, 0.40) !important;
           }
           .fn-invoice-row.active {
             background: linear-gradient(90deg, #4F46E5 0%, #6366F1 100%) !important;
             box-shadow: 0 10px 25px -4px rgba(79, 70, 229, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
-            border-color: rgba(199, 210, 254, 0.4) !important;
+            border: 1px solid rgba(255, 255, 255, 0.6) !important;
             color: #ffffff !important;
           }
 
-          /* Right Detail Card (Light Mode Soft Violet Gradient / Dark Mode Deep Navy) */
+          /* Right Detail Card (Deep Navy / Violet Luxury Card) */
           .fn-detail-card {
-            background: linear-gradient(145deg, #F5F7FF 0%, #EDF0FE 50%, #E9EDFD 100%);
+            background: linear-gradient(145deg, #2A2561 0%, #352F7A 45%, #201C4E 100%) !important;
             border-radius: 22px;
             padding: 20px 18px;
-            border: 1px solid rgba(99, 102, 241, 0.22);
-            box-shadow: 0 14px 34px -10px rgba(79, 70, 229, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(165, 180, 252, 0.28) !important;
+            box-shadow: 0 20px 50px -10px rgba(10, 8, 30, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.35) !important;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             min-height: 380px;
             position: relative;
+            overflow: hidden;
+            max-width: 100%;
             transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+            color: #ffffff !important;
           }
           @media (min-width: 640px) {
             .fn-detail-card {
               border-radius: 26px;
-              padding: 26px 28px;
+              padding: 24px 26px;
               min-height: 410px;
             }
-          }
-          html.dark .fn-detail-card,
-          .dark .fn-detail-card {
-            background: linear-gradient(145deg, #2A2561 0%, #352F7A 45%, #201C4E 100%) !important;
-            border-color: rgba(165, 180, 252, 0.25) !important;
-            box-shadow: 0 20px 50px -10px rgba(10, 8, 30, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.3) !important;
           }
 
           /* Detail Service Cards */
           .fn-service-card {
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid rgba(99, 102, 241, 0.16);
+            background: rgba(255, 255, 255, 0.09) !important;
+            border: 1px solid rgba(255, 255, 255, 0.22) !important;
             border-radius: 16px;
             padding: 13px 15px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             min-height: 84px;
-            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.05);
+            box-shadow: none !important;
+            backdrop-filter: blur(10px);
+            color: #ffffff !important;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
           }
           @media (min-width: 640px) {
@@ -725,16 +726,10 @@ function DashboardContent() {
             }
           }
           .fn-service-card:hover {
-            background: #ffffff;
-            border-color: rgba(99, 102, 241, 0.35);
+            background: rgba(255, 255, 255, 0.16) !important;
+            border-color: rgba(255, 255, 255, 0.55) !important;
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.1);
           }
-          html.dark .fn-service-card,
-          .dark .fn-service-card {
-            background: rgba(255, 255, 255, 0.09) !important;
-            border-color: rgba(255, 255, 255, 0.16) !important;
-            box-shadow: none !important;
             backdrop-filter: blur(10px);
           }
           html.dark .fn-service-card:hover,
@@ -772,16 +767,29 @@ function DashboardContent() {
               <Menu size={19} />
             </button>
 
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-[#5550F2] to-[#7974FF] flex items-center justify-center shadow-md shadow-indigo-500/25 shrink-0">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 6C4 4.89543 4.89543 4 6 4H10C11.1046 4 12 4.89543 12 6V18C12 19.1046 11.1046 20 10 20H6C4.89543 20 4 19.1046 4 18V6Z" fill="white" fillOpacity="0.95"/>
-                <path d="M14 10C14 8.89543 14.8954 8 16 8H18C19.1046 8 20 8.89543 20 10V18C20 19.1046 19.1046 20 18 20H16C14.8954 20 14 19.1046 14 18V10Z" fill="white" fillOpacity="0.65"/>
-              </svg>
+            <div className="h-10 min-w-[40px] max-w-[64px] rounded-2xl overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-2xs shrink-0 p-1">
+              {company?.logo_url ? (
+                <img
+                  src={company.logo_url}
+                  alt={company.name || 'Logo'}
+                  className="max-h-full max-w-full w-auto h-auto object-contain"
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-tr from-[#5550F2] to-[#7974FF] flex items-center justify-center rounded-xl">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 6C4 4.89543 4.89543 4 6 4H10C11.1046 4 12 4.89543 12 6V18C12 19.1046 11.1046 20 10 20H6C4.89543 20 4 19.1046 4 18V6Z" fill="white" fillOpacity="0.95"/>
+                    <path d="M14 10C14 8.89543 14.8954 8 16 8H18C19.1046 8 20 8.89543 20 10V18C20 19.1046 19.1046 20 18 20H16C14.8954 20 14 19.1046 14 18V10Z" fill="white" fillOpacity="0.65"/>
+                  </svg>
+                </div>
+              )}
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="font-black text-sm sm:text-[16px] text-slate-900 dark:text-white tracking-tight">CYA STORE</span>
-                <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-white/10 dark:text-slate-200 border border-indigo-200/50 dark:border-white/10">ERP</span>
+                <span className="font-black text-sm sm:text-[16px] text-slate-900 dark:text-white tracking-tight truncate max-w-[140px] sm:max-w-none">
+                  {company?.name || 'CYA STORE'}
+                </span>
+                <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-white/10 dark:text-slate-200 border border-indigo-200/50 dark:border-white/10 shrink-0">ERP</span>
               </div>
               <p className="hidden sm:block text-[10.5px] text-slate-400 font-medium leading-none mt-0.5">Control de Inventario & Ventas</p>
             </div>
@@ -870,17 +878,84 @@ function DashboardContent() {
                 )}
               </button>
               {notifDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-[min(calc(100vw-32px),288px)] bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-3 z-40">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white mb-2">Notificaciones</p>
+                <div className="absolute right-0 mt-2 w-[min(calc(100vw-32px),320px)] sm:w-80 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-3 z-40 animate-scale-in">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-white/10">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">Notificaciones</p>
+                      {notifications.length > 0 && (
+                        <span className="text-[10px] font-extrabold px-1.5 py-0.2 bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300 rounded-full font-mono">
+                          {notifications.length}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-medium">Alertas del sistema</span>
+                  </div>
+
                   {notifications.length === 0 ? (
-                    <p className="text-xs text-slate-400 py-3 text-center">No hay notificaciones pendientes</p>
+                    <div className="p-4 text-center">
+                      <CheckCircle2 size={24} className="text-emerald-500 mx-auto mb-1.5 opacity-80" />
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">No hay alertas pendientes</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Inventario y cobros al día</p>
+                    </div>
                   ) : (
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                      {notifications.slice(0, 4).map((n, i) => (
-                        <div key={i} className="p-2 rounded-xl bg-slate-50 dark:bg-white/5 text-[11px]">
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">{n.title || n.message}</p>
-                        </div>
-                      ))}
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                      {notifications.slice(0, 8).map((n, i) => {
+                        const isDanger = n.type === 'danger'
+                        return (
+                          <button
+                            key={n.id || i}
+                            type="button"
+                            onClick={() => {
+                              setNotifDropdownOpen(false)
+                              if (n.link) navigate(n.link)
+                            }}
+                            className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-blue-50 dark:hover:bg-blue-900/20 active:scale-[0.98] transition-all cursor-pointer group flex items-start gap-2.5 border border-transparent hover:border-blue-200 dark:hover:border-blue-500/30"
+                          >
+                            <span
+                              className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
+                                isDanger ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'
+                              }`}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-1">
+                                <p className={`text-xs font-bold truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors ${
+                                  isDanger ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200'
+                                }`}>
+                                  {n.title}
+                                </p>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded shrink-0 ${
+                                  isDanger
+                                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
+                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
+                                }`}>
+                                  {isDanger ? 'Crítico' : 'Atención'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-2 leading-tight">
+                                {n.message}
+                              </p>
+                              <span className="text-[10px] text-blue-500 font-medium inline-flex items-center gap-0.5 mt-1 group-hover:underline">
+                                Ir al producto / detalle →
+                              </span>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {notifications.length > 0 && (
+                    <div className="pt-2 mt-2 border-t border-slate-100 dark:border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNotifDropdownOpen(false)
+                          navigate('/productos')
+                        }}
+                        className="w-full text-center py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Ver todos los productos en Catálogo →
+                      </button>
                     </div>
                   )}
                 </div>
@@ -893,31 +968,57 @@ function DashboardContent() {
                 onClick={() => setUserDropdownOpen(o => !o)}
                 className="flex items-center cursor-pointer focus:outline-none"
               >
-                <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-indigo-500/25 hover:ring-indigo-500 transition-all shadow-xs bg-slate-800">
-                  <img
-                    src="/avatar-3.jpg"
-                    alt="Usuario"
-                    className="w-full h-full object-cover"
-                    onError={(e) => { e.currentTarget.src = '/hero-worker.jpg' }}
-                  />
+                <div className="h-9 min-w-[36px] max-w-[50px] px-1 rounded-xl overflow-hidden ring-2 ring-indigo-500/25 hover:ring-indigo-500 transition-all shadow-2xs bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 flex items-center justify-center">
+                  {(company?.logo_url || user?.avatar_url) ? (
+                    <img
+                      src={company?.logo_url || user?.avatar_url}
+                      alt={company?.name || 'Usuario'}
+                      className="max-h-full max-w-full w-auto h-auto object-contain"
+                      onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    />
+                  ) : (
+                    <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase font-display">
+                      {user?.full_name ? user.full_name.charAt(0) : (user?.email?.charAt(0).toUpperCase() || 'C')}
+                    </span>
+                  )}
                 </div>
               </button>
               {userDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-2 z-40">
-                  <div className="px-3 py-2 border-b border-slate-100 dark:border-white/10">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{user?.full_name || 'Carlos Admin'}</p>
-                    <p className="text-[11px] text-slate-400 truncate">{user?.email || 'cya@gmail.com'}</p>
-                    <span className="inline-block mt-1 text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">
-                      {isPlatformAdmin ? 'SUPER ADMIN' : 'ADMINISTRADOR'}
-                    </span>
+                  <div className="px-3 py-2 border-b border-slate-100 dark:border-white/10 flex items-center gap-2.5">
+                    {(company?.logo_url || user?.avatar_url) && (
+                      <div className="h-8 min-w-[32px] max-w-[48px] rounded-lg overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 shrink-0 flex items-center justify-center p-0.5">
+                        <img src={company?.logo_url || user?.avatar_url} alt="Logo" className="max-h-full max-w-full w-auto h-auto object-contain" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {user?.full_name || company?.name || 'Administrador'}
+                      </p>
+                      <p className="text-[11px] text-slate-400 truncate">{user?.email || 'cya@gmail.com'}</p>
+                    </div>
                   </div>
-                  <div className="pt-1">
+                  <div className="pt-1 space-y-0.5">
                     <button
-                      onClick={() => navigate('/configuracion')}
-                      className="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg flex items-center gap-2 cursor-pointer"
+                      onClick={() => {
+                        setUserDropdownOpen(false)
+                        navigate('/perfil')
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg flex items-center gap-2 font-medium cursor-pointer"
                     >
-                      <Settings size={13} /> Configuración
+                      <User size={13} /> Mi Perfil y Cuenta
                     </button>
+                    {user?.role === 'admin' && (
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false)
+                          navigate('/configuracion')
+                        }}
+                        className="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg flex items-center gap-2 cursor-pointer"
+                      >
+                        <Settings size={13} /> Configuración de Empresa
+                      </button>
+                    )}
                     <button
                       onClick={logout}
                       className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg flex items-center gap-2 font-semibold cursor-pointer"
@@ -981,7 +1082,7 @@ function DashboardContent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
 
           {/* Card 1: Facturación del Mes (con Banner Visual Estilo Finnova) */}
-          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/10">
+          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/35">
             <div>
               <div className="flex items-start justify-between">
                 <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">Facturación del Mes</span>
@@ -999,7 +1100,7 @@ function DashboardContent() {
             </div>
 
             {/* Visual Photo / Gradient Banner from Finnova */}
-            <div className="mt-3.5 h-[62px] rounded-xl overflow-hidden relative shadow-xs border border-slate-100 dark:border-white/5 bg-slate-900 group">
+            <div className="mt-3.5 h-[62px] rounded-xl overflow-hidden relative shadow-xs border border-slate-100 dark:border-white/20 bg-slate-900 group">
               <img
                 src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80"
                 alt="Finnova Desk"
@@ -1018,7 +1119,7 @@ function DashboardContent() {
           </div>
 
           {/* Card 2: Capital en Inventario con las 7 Barras Estilo Finnova */}
-          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/10">
+          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/35">
             <div>
               <div className="flex items-start justify-between">
                 <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">Capital en Inventario</span>
@@ -1039,13 +1140,13 @@ function DashboardContent() {
             <div className="mt-3 pt-1 flex items-end justify-between gap-1.5 h-[64px]">
               {last7DaysSales.map((bar, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer" title={`${bar.label}: ${formatMoney(bar.total)} (${bar.count} ventas)`}>
-                  <div className="w-full max-w-[20px] h-[46px] bg-slate-100 dark:bg-white/5 rounded-t-md flex items-end overflow-hidden p-0.5">
+                  <div className="w-full max-w-[20px] h-[46px] bg-slate-100 dark:bg-white/10 rounded-t-md flex items-end overflow-hidden p-0.5 border border-transparent dark:border-white/35">
                     <div
                       style={{ height: `${bar.val}%` }}
-                      className="w-full rounded-t-sm bg-gradient-to-t from-[#4F46E5] to-[#818CF8] group-hover:to-[#A5B4FC] transition-all shadow-xs"
+                      className="w-full rounded-t-sm bg-gradient-to-t from-[#4F46E5] to-[#818CF8] group-hover:to-[#A5B4FC] transition-all shadow-xs border-t border-x border-transparent dark:border-white/50"
                     />
                   </div>
-                  <span className="text-[8.5px] font-bold text-slate-400 dark:text-slate-400 mt-1 uppercase">
+                  <span className="text-[8.5px] font-bold text-slate-400 dark:text-slate-300 mt-1 uppercase">
                     {bar.month}
                   </span>
                 </div>
@@ -1054,7 +1155,7 @@ function DashboardContent() {
           </div>
 
           {/* Card 3: Tiempo de Rotación con Sparkline SVG Curve (Finnova Exact Match) */}
-          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/10">
+          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/35">
             <div>
               <div className="flex items-start justify-between">
                 <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">Rotación & Catálogo</span>
@@ -1095,7 +1196,7 @@ function DashboardContent() {
               </svg>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 dark:border-white/5 mt-auto flex items-center justify-between">
+            <div className="pt-2 border-t border-slate-100 dark:border-white/10 mt-auto flex items-center justify-between">
               <span className="text-[11px] font-medium text-slate-400">{currentMonthMetrics.totalClients} clientes</span>
               <button
                 onClick={() => navigate('/productos')}
@@ -1108,7 +1209,7 @@ function DashboardContent() {
           </div>
 
           {/* Card 4: Disponible para Cobro Inmediato (Finnova Exact Layout) */}
-          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/10">
+          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/35">
             <div>
               <div className="flex items-start justify-between">
                 <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">Disponible para Cobro</span>
@@ -1128,7 +1229,7 @@ function DashboardContent() {
             </div>
 
             {/* Finnova Payment Methods Pills & Cobrar ahora Action */}
-            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between gap-1.5">
+            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-white/10 flex items-center justify-between gap-1 overflow-hidden">
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   type="button"
@@ -1136,11 +1237,11 @@ function DashboardContent() {
                     setQrModalMethod('yape')
                     setQrModalAmount(currentMonthMetrics.facturacionMes || 150)
                   }}
-                  className="text-[9.5px] font-bold px-2 py-0.5 rounded-md bg-[#742284]/10 hover:bg-[#742284] text-[#742284] hover:text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#742284]/10 hover:bg-[#742284] text-[#742284] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
                   title="Ver QR de Yape"
                 >
-                  <img src="/yape-logo.png" alt="Yape" className="w-3.5 h-3.5 rounded-sm object-cover shadow-2xs" />
-                  <span>Yape QR</span>
+                  <img src="/yape-logo.png" alt="Yape" className="w-3.5 h-3.5 rounded-sm object-cover" />
+                  <span>Yape</span>
                 </button>
                 <button
                   type="button"
@@ -1148,11 +1249,11 @@ function DashboardContent() {
                     setQrModalMethod('plin')
                     setQrModalAmount(currentMonthMetrics.facturacionMes || 150)
                   }}
-                  className="text-[9.5px] font-bold px-2 py-0.5 rounded-md bg-[#00b49f]/10 hover:bg-[#00b49f] text-[#00b49f] hover:text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#00b49f]/10 hover:bg-[#00b49f] text-[#00b49f] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
                   title="Ver QR de Plin"
                 >
-                  <img src="/plin-logo.png" alt="Plin" className="w-3.5 h-3.5 rounded-full object-cover shadow-2xs" />
-                  <span>Plin QR</span>
+                  <img src="/plin-logo.png" alt="Plin" className="w-3.5 h-3.5 rounded-full object-cover" />
+                  <span>Plin</span>
                 </button>
                 <button
                   type="button"
@@ -1160,7 +1261,7 @@ function DashboardContent() {
                     setQrModalMethod('transfer')
                     setQrModalAmount(currentMonthMetrics.facturacionMes || 150)
                   }}
-                  className="text-[9.5px] font-bold px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white dark:bg-white/10 dark:hover:bg-blue-600 dark:text-slate-200 transition-all cursor-pointer"
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white dark:bg-white/10 dark:hover:bg-blue-600 dark:text-slate-200 transition-all cursor-pointer"
                   title="Ver Cuentas Bancarias"
                 >
                   BCP
@@ -1169,7 +1270,7 @@ function DashboardContent() {
 
               <button
                 onClick={() => navigate('/ventas/nueva')}
-                className="px-3 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 text-[11px] font-extrabold shadow-md transition-all cursor-pointer whitespace-nowrap"
+                className="px-2.5 py-1 rounded-full bg-slate-900 hover:bg-black text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 text-[10px] font-extrabold shadow-md transition-all cursor-pointer whitespace-nowrap shrink-0"
               >
                 Cobrar ahora
               </button>
@@ -1177,6 +1278,21 @@ function DashboardContent() {
           </div>
 
         </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════
+            3.5. MASTER ANALYTICS CONTAINER (Movimientos & Categorías)
+           ═══════════════════════════════════════════════════════════ */}
+        {loading ? (
+          <DashboardAnalyticsSkeleton />
+        ) : (
+          <DashboardAnalytics
+            products={products}
+            categories={categories}
+            movements={movements}
+            sales={sales}
+            currency={currency}
+          />
         )}
 
         {/* ═══════════════════════════════════════════════════════════
@@ -1256,13 +1372,13 @@ function DashboardContent() {
           </div>
 
           {/* Date pill from Finnova */}
-          <div className="hidden md:inline-flex fn-filter-pill bg-white dark:bg-[#131627] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200">
+          <div className="hidden md:inline-flex fn-filter-pill bg-white dark:bg-[#131627] border border-slate-200 dark:border-white/35 text-slate-700 dark:text-slate-200">
             <span>Octubre 2026</span>
             <Calendar size={13} className="text-slate-400" />
           </div>
 
           {/* Search Bar on Right */}
-          <div className="fn-filter-pill bg-white dark:bg-[#131627] border border-slate-200 dark:border-white/10 ml-auto w-full sm:w-auto min-w-[260px] px-3.5 py-1.5">
+          <div className="fn-filter-pill bg-white dark:bg-[#131627] border border-slate-200 dark:border-white/35 ml-auto w-full sm:w-auto min-w-[260px] px-3.5 py-1.5">
             <input
               type="text"
               placeholder="Buscar por cliente, comprobante o producto..."
@@ -1281,29 +1397,32 @@ function DashboardContent() {
         </div>
 
         {/* ═══════════════════════════════════════════════════════════
-            5. THE MASTER CONTAINER: LIGHT & DARK MODE RESPONSIVE
+            5. THE MASTER CONTAINER: DARK LUXURY FINNOVA PRO
            ═══════════════════════════════════════════════════════════ */}
-        <div className="fn-dark-container">
+        {loading ? (
+          <DashboardSalesMasterSkeleton />
+        ) : (
+          <div className="fn-dark-container">
 
           {/* Top Header inside Container */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div>
-              <h2 className="text-[19px] font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <h2 className="text-[19px] font-black text-white tracking-tight flex items-center gap-2">
                 <span>{activeTab === 'unpaid' ? 'Ventas Pendientes de Cobro' : activeTab === 'paid' ? 'Ventas Pagadas / Cobradas' : 'Registro de Ventas & Comprobantes'}</span>
-                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
               </h2>
-              <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5">Operaciones comerciales y comprobantes registrados en tu ERP</p>
+              <p className="text-[11.5px] text-slate-300 mt-0.5">Operaciones comerciales y comprobantes registrados en tu ERP</p>
             </div>
 
             {/* Segmented Floating Pill Tabs + Table shortcut */}
             <div className="flex items-center gap-2">
-              <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-[#0A0C16] p-1 rounded-full border border-slate-200 dark:border-white/10 shadow-inner">
+              <div className="inline-flex items-center gap-1 bg-[#0A0C16] p-1 rounded-full border border-white/10 shadow-inner">
                 <button
                   onClick={() => setActiveTab('all')}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                     activeTab === 'all'
-                      ? 'bg-white dark:bg-white/15 text-slate-900 dark:text-white shadow-xs font-bold'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-white/20 text-white shadow-xs font-bold'
+                      : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   Todas ({invoiceList.length})
@@ -1313,7 +1432,7 @@ function DashboardContent() {
                   className={`px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeTab === 'unpaid'
                       ? 'bg-[#5550F2] text-white shadow-md shadow-indigo-600/40'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   <span>Pendientes</span>
@@ -1326,7 +1445,7 @@ function DashboardContent() {
                   className={`px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeTab === 'paid'
                       ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/40'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   <span>Pagadas</span>
@@ -1338,7 +1457,7 @@ function DashboardContent() {
 
               <button
                 onClick={() => navigate('/ventas')}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer shrink-0"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
                 title="Ver todas las ventas en tabla"
               >
                 <LayoutGrid size={14} />
@@ -1379,16 +1498,16 @@ function DashboardContent() {
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         {/* Vibrant Avatar with initials */}
-                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full shrink-0 flex items-center justify-center text-white font-extrabold text-xs shadow-sm bg-gradient-to-tr ${getClientAvatarGradient(inv.client_name)} ${isSelected ? 'ring-2 ring-white/70' : 'ring-1 ring-slate-200 dark:ring-white/20'}`}>
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full shrink-0 flex items-center justify-center text-white font-extrabold text-xs shadow-sm bg-gradient-to-tr ${getClientAvatarGradient(inv.client_name)} ${isSelected ? 'ring-2 ring-white/70' : 'ring-1 ring-white/20'}`}>
                           {inv.client_name ? inv.client_name.charAt(0).toUpperCase() : 'C'}
                         </div>
 
                         {/* Client & Code info */}
                         <div className="min-w-0 flex-1">
-                          <p className={`text-xs sm:text-[13px] font-extrabold truncate leading-tight ${isSelected ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
+                          <p className="text-xs sm:text-[13px] font-extrabold truncate leading-tight text-white">
                             {inv.client_name}
                           </p>
-                          <p className={`text-[10px] sm:text-[11px] mt-0.5 truncate font-medium ${isSelected ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>
+                          <p className={`text-[10px] sm:text-[11px] mt-0.5 truncate font-medium ${isSelected ? 'text-indigo-100' : 'text-slate-300'}`}>
                             #{inv.code} · {inv.due_text}
                           </p>
                         </div>
@@ -1396,7 +1515,7 @@ function DashboardContent() {
 
                       {/* Status Pill & Amount */}
                       <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2.5 shrink-0 ml-2">
-                        <span className={`text-xs sm:text-[14px] font-black tracking-tight font-mono whitespace-nowrap ${isSelected ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
+                        <span className="text-xs sm:text-[14px] font-black tracking-tight font-mono whitespace-nowrap text-white">
                           {formatMoney(inv.amount)}
                         </span>
 
@@ -1405,8 +1524,8 @@ function DashboardContent() {
                             isSelected
                               ? 'bg-white/25 text-white border border-white/40 backdrop-blur-md shadow-xs'
                               : isPaid
-                              ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30'
-                              : 'bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30'
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/35'
+                              : 'bg-amber-400/20 text-amber-300 border border-amber-400/35'
                           }`}
                         >
                           {inv.status}
@@ -1427,48 +1546,48 @@ function DashboardContent() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {/* Detalle de Comprobante */}
                     <div>
-                      <p className="text-[11px] font-bold text-indigo-900/70 dark:text-indigo-200/80 uppercase tracking-wider">Comprobante</p>
+                      <p className="text-[11px] font-bold text-indigo-200/90 uppercase tracking-wider">Comprobante</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[21px] font-black text-slate-900 dark:text-white tracking-tight">
+                        <span className="text-[21px] font-black text-white tracking-tight">
                           #{currentInvoice.code}
                         </span>
                         <span className={`text-[10.5px] font-black px-2.5 py-0.5 rounded-full border ${
                           currentInvoice.status === 'Pagada'
-                            ? 'bg-emerald-100 dark:bg-emerald-500/25 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-500/40'
-                            : 'bg-amber-100 dark:bg-amber-400/25 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-400/40'
+                            ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/40'
+                            : 'bg-amber-400/25 text-amber-200 border-amber-400/40'
                         }`}>
                           {currentInvoice.status}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-500 dark:text-indigo-200/70 mt-0.5 font-medium">
+                      <p className="text-[10px] text-indigo-200/70 mt-0.5 font-medium">
                         Fecha: {currentInvoice.due_text || 'Comprobante registrado'}
                       </p>
                     </div>
 
                     {/* Emisor Comercial */}
                     <div>
-                      <p className="text-[11px] font-bold text-indigo-900/70 dark:text-indigo-200/80 uppercase tracking-wider">Empresa Emisora</p>
+                      <p className="text-[11px] font-bold text-indigo-200/90 uppercase tracking-wider">Empresa Emisora</p>
                       <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[18px] font-black text-slate-900 dark:text-white tracking-tight truncate">
+                        <span className="text-[18px] font-black text-white tracking-tight truncate">
                           {currentInvoice.company || 'CYA Store'}
                         </span>
-                        <span className="text-indigo-600 dark:text-indigo-300 text-sm font-bold">~</span>
+                        <span className="text-indigo-300 text-sm font-bold">~</span>
                       </div>
-                      <p className="text-[10px] text-slate-500 dark:text-indigo-200/70 mt-0.5 font-medium">Sede Principal · Sistema ERP</p>
+                      <p className="text-[10px] text-indigo-200/70 mt-0.5 font-medium">Sede Principal · Sistema ERP</p>
                     </div>
 
                     {/* Cliente */}
                     <div>
-                      <p className="text-[11px] font-bold text-indigo-900/70 dark:text-indigo-200/80 uppercase tracking-wider">Cliente</p>
+                      <p className="text-[11px] font-bold text-indigo-200/90 uppercase tracking-wider">Cliente</p>
                       <div className="flex items-center gap-2.5 mt-1">
-                        <div className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white font-extrabold text-xs shadow-sm bg-gradient-to-tr ${getClientAvatarGradient(currentInvoice.client_name)} ring-2 ring-indigo-200 dark:ring-white/30`}>
+                        <div className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white font-extrabold text-xs shadow-sm bg-gradient-to-tr ${getClientAvatarGradient(currentInvoice.client_name)} ring-2 ring-white/30`}>
                           {currentInvoice.client_name ? currentInvoice.client_name.charAt(0).toUpperCase() : 'C'}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[13px] font-extrabold text-slate-900 dark:text-white truncate leading-tight">
+                          <p className="text-[13px] font-extrabold text-white truncate leading-tight">
                             {currentInvoice.client_name}
                           </p>
-                          <p className="text-[10.5px] text-slate-500 dark:text-indigo-200/75 truncate mt-0.5 font-medium">
+                          <p className="text-[10.5px] text-indigo-200/75 truncate mt-0.5 font-medium">
                             {currentInvoice.client_role || 'Cliente Registrado'}
                           </p>
                         </div>
@@ -1479,30 +1598,30 @@ function DashboardContent() {
                   {/* Middle Row: Ítems reales vendidos estilo Finnova */}
                   <div className="my-5">
                     <div className="flex items-center justify-between mb-2.5">
-                      <p className="text-xs font-bold text-indigo-950 dark:text-indigo-200 uppercase tracking-wider">
+                      <p className="text-xs font-bold text-indigo-200 uppercase tracking-wider">
                         Productos del Comprobante ({currentInvoice.items?.length || 0})
                       </p>
-                      <span className="text-[11px] text-slate-500 dark:text-indigo-200/70 font-medium">Líneas de producto facturadas</span>
+                      <span className="text-[11px] text-indigo-200/70 font-medium">Líneas de producto facturadas</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[170px] overflow-y-auto fn-scroll pr-1.5">
                       {currentInvoice.items?.map((item, idx) => (
                         <div key={idx} className="fn-service-card group">
                           <div className="flex items-center justify-between">
-                            <span className="text-[15px] font-black text-slate-900 dark:text-white font-mono tracking-tight">
+                            <span className="text-[15px] font-black text-white font-mono tracking-tight">
                               {formatMoney(item.price)}
                             </span>
-                            <span className="text-[10.5px] font-extrabold text-indigo-700 dark:text-indigo-200 bg-indigo-50 dark:bg-white/10 group-hover:bg-indigo-100 dark:group-hover:bg-white/20 px-2 py-0.5 rounded-full transition-colors">
+                            <span className="text-[10.5px] font-extrabold text-indigo-200 bg-white/10 group-hover:bg-white/20 px-2 py-0.5 rounded-full transition-colors">
                               x{item.qty || 1}
                             </span>
                           </div>
                           <div className="mt-2">
-                            <p className="text-xs font-bold text-slate-800 dark:text-white/95 line-clamp-1 group-hover:text-indigo-600 dark:group-hover:text-white transition-colors" title={item.name}>
+                            <p className="text-xs font-bold text-white/95 line-clamp-1 group-hover:text-indigo-200 transition-colors" title={item.name}>
                               {item.name}
                             </p>
-                            <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-indigo-200/75 mt-1 font-medium">
+                            <div className="flex items-center justify-between text-[10px] text-indigo-200/75 mt-1 font-medium">
                               <span>P. Unit: {formatMoney(item.price / (item.qty || 1))}</span>
-                              <ArrowUpRight size={12} className="text-indigo-600 dark:text-white opacity-70 group-hover:opacity-100 transition-opacity" />
+                              <ArrowUpRight size={12} className="text-white opacity-70 group-hover:opacity-100 transition-opacity" />
                             </div>
                           </div>
                         </div>
@@ -1511,40 +1630,40 @@ function DashboardContent() {
                       {/* Quick Action Card: Nueva Venta en POS */}
                       <div
                         onClick={() => navigate('/ventas/nueva')}
-                        className="border-2 border-dashed border-indigo-200 dark:border-white/20 hover:border-indigo-400 dark:hover:border-white/40 bg-white/50 dark:bg-white/10 hover:bg-white/80 dark:hover:bg-white/15 rounded-2xl p-3 flex flex-col items-center justify-center text-center cursor-pointer transition-all min-h-[84px] group"
+                        className="border-2 border-dashed border-white/25 hover:border-white/50 bg-white/10 hover:bg-white/15 rounded-2xl p-3 flex flex-col items-center justify-center text-center cursor-pointer transition-all min-h-[84px] group"
                         title="Registrar una nueva venta en el sistema"
                       >
-                        <div className="w-6 h-6 rounded-full bg-indigo-50 dark:bg-white/10 group-hover:bg-indigo-100 dark:group-hover:bg-white/20 flex items-center justify-center text-indigo-600 dark:text-white mb-1 transition-colors">
+                        <div className="w-6 h-6 rounded-full bg-white/10 group-hover:bg-white/20 flex items-center justify-center text-white mb-1 transition-colors">
                           <Plus size={13} strokeWidth={2.5} />
                         </div>
-                        <span className="text-[11.5px] font-bold text-indigo-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-100 transition-colors">+ Nueva Venta</span>
-                        <span className="text-[9.5px] text-indigo-600/70 dark:text-indigo-200/70">Abrir punto de venta</span>
+                        <span className="text-[11.5px] font-bold text-white group-hover:text-indigo-100 transition-colors">+ Nueva Venta</span>
+                        <span className="text-[9.5px] text-indigo-200/70">Abrir punto de venta</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Bottom Row: Totals & Luxury Action Buttons */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-indigo-200/70 dark:border-white/15 mt-auto">
+                  <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4 pt-4 border-t border-white/15 mt-auto">
                     {/* Totals */}
-                    <div className="grid grid-cols-3 gap-3 sm:flex sm:items-center sm:gap-8 w-full sm:w-auto">
+                    <div className="grid grid-cols-3 gap-3 sm:flex sm:items-center sm:gap-6 w-full 2xl:w-auto">
                       <div>
-                        <p className="text-[10px] sm:text-[11px] font-semibold text-indigo-900/70 dark:text-indigo-200/80 uppercase tracking-wider">Sub Total</p>
-                        <p className="text-xs sm:text-[16px] font-black text-slate-900 dark:text-white font-mono mt-0.5 truncate">
+                        <p className="text-[10px] sm:text-[11px] font-semibold text-indigo-200/80 uppercase tracking-wider">Sub Total</p>
+                        <p className="text-xs sm:text-[16px] font-black text-white font-mono mt-0.5 truncate">
                           {formatMoney(currentInvoice.subtotal)}
                         </p>
                       </div>
 
                       <div>
-                        <p className="text-[10px] sm:text-[11px] font-semibold text-indigo-900/70 dark:text-indigo-200/80 uppercase tracking-wider">Total Venta</p>
-                        <p className="text-xs sm:text-[16px] font-black text-slate-900 dark:text-white font-mono mt-0.5 truncate">
+                        <p className="text-[10px] sm:text-[11px] font-semibold text-indigo-200/80 uppercase tracking-wider">Total Venta</p>
+                        <p className="text-xs sm:text-[16px] font-black text-white font-mono mt-0.5 truncate">
                           {formatMoney(currentInvoice.total)}
                         </p>
                       </div>
 
                       <div>
-                        <p className="text-[10px] sm:text-[11px] font-semibold text-indigo-900/70 dark:text-indigo-200/80 uppercase tracking-wider">Saldo Pendiente</p>
+                        <p className="text-[10px] sm:text-[11px] font-semibold text-indigo-200/80 uppercase tracking-wider">Saldo Pendiente</p>
                         <p className={`text-xs sm:text-[16px] font-black font-mono mt-0.5 truncate ${
-                          currentInvoice.balance > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'
+                          currentInvoice.balance > 0 ? 'text-amber-300' : 'text-emerald-300'
                         }`}>
                           {formatMoney(currentInvoice.balance)}
                         </p>
@@ -1552,10 +1671,10 @@ function DashboardContent() {
                     </div>
 
                     {/* Actions on right */}
-                    <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap w-full 2xl:w-auto justify-start sm:justify-end">
                       <button
                         onClick={() => setReceiptOpen(true)}
-                        className="px-4 py-2.5 rounded-full bg-white dark:bg-white/10 hover:bg-indigo-50/80 dark:hover:bg-white/20 border border-indigo-200 dark:border-white/15 flex items-center gap-1.5 text-slate-800 dark:text-white transition-all cursor-pointer text-xs font-bold shadow-xs"
+                        className="px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 flex items-center gap-1.5 text-white transition-all cursor-pointer text-xs font-bold shadow-xs shrink-0 backdrop-blur-md"
                         title="Ver e imprimir boleta de venta"
                       >
                         <Receipt size={14} />
@@ -1564,10 +1683,10 @@ function DashboardContent() {
 
                       <button
                         onClick={() => navigate('/ventas')}
-                        className="w-10 h-10 rounded-full bg-white dark:bg-white/10 hover:bg-indigo-50/80 dark:hover:bg-white/20 border border-indigo-200 dark:border-white/15 flex items-center justify-center text-slate-800 dark:text-white transition-all cursor-pointer shrink-0 shadow-xs"
+                        className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 flex items-center justify-center text-white transition-all cursor-pointer shrink-0 shadow-xs backdrop-blur-md"
                         title="Ir al módulo de ventas"
                       >
-                        <ExternalLink size={15} />
+                        <ExternalLink size={14} />
                       </button>
 
                       {currentInvoice.status === 'Pendiente' && (
@@ -1577,7 +1696,7 @@ function DashboardContent() {
                             setQrModalMethod('yape')
                             setQrModalAmount(currentInvoice.balance || 0)
                           }}
-                          className="px-3.5 py-2.5 rounded-full bg-[#742284]/10 hover:bg-[#742284] text-[#742284] hover:text-white dark:bg-purple-900/40 dark:hover:bg-[#742284] dark:text-purple-300 dark:hover:text-white border border-purple-200 dark:border-purple-800/40 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs whitespace-nowrap"
+                          className="px-3 py-2 rounded-full bg-purple-500/20 hover:bg-purple-500/35 text-purple-200 border border-purple-400/35 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs shrink-0 whitespace-nowrap backdrop-blur-md"
                           title="Mostrar QR de Yape al cliente para cobrar"
                         >
                           <QrCode size={13} />
@@ -1589,22 +1708,22 @@ function DashboardContent() {
                         <button
                           onClick={handleMarkAsPaid}
                           disabled={payoutSuccess}
-                          className="px-6 py-2.5 rounded-full bg-slate-900 hover:bg-black text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 text-xs sm:text-sm font-black shadow-xl shadow-slate-900/20 dark:shadow-black/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-75 flex items-center gap-2 whitespace-nowrap"
+                          className="px-4 sm:px-5 py-2 rounded-full bg-white hover:bg-slate-100 text-slate-900 text-xs sm:text-sm font-black shadow-xl shadow-black/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-75 flex items-center gap-1.5 shrink-0 whitespace-nowrap"
                         >
                           {payoutSuccess ? (
                             <>
-                              <Check size={16} strokeWidth={3} className="text-emerald-400 dark:text-emerald-600" />
+                              <Check size={16} strokeWidth={3} className="text-emerald-600" />
                               <span>¡Cobrado!</span>
                             </>
                           ) : (
                             <>
-                              <DollarSign size={16} strokeWidth={2.5} className="text-indigo-400 dark:text-indigo-600" />
+                              <DollarSign size={16} strokeWidth={2.5} className="text-indigo-600" />
                               <span>Cobrar venta</span>
                             </>
                           )}
                         </button>
                       ) : (
-                        <div className="px-5 py-2.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/40 text-xs sm:text-sm font-black flex items-center gap-2 backdrop-blur-sm shadow-xs">
+                        <div className="px-4 py-2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs sm:text-sm font-black flex items-center gap-1.5 backdrop-blur-md shadow-xs shrink-0">
                           <CheckCircle2 size={16} />
                           <span>Pagada</span>
                         </div>
@@ -1615,11 +1734,11 @@ function DashboardContent() {
                 </div>
               ) : (
                 <div className="fn-detail-card items-center justify-center text-center py-20">
-                  <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-white/10 flex items-center justify-center text-indigo-600 dark:text-indigo-200 mx-auto mb-3">
+                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-indigo-200 mx-auto mb-3">
                     <Receipt size={22} />
                   </div>
-                  <p className="text-slate-900 dark:text-white font-bold text-sm">Selecciona una venta de la lista</p>
-                  <p className="text-slate-500 dark:text-indigo-200/70 text-xs mt-1">Podrás ver los productos facturados, boletas y registrar cobros.</p>
+                  <p className="text-white font-bold text-sm">Selecciona una venta de la lista</p>
+                  <p className="text-indigo-200/70 text-xs mt-1">Podrás ver los productos facturados, boletas y registrar cobros.</p>
                 </div>
               )}
             </div>
@@ -1627,6 +1746,7 @@ function DashboardContent() {
           </div>
 
         </div>
+        )}
 
         {/* ═══════════════════════════════════════════════════════════
             6. LOWER ERP METRICS: STOCK ALERTS | TOP PRODUCTS | CATEGORIES

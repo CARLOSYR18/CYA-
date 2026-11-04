@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, UserCog, ShieldCheck, User, Mail, Lock, Key,
   Eye, EyeOff, Check, AlertCircle, Sparkles, Crown, ArrowRight,
-  ShieldAlert, CheckCircle2, Building2, ToggleLeft, ToggleRight
+  ShieldAlert, CheckCircle2, Building2, ToggleLeft, ToggleRight, X
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import { usersService } from '../services/usersService'
@@ -100,6 +100,13 @@ export default function NewUser() {
     return AVATAR_PALETTES[hash % AVATAR_PALETTES.length]
   }, [form.full_name])
 
+  const pwd = form.password || ''
+  const hasMinLength = pwd.length >= 6
+  const hasLower = /[a-z]/.test(pwd)
+  const hasUpper = /[A-Z]/.test(pwd)
+  const hasNumber = /[0-9]/.test(pwd)
+  const isPwdValid = hasMinLength && hasLower && hasUpper && hasNumber
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -117,9 +124,16 @@ export default function NewUser() {
       return
     }
 
-    if (!isEditing && !isSupabaseConfigured && !form.password.trim()) {
-      setError('La contraseña de acceso es obligatoria para nuevos usuarios.')
-      return
+    if (!isEditing) {
+      const pwd = form.password?.trim() || ''
+      if (pwd.length < 6) {
+        setError('La contraseña debe tener mínimo 6 caracteres.')
+        return
+      }
+      if (!/[a-z]/.test(pwd) || !/[A-Z]/.test(pwd) || !/[0-9]/.test(pwd)) {
+        setError('La contraseña debe incluir al menos una letra minúscula, una mayúscula y un número (ejemplo: Carlos123).')
+        return
+      }
     }
 
     setSaving(true)
@@ -136,12 +150,6 @@ export default function NewUser() {
         }
         await usersService.update(id, patch)
       } else {
-        if (isSupabaseConfigured) {
-          setError('Con Supabase conectado, crea usuarios desde Authentication → Users en la consola de Supabase.')
-          setSaving(false)
-          return
-        }
-
         await usersService.create({
           full_name: cleanName,
           email: cleanEmail,
@@ -226,12 +234,26 @@ export default function NewUser() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            ERROR NOTIFICATION
+            ERROR NOTIFICATION (ELEGANTE, MODERNO & CERRABLE)
            ═════════════════════════════════════════════════════════ */}
         {error && (
-          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2.5 shadow-xs animate-slide-up">
-            <AlertCircle size={18} className="shrink-0 text-rose-600 dark:text-rose-400" />
-            <span className="font-semibold">{error}</span>
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-rose-50/95 to-amber-50/80 dark:from-rose-950/30 dark:to-amber-950/20 border border-rose-200/90 dark:border-rose-500/30 text-rose-900 dark:text-rose-200 text-xs sm:text-[13px] flex items-center justify-between gap-3 shadow-xs animate-slide-up">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <AlertCircle size={17} />
+              </div>
+              <p className="font-semibold leading-snug">
+                {error}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setError('')}
+              className="text-rose-400 hover:text-rose-700 dark:hover:text-rose-200 p-1.5 rounded-lg hover:bg-rose-100/50 dark:hover:bg-rose-900/30 transition-colors cursor-pointer shrink-0"
+              title="Cerrar advertencia"
+            >
+              <X size={15} />
+            </button>
           </div>
         )}
 
@@ -290,30 +312,74 @@ export default function NewUser() {
                   </div>
 
                   {/* Password */}
-                  {!isSupabaseConfigured && (
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
-                        {isEditing ? 'Nueva Contraseña (Dejar vacío para no modificar)' : 'Contraseña de Acceso *'}
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          value={form.password}
-                          onChange={(e) => setForm({ ...form, password: e.target.value })}
-                          placeholder={isEditing ? '••••••••' : 'Mínimo 6 caracteres'}
-                          required={!isEditing}
-                          className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-4 pr-10 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 font-mono outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword((p) => !p)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 cursor-pointer"
-                        >
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
+                      {isEditing ? 'Nueva Contraseña (Dejar vacío para no modificar)' : 'Contraseña de Acceso *'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={form.password}
+                        onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        placeholder={isEditing ? '••••••••' : 'Mínimo 6 caracteres'}
+                        required={!isEditing}
+                        minLength={6}
+                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-4 pr-10 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 font-mono outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((p) => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
                     </div>
-                  )}
+                    <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">
+                      {isEditing
+                        ? 'Dejar en blanco si no deseas cambiar la clave del usuario.'
+                        : 'El usuario usará este correo y contraseña para iniciar sesión.'}
+                    </p>
+
+                    {!isEditing && (
+                      <div className="mt-2.5 p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-slate-700 dark:text-zinc-200 uppercase tracking-wider">
+                            Seguridad de la Contraseña
+                          </span>
+                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                            isPwdValid
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300'
+                              : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300'
+                          }`}>
+                            {isPwdValid ? '✓ Contraseña segura' : 'Faltan requisitos'}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                          <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 dark:text-zinc-500'}`}>
+                            <span className="font-mono">{hasMinLength ? '✓' : '○'}</span>
+                            <span>Mínimo 6 caracteres</span>
+                          </div>
+                          <div className={`flex items-center gap-1.5 ${hasUpper ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 dark:text-zinc-500'}`}>
+                            <span className="font-mono">{hasUpper ? '✓' : '○'}</span>
+                            <span>1 Mayúscula (A-Z)</span>
+                          </div>
+                          <div className={`flex items-center gap-1.5 ${hasLower ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 dark:text-zinc-500'}`}>
+                            <span className="font-mono">{hasLower ? '✓' : '○'}</span>
+                            <span>1 Minúscula (a-z)</span>
+                          </div>
+                          <div className={`flex items-center gap-1.5 ${hasNumber ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 dark:text-zinc-500'}`}>
+                            <span className="font-mono">{hasNumber ? '✓' : '○'}</span>
+                            <span>1 Número (0-9)</span>
+                          </div>
+                        </div>
+
+                        <p className="text-[10.5px] text-slate-500 dark:text-zinc-400 pt-1 border-t border-slate-200/50 dark:border-zinc-700/50">
+                          Ejemplo recomendado: <code className="font-mono font-bold text-brand dark:text-blue-400 bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-slate-200/60 dark:border-zinc-700">Carlos123</code>
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

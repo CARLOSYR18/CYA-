@@ -325,13 +325,13 @@ export default function CompanySettings() {
                       </label>
 
                       <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
-                        {/* Logo Preview Avatar */}
-                        <div className="w-20 h-20 rounded-2xl border-2 border-slate-200 dark:border-zinc-700 flex items-center justify-center shrink-0 overflow-hidden bg-white dark:bg-zinc-800 shadow-xs">
+                        {/* Logo Preview Avatar Adaptable */}
+                        <div className="min-w-[80px] max-w-[150px] h-20 rounded-2xl border-2 border-slate-200 dark:border-zinc-700 flex items-center justify-center shrink-0 overflow-hidden bg-white dark:bg-zinc-800 shadow-xs p-1.5">
                           {form.logo_url && !logoPreviewError ? (
                             <img
                               src={form.logo_url}
                               alt="Logo Empresa"
-                              className="w-full h-full object-contain p-1.5"
+                              className="max-h-full max-w-full w-auto h-auto object-contain"
                               onError={() => setLogoPreviewError(true)}
                             />
                           ) : (
@@ -903,16 +903,18 @@ export default function CompanySettings() {
                     
                     {/* Header */}
                     <div className="text-center pb-3 border-b border-dashed border-slate-300 space-y-1">
-                      <div className="w-12 h-12 mx-auto rounded-full overflow-hidden bg-slate-900 flex items-center justify-center shadow-xs">
+                      <div className="min-h-[44px] max-h-16 max-w-[200px] mx-auto flex items-center justify-center">
                         {form.logo_url && !logoPreviewError ? (
                           <img
                             src={form.logo_url}
                             alt="Logo"
-                            className="w-full h-full object-contain p-1"
+                            className="max-h-16 max-w-full w-auto h-auto object-contain"
                             onError={() => setLogoPreviewError(true)}
                           />
                         ) : (
-                          <Building2 size={22} className="text-white" />
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-bold">
+                            <Building2 size={22} className="text-slate-600 dark:text-slate-300" />
+                          </div>
                         )}
                       </div>
 

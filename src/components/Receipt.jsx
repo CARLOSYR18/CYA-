@@ -28,13 +28,13 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
       className="bg-white text-slate-900 font-sans p-6 rounded-2xl border border-slate-200/90 shadow-sm max-w-[340px] mx-auto text-xs leading-relaxed select-text"
     >
       
-      {/* ─── Company Header con Logo Oficial CYA STORE ─── */}
+      {/* ─── Company Header con Logo Oficial ─── */}
       <div className="text-center pb-3 border-b border-dashed border-slate-300">
-        <div className="w-14 h-14 mx-auto mb-2 rounded-full overflow-hidden bg-black flex items-center justify-center shadow-xs">
+        <div className="min-h-[44px] max-h-16 max-w-[220px] mx-auto mb-2 flex items-center justify-center">
           <img
             src={company?.logo_url || '/logo.png'}
             alt={companyDisplayName}
-            className="w-full h-full object-contain"
+            className="max-h-16 max-w-full w-auto h-auto object-contain"
             crossOrigin="anonymous"
             onError={(e) => {
               e.currentTarget.src = '/logo-cya-badge.png'

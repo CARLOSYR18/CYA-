@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Menu, ChevronDown, Bell, CheckCircle2, Sparkles, ShieldAlert, Sun, Moon, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { LogOut, Menu, ChevronDown, Bell, CheckCircle2, Sparkles, ShieldAlert, Sun, Moon, PanelLeftClose, PanelLeftOpen, UserCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { isSupabaseConfigured } from '../../lib/supabaseClient'
 import { getNotifications } from '../../lib/notifications'
+import { companySettingsService } from '../../services/companySettingsService'
 
 const COLORS = ['#3B82F6','#8B5CF6','#10B981','#F59E0B','#EF4444','#06B6D4']
 function avatarColor(name = '') {
@@ -17,6 +18,10 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
   const { user, logout, isPlatformAdmin } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   
+  // Company settings & logo
+  const [company, setCompany] = useState(() => companySettingsService.getCached())
+  const [imgError, setImgError] = useState(false)
+
   // User menu state
   const [userOpen, setUserOpen] = useState(false)
   const userRef = useRef(null)
@@ -27,10 +32,38 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
   const [loadingNotifs, setLoadingNotifs] = useState(false)
   const notifRef = useRef(null)
 
+  const avatarUrl = user?.avatar_url || company?.logo_url || ''
+
   const initials = user?.full_name
     ? user.full_name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase()
-    : 'US'
-  const color = avatarColor(user?.full_name || '')
+    : (user?.email ? user.email.charAt(0).toUpperCase() : 'US')
+  const color = avatarColor(user?.full_name || user?.email || '')
+
+  useEffect(() => {
+    companySettingsService.get().then(c => {
+      if (c) {
+        setCompany(c)
+        setImgError(false)
+      }
+    }).catch(() => {})
+
+    const handleCompanyUpdate = (e) => {
+      if (e.detail) {
+        setCompany(e.detail)
+        setImgError(false)
+      } else {
+        companySettingsService.get().then(c => {
+          if (c) {
+            setCompany(c)
+            setImgError(false)
+          }
+        }).catch(() => {})
+      }
+    }
+
+    window.addEventListener('cya_company_updated', handleCompanyUpdate)
+    return () => window.removeEventListener('cya_company_updated', handleCompanyUpdate)
+  }, [])
 
   const loadNotifs = async () => {
     try {
@@ -221,12 +254,25 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
             className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl border transition-all ${
               userOpen ? 'border-blue-200 bg-blue-50 dark:border-blue-500/40 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}>
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[12px] font-bold font-display shadow-sm shrink-0 select-none"
-              style={{ background: color }}>
-              {initials}
+            <div
+              className={`h-8 ${avatarUrl && !imgError ? (user?.avatar_url ? 'w-8' : 'min-w-[32px] max-w-[48px] px-1 bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10') : 'w-8' } rounded-xl flex items-center justify-center text-white text-[12px] font-bold font-display shadow-2xs shrink-0 select-none overflow-hidden`}
+              style={(!avatarUrl || imgError) ? { background: color } : undefined}
+            >
+              {avatarUrl && !imgError ? (
+                <img
+                  src={avatarUrl}
+                  alt={user?.full_name || company?.name || 'Avatar'}
+                  className={user?.avatar_url ? 'w-full h-full object-cover' : 'max-h-full max-w-full w-auto h-auto object-contain'}
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                initials
+              )}
             </div>
             <div className="hidden sm:flex flex-col leading-tight text-left">
-              <span className="text-[13px] text-slate-800 dark:text-slate-200 font-semibold truncate max-w-[110px]">{user?.full_name}</span>
+              <span className="text-[13px] text-slate-800 dark:text-slate-200 font-semibold truncate max-w-[110px]">
+                {user?.full_name || company?.name || 'Usuario'}
+              </span>
               {isPlatformAdmin ? (
                 <span className="text-[9px] font-extrabold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">
                   SUPER ADMIN
@@ -241,11 +287,31 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
           {userOpen && (
             <div className="absolute right-0 top-[calc(100%+8px)] w-56 bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#27272a] rounded-2xl animate-scale-in z-50 overflow-hidden shadow-2xl"
               style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}>
-              <div className="px-4 py-3 bg-slate-50 dark:bg-[#18181c] border-b border-slate-100 dark:border-[#27272a]">
-                <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100 truncate">{user?.full_name}</p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{user?.email}</p>
+              <div className="px-4 py-3 bg-slate-50 dark:bg-[#18181c] border-b border-slate-100 dark:border-[#27272a] flex items-center gap-2.5">
+                {avatarUrl && !imgError && (
+                  <div className={`h-8 ${user?.avatar_url ? 'w-8' : 'min-w-[32px] max-w-[48px] p-0.5'} rounded-lg overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 shrink-0 flex items-center justify-center`}>
+                    <img src={avatarUrl} alt="Avatar" className={user?.avatar_url ? 'w-full h-full object-cover' : 'max-h-full max-w-full w-auto h-auto object-contain'} />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100 truncate">
+                    {user?.full_name || company?.name || 'Colaborador'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{user?.email}</p>
+                </div>
               </div>
               <div className="p-1.5 space-y-0.5">
+                {/* Opción directa a Mi Perfil */}
+                <button
+                  onClick={() => {
+                    setUserOpen(false)
+                    navigate('/perfil')
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-blue-600 dark:text-blue-400 font-semibold hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors cursor-pointer"
+                >
+                  <UserCircle size={15} /> Mi Perfil y Cuenta
+                </button>
+
                 {isPlatformAdmin ? (
                   <button
                     onClick={() => {
@@ -256,7 +322,7 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
                   >
                     <ShieldAlert size={14} className="text-purple-600 dark:text-purple-400" /> Panel Plataforma
                   </button>
-                ) : (
+                ) : user?.role === 'admin' ? (
                   <button
                     onClick={() => {
                       setUserOpen(false)
@@ -266,7 +332,7 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
                   >
                     <Sparkles size={14} className="text-amber-500" /> Tu Plan y Suscripción
                   </button>
-                )}
+                ) : null}
                 
                 <button
                   onClick={() => {

@@ -29,17 +29,25 @@ export function AuthProvider({ children }) {
 
   async function loadProfile(authUser) {
     const { data } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
+    const metadata = authUser?.user_metadata || {}
     const profile = data
-      ? { ...data, email: authUser.email }
-      : { id: authUser.id, email: authUser.email, role: 'empleado', company_id: null }
+      ? { ...data, email: authUser.email, avatar_url: data.avatar_url || metadata.avatar_url || null }
+      : { id: authUser.id, email: authUser.email, role: 'empleado', company_id: null, avatar_url: metadata.avatar_url || null }
     setUser(profile)
     if (profile.company_id) setCompanyCache(profile.company_id)
   }
 
   async function login(email, password) {
+    const cleanEmail = (email || '').trim().toLowerCase()
     if (isSupabaseConfigured) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) throw new Error('Credenciales incorrectas')
+      const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: (password || '').trim() })
+      if (error) {
+        const msg = (error.message || '').toLowerCase()
+        if (msg.includes('email not confirmed')) {
+          throw new Error('El correo electrónico aún no ha sido verificado. Confírmalo en Supabase o desactiva "Confirm email" en Auth Providers.')
+        }
+        throw new Error('Credenciales incorrectas. Verifica que el correo y la contraseña estén bien escritos.')
+      }
       return
     }
     const profiles = localDb.getTable('profiles')
@@ -115,10 +123,56 @@ export function AuthProvider({ children }) {
     if (error) throw error
   }
 
+  async function updateProfile(patch) {
+    if (!user) return
+    const updated = { ...user, ...patch }
+    setUser(updated)
+
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('profiles').update(patch).eq('id', user.id)
+      } catch (e) {
+        console.warn('Aviso actualizando profiles:', e)
+      }
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            ...(patch.full_name ? { full_name: patch.full_name } : {}),
+            ...(patch.avatar_url ? { avatar_url: patch.avatar_url } : {})
+          }
+        })
+      } catch (e) {
+        console.warn('Aviso actualizando auth metadata:', e)
+      }
+    } else {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(updated))
+      localDb.update('profiles', user.id, patch)
+    }
+    return updated
+  }
+
+  async function updatePassword(newPassword) {
+    if (!newPassword || newPassword.trim().length < 6) {
+      throw new Error('La nueva contraseña debe tener al menos 6 caracteres.')
+    }
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.auth.updateUser({ password: newPassword.trim() })
+      if (error) {
+        const msg = (error.message || '').toLowerCase()
+        if (msg.includes('should contain') || msg.includes('at least one character')) {
+          throw new Error('La contraseña debe incluir al menos una letra mayúscula (A-Z), una minúscula (a-z) y un número (0-9).')
+        }
+        throw new Error(`Error al actualizar contraseña: ${error.message}`)
+      }
+    } else {
+      localDb.update('profiles', user.id, { password: newPassword.trim() })
+    }
+  }
+
   const needsOnboarding = isSupabaseConfigured && !!user && !user.company_id && !user.is_platform_admin
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, signUp, completeOnboarding, needsOnboarding, loginWithGoogle, loginWithMagicLink, isAdmin: user?.role === 'admin', isPlatformAdmin: user?.is_platform_admin === true }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, signUp, completeOnboarding, needsOnboarding, loginWithGoogle, loginWithMagicLink, updateProfile, updatePassword, isAdmin: user?.role === 'admin', isPlatformAdmin: user?.is_platform_admin === true }}>
       {children}
     </AuthContext.Provider>
   )

@@ -24,6 +24,7 @@ import NewUser from './pages/NewUser'
 import CompanySettings from './pages/CompanySettings'
 import Plans from './pages/Plans'
 import PlatformAdmin from './pages/PlatformAdmin'
+import Profile from './pages/Profile'
 import NotFound from './pages/NotFound'
 
 export default function App() {
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="/usuarios/editar/:id" element={<ProtectedRoute adminOnly><NewUser /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute adminOnly><CompanySettings /></ProtectedRoute>} />
             <Route path="/planes" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
+            <Route path="/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/admin-plataforma" element={<ProtectedRoute><PlatformAdmin /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
