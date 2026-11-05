@@ -64,16 +64,10 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const cleanEmail = (email || '').trim().toLowerCase()
     if (isSupabaseConfigured) {
-      // Carrera con timeout para evitar bloqueos indefinidos en WebKit / Safari iOS
-      const signInPromise = supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: (password || '').trim()
       })
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('La conexión tardó demasiado. Por favor verifica tu señal de internet o intenta nuevamente.')), 15000)
-      )
-
-      const { data, error } = await Promise.race([signInPromise, timeoutPromise])
       if (error) {
         const msg = (error.message || '').toLowerCase()
         if (msg.includes('email not confirmed')) {
