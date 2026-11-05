@@ -22,10 +22,10 @@ export default function Products() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [products, setProducts] = useState([])
-  const [categories, setCategories] = useState([])
-  const [suppliers, setSuppliers] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [products, setProducts] = useState(() => productsService.getCached?.() || [])
+  const [categories, setCategories] = useState(() => categoriesService.getCached?.() || [])
+  const [suppliers, setSuppliers] = useState(() => suppliersService.getCached?.() || [])
+  const [loading, setLoading] = useState(() => !productsService.hasCache?.())
 
   // Filters & Views
   const [search, setSearch] = useState('')
@@ -62,7 +62,7 @@ export default function Products() {
   const [zoomScale, setZoomScale] = useState(1) // 1x, 1.5x, 2x, 2.5x
 
   async function loadAll() {
-    setLoading(true)
+    if (!productsService.hasCache?.()) setLoading(true)
     try {
       const [p, c, s] = await Promise.all([
         productsService.list(),

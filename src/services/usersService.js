@@ -17,6 +17,16 @@ function getLocalCollaborators() {
   }
 }
 
+let cachedUsers = null
+let cachedUsersTime = 0
+let inFlightUsers = null
+
+function invalidateUsersCache() {
+  cachedUsers = null
+  cachedUsersTime = 0
+  baseService.invalidate()
+}
+
 function saveLocalCollaborator(user) {
   if (!user) return
   try {
@@ -32,6 +42,7 @@ function saveLocalCollaborator(user) {
       list.push(user)
     }
     localStorage.setItem(COLLAB_STORAGE_KEY, JSON.stringify(list))
+    invalidateUsersCache()
   } catch (e) {
     console.error('Error guardando colaborador en almacenamiento local:', e)
   }
@@ -44,6 +55,7 @@ function removeLocalCollaborator(idOrEmail) {
       u.id !== idOrEmail && u.email?.toLowerCase().trim() !== target
     )
     localStorage.setItem(COLLAB_STORAGE_KEY, JSON.stringify(list))
+    invalidateUsersCache()
   } catch (e) {
     console.error('Error eliminando colaborador local:', e)
   }
@@ -52,11 +64,48 @@ function removeLocalCollaborator(idOrEmail) {
 export const usersService = {
   ...baseService,
 
+  getCached() {
+    return cachedUsers
+  },
+
+  hasCache() {
+    return cachedUsers !== null
+  },
+
+  invalidate: invalidateUsersCache,
+
+  async list(options = {}) {
+    const forceRefresh = options?.forceRefresh === true
+    const now = Date.now()
+
+    if (cachedUsers && !forceRefresh) {
+      if (now - cachedUsersTime < 60000) {
+        return cachedUsers
+      }
+      this._fetchUsers().then(res => { cachedUsers = res; cachedUsersTime = Date.now() }).catch(() => {})
+      return cachedUsers
+    }
+
+    if (inFlightUsers) return inFlightUsers
+
+    inFlightUsers = this._fetchUsers()
+      .then(res => {
+        cachedUsers = res
+        cachedUsersTime = Date.now()
+        return res
+      })
+      .finally(() => {
+        inFlightUsers = null
+      })
+
+    return inFlightUsers
+  },
+
   /**
    * Obtiene la lista de colaboradores de la empresa activa.
    * Filtra estrictamente por company_id para garantizar aislamiento total entre empresas.
    */
-  async list() {
+  async _fetchUsers() {
     let remoteUsers = []
     const companyId = await getCurrentCompanyId().catch(() => null)
     const { data: authData } = await supabase.auth.getUser().catch(() => ({ data: {} }))

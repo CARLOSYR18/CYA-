@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { localDb } from '../lib/localDb'
 import { clearCompanyCache, setCompanyCache } from '../lib/companyContext'
+import AuthOverlay from '../components/ui/AuthOverlay'
+import LogoutConfirmModal from '../components/ui/LogoutConfirmModal'
 
 const AuthContext = createContext(null)
 const SESSION_KEY = 'inventory_erp_session'
@@ -9,6 +11,8 @@ const SESSION_KEY = 'inventory_erp_session'
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [authTransition, setAuthTransition] = useState(null)
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
 
   useEffect(() => {
     if (isSupabaseConfigured) {
@@ -35,12 +39,23 @@ export function AuthProvider({ children }) {
       : { id: authUser.id, email: authUser.email, role: 'empleado', company_id: null, avatar_url: metadata.avatar_url || null }
     setUser(profile)
     if (profile.company_id) setCompanyCache(profile.company_id)
+
+    // Precarga silenciosa en segundo plano para que todas las secciones carguen en milisegundos
+    setTimeout(() => {
+      import('../services/productsService').then(m => m.productsService.list().catch(() => {})).catch(() => {})
+      import('../services/salesService').then(m => m.salesService.list().catch(() => {})).catch(() => {})
+      import('../services/categoriesService').then(m => m.categoriesService.list().catch(() => {})).catch(() => {})
+      import('../services/clientsService').then(m => m.clientsService.list().catch(() => {})).catch(() => {})
+      import('../services/companySettingsService').then(m => m.companySettingsService.get().catch(() => {})).catch(() => {})
+      import('../services/inventoryMovementsService').then(m => m.inventoryMovementsService.list().catch(() => {})).catch(() => {})
+      import('../services/usersService').then(m => m.usersService.list().catch(() => {})).catch(() => {})
+    }, 200)
   }
 
   async function login(email, password) {
     const cleanEmail = (email || '').trim().toLowerCase()
     if (isSupabaseConfigured) {
-      const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: (password || '').trim() })
+      const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: (password || '').trim() })
       if (error) {
         const msg = (error.message || '').toLowerCase()
         if (msg.includes('email not confirmed')) {
@@ -48,16 +63,38 @@ export function AuthProvider({ children }) {
         }
         throw new Error('Credenciales incorrectas. Verifica que el correo y la contraseña estén bien escritos.')
       }
+
+      setAuthTransition({
+        type: 'login',
+        title: 'Iniciando sesión…',
+        subtitle: 'Cargando tu espacio de trabajo y catálogo…'
+      })
+
+      if (data?.user) {
+        await loadProfile(data.user)
+      }
+      await new Promise((r) => setTimeout(r, 650))
+      setAuthTransition(null)
       return
     }
+
     const profiles = localDb.getTable('profiles')
     const match = profiles.find((p) => p.email.toLowerCase() === email.toLowerCase() && p.password === password)
     if (!match) throw new Error('Credenciales incorrectas')
     if (match.active === false) throw new Error('Este usuario está desactivado')
+
+    setAuthTransition({
+      type: 'login',
+      title: 'Iniciando sesión…',
+      subtitle: 'Cargando tu espacio de trabajo…'
+    })
+
     const session = { ...match }
     delete session.password
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
     setUser(session)
+    await new Promise((r) => setTimeout(r, 650))
+    setAuthTransition(null)
   }
 
   // Crea la cuenta de usuario (aún SIN empresa). Si Supabase requiere
@@ -96,19 +133,39 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    if (isSupabaseConfigured) await supabase.auth.signOut()
-    else localStorage.removeItem(SESSION_KEY)
-    setUser(null)
-    clearCompanyCache()
+    setAuthTransition({
+      type: 'logout',
+      title: 'Cerrando sesión…',
+      subtitle: 'Saliendo de tu cuenta de forma segura… hasta pronto'
+    })
+    await new Promise((r) => setTimeout(r, 750))
+    try {
+      if (isSupabaseConfigured) await supabase.auth.signOut()
+      else localStorage.removeItem(SESSION_KEY)
+    } finally {
+      setUser(null)
+      clearCompanyCache()
+      setTimeout(() => {
+        setAuthTransition(null)
+      }, 350)
+    }
   }
 
   async function loginWithGoogle() {
     if (!isSupabaseConfigured) throw new Error('Requiere Supabase conectado.')
+    setAuthTransition({
+      type: 'login',
+      title: 'Conectando con Google…',
+      subtitle: 'Redirigiendo al acceso seguro…'
+    })
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },
     })
-    if (error) throw error
+    if (error) {
+      setAuthTransition(null)
+      throw error
+    }
   }
 
   // Enlace mágico: el usuario solo pone su correo y le llega un link para
@@ -171,9 +228,21 @@ export function AuthProvider({ children }) {
 
   const needsOnboarding = isSupabaseConfigured && !!user && !user.company_id && !user.is_platform_admin
 
+  const requestLogout = () => setConfirmLogoutOpen(true)
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, signUp, completeOnboarding, needsOnboarding, loginWithGoogle, loginWithMagicLink, updateProfile, updatePassword, isAdmin: user?.role === 'admin', isPlatformAdmin: user?.is_platform_admin === true }}>
+    <AuthContext.Provider value={{ user, loading, authTransition, setAuthTransition, login, logout, requestLogout, signUp, completeOnboarding, needsOnboarding, loginWithGoogle, loginWithMagicLink, updateProfile, updatePassword, isAdmin: user?.role === 'admin', isPlatformAdmin: user?.is_platform_admin === true }}>
       {children}
+      <LogoutConfirmModal
+        open={confirmLogoutOpen}
+        onClose={() => setConfirmLogoutOpen(false)}
+        onConfirm={() => {
+          setConfirmLogoutOpen(false)
+          logout()
+        }}
+        user={user}
+      />
+      <AuthOverlay transition={authTransition} />
     </AuthContext.Provider>
   )
 }

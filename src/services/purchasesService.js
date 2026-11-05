@@ -4,8 +4,7 @@ import { inventoryMovementsService } from './inventoryMovementsService'
 const base = createCrudService('purchases', { orderBy: 'created_at', ascending: false })
 
 export const purchasesService = {
-  list: base.list,
-  remove: base.remove,
+  ...base,
 
   purchaseTotal(purchase) {
     return purchase.items.reduce((sum, it) => sum + it.quantity * it.unit_cost, 0)

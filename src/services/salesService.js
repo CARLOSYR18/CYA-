@@ -5,9 +5,7 @@ import { clientsService } from './clientsService'
 const base = createCrudService('sales', { orderBy: 'created_at', ascending: false })
 
 export const salesService = {
-  list: base.list,
-  update: base.update,
-  remove: base.remove,
+  ...base,
 
   subtotal(sale) {
     return sale.items.reduce((sum, it) => sum + it.quantity * it.unit_price, 0)

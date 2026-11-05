@@ -21,6 +21,7 @@ import Suppliers from './pages/Suppliers'
 import NewSupplier from './pages/NewSupplier'
 import Users from './pages/Users'
 import NewUser from './pages/NewUser'
+import EmployeeActivity from './pages/EmployeeActivity'
 import CompanySettings from './pages/CompanySettings'
 import Plans from './pages/Plans'
 import PlatformAdmin from './pages/PlatformAdmin'
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="/usuarios" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
             <Route path="/usuarios/nuevo" element={<ProtectedRoute adminOnly><NewUser /></ProtectedRoute>} />
             <Route path="/usuarios/editar/:id" element={<ProtectedRoute adminOnly><NewUser /></ProtectedRoute>} />
+            <Route path="/actividad-empleados" element={<ProtectedRoute adminOnly><EmployeeActivity /></ProtectedRoute>} />
             <Route path="/configuracion" element={<ProtectedRoute adminOnly><CompanySettings /></ProtectedRoute>} />
             <Route path="/planes" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
             <Route path="/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

@@ -4,7 +4,7 @@ import { productsService } from './productsService'
 const base = createCrudService('inventory_movements', { orderBy: 'created_at', ascending: false })
 
 export const inventoryMovementsService = {
-  list: base.list,
+  ...base,
 
   // type: 'entrada' | 'salida'
   async register({ product_id, type, quantity, reason, reference }) {

@@ -15,7 +15,7 @@ function avatarColor(name = '') {
 
 export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onToggleCollapse }) {
   const navigate = useNavigate()
-  const { user, logout, isPlatformAdmin } = useAuth()
+  const { user, logout, requestLogout, isPlatformAdmin } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   
   // Company settings & logo
@@ -91,7 +91,11 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
       }
     }
     document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
+    document.addEventListener('touchstart', handleOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('touchstart', handleOutside)
+    }
   }, [])
 
   return (
@@ -158,7 +162,7 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
 
           {notifOpen && (
             <div
-              className="absolute right-0 top-[calc(100%+8px)] w-[min(calc(100vw-32px),360px)] bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#27272a] rounded-2xl animate-scale-in z-50 overflow-hidden shadow-2xl"
+              className="fixed inset-x-3 sm:inset-x-auto top-16 sm:top-[calc(100%+8px)] sm:right-0 max-w-sm sm:w-80 mx-auto sm:mx-0 bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#27272a] rounded-2xl animate-scale-in z-50 overflow-hidden shadow-2xl"
               style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}
             >
               <div className="px-4 py-3 bg-slate-50 dark:bg-[#18181c] border-b border-slate-100 dark:border-[#27272a] flex items-center justify-between">
@@ -356,7 +360,7 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
                 </button>
 
                 <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-                <button onClick={() => { setUserOpen(false); logout() }}
+                <button onClick={() => { setUserOpen(false); if (requestLogout) requestLogout(); else logout() }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer">
                   <LogOut size={14} /> Cerrar sesión
                 </button>

@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Boxes, Tags, ArrowLeftRight, ShoppingCart,
   Truck, Users, UserCog, Warehouse, X, Settings2, Sparkles, ShieldAlert,
-  ChevronsLeft, ChevronsRight, UserCircle
+  ChevronsLeft, ChevronsRight, UserCircle, Activity
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { planService } from '../../services/planService'
@@ -25,8 +25,9 @@ const NAV_USER = [
   { to: '/perfil', label: 'Mi Perfil', icon: UserCircle },
 ]
 const NAV_ADM = [
+  { to: '/actividad-empleados', label: 'Movimientos Empleados', icon: Activity },
+  { to: '/usuarios', label: 'Usuarios y Roles', icon: UserCog },
   { to: '/planes', label: 'Tu Plan', icon: Sparkles },
-  { to: '/usuarios', label: 'Usuarios', icon: UserCog },
   { to: '/configuracion', label: 'Empresa', icon: Settings2 },
 ]
 const NAV_PLATFORM = [

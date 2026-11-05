@@ -39,10 +39,10 @@ export default function Purchases() {
   const location = useLocation()
   const { user } = useAuth()
 
-  const [purchases, setPurchases] = useState([])
-  const [suppliers, setSuppliers] = useState([])
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [purchases, setPurchases] = useState(() => purchasesService.getCached?.() || [])
+  const [suppliers, setSuppliers] = useState(() => suppliersService.getCached?.() || [])
+  const [products, setProducts] = useState(() => productsService.getCached?.() || [])
+  const [loading, setLoading] = useState(() => !purchasesService.hasCache?.())
 
   // Toggle for top KPI metrics cards
   const [showMetrics, setShowMetrics] = useState(false)
@@ -79,7 +79,7 @@ export default function Purchases() {
 
   // Load backend data (100% Real Database Data)
   async function loadAll() {
-    setLoading(true)
+    if (!purchasesService.hasCache?.()) setLoading(true)
     try {
       const [pu, su, pr] = await Promise.all([
         purchasesService.list().catch(() => []),

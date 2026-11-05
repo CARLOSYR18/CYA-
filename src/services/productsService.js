@@ -19,12 +19,27 @@ async function fetchRaw(productId) {
 export const productsService = {
   ...base,
 
+  // Obtener productos cacheados de inmediato (0ms) con combos calculados
+  getCached() {
+    const raw = base.getCached()
+    if (!raw) return null
+    return raw.map((p) => {
+      if (p.is_kit && p.kit_component_id) {
+        const component = raw.find((c) => c.id === p.kit_component_id)
+        const kitQty = Number(p.kit_quantity) || 1
+        const computedStock = component ? Math.floor(component.stock / kitQty) : 0
+        return { ...p, stock: computedStock }
+      }
+      return p
+    })
+  },
+
   // Igual que antes, pero ahora calcula el stock real de los productos
   // "combo": en vez de leer un stock guardado, lo calcula a partir del
   // stock del producto BASE dividido entre cuántas unidades base usa
   // cada combo. Así nunca se desincroniza.
-  async list() {
-    const raw = await base.list()
+  async list(options) {
+    const raw = await base.list(options)
     return raw.map((p) => {
       if (p.is_kit && p.kit_component_id) {
         const component = raw.find((c) => c.id === p.kit_component_id)

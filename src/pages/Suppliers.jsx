@@ -52,10 +52,10 @@ export default function Suppliers() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [suppliers, setSuppliers] = useState([])
-  const [purchases, setPurchases] = useState([])
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [suppliers, setSuppliers] = useState(() => suppliersService.getCached?.() || [])
+  const [purchases, setPurchases] = useState(() => purchasesService.getCached?.() || [])
+  const [products, setProducts] = useState(() => productsService.getCached?.() || [])
+  const [loading, setLoading] = useState(() => !suppliersService.hasCache?.())
 
   // Filters & State
   const [search, setSearch] = useState('')
@@ -89,7 +89,7 @@ export default function Suppliers() {
   }, [successToast])
 
   async function loadAll() {
-    setLoading(true)
+    if (!suppliersService.hasCache?.()) setLoading(true)
     try {
       const [sups, purches, prods] = await Promise.all([
         suppliersService.list().catch(() => []),

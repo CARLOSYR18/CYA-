@@ -46,9 +46,27 @@ export const companySettingsService = {
     return getStoredCompany()
   },
 
-  async get() {
+  async get(options = {}) {
     const extra = getCachedExtraSettings()
     const cached = getStoredCompany()
+    const forceRefresh = options?.forceRefresh === true
+
+    // Retorno en 0ms si ya tenemos la empresa en almacenamiento local
+    if (cached && !forceRefresh) {
+      // Revalidación silenciosa en segundo plano
+      if (isSupabaseConfigured) {
+        getCurrentCompanyId().then((companyId) => {
+          if (!companyId) return
+          supabase.from('companies').select('*').eq('id', companyId).single().then(({ data, error }) => {
+            if (!error && data) {
+              paymentMethodsService.hydrateFromCompany({ ...data, ...extra })
+              saveStoredCompany({ ...extra, ...data })
+            }
+          }).catch(() => {})
+        }).catch(() => {})
+      }
+      return { ...extra, ...cached }
+    }
 
     if (isSupabaseConfigured) {
       const companyId = await getCurrentCompanyId()

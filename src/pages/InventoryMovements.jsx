@@ -6,13 +6,15 @@ import {
   TrendingUp, TrendingDown, HelpCircle, FileSpreadsheet,
   Calendar, ChevronLeft, ChevronRight, Copy, Check,
   ShoppingCart, ShoppingBag, SlidersHorizontal, RefreshCw,
-  Boxes, ShieldAlert, ArrowDownCircle, ArrowUpCircle
+  Boxes, ShieldAlert, ArrowDownCircle, ArrowUpCircle, User, Bot
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
 import { productsService } from '../services/productsService'
+import { salesService } from '../services/salesService'
+import { usersService } from '../services/usersService'
 
 const emptyForm = {
   product_id: '',
@@ -104,9 +106,11 @@ const ReasonBadge = ({ reason }) => {
 }
 
 export default function InventoryMovements() {
-  const [movements, setMovements] = useState([])
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [movements, setMovements] = useState(() => inventoryMovementsService.getCached?.() || [])
+  const [products, setProducts] = useState(() => productsService.getCached?.() || [])
+  const [sales, setSales] = useState(() => salesService.getCached?.() || [])
+  const [collaborators, setCollaborators] = useState(() => usersService.getCached?.() || [])
+  const [loading, setLoading] = useState(() => !inventoryMovementsService.hasCache?.())
 
   // Top bar & view controls
   const [showMetrics, setShowMetrics] = useState(true)
@@ -114,6 +118,7 @@ export default function InventoryMovements() {
   // Filters & Sorting
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('ALL') // 'ALL' | 'entrada' | 'salida'
+  const [responsibleFilter, setResponsibleFilter] = useState('ALL') // 'ALL' or user email / name
   const [sortBy, setSortBy] = useState('recent') // 'recent' | 'oldest' | 'highest' | 'lowest'
 
   // Date Range Filtering (Kardex Audit)
@@ -137,14 +142,18 @@ export default function InventoryMovements() {
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   async function loadAll() {
-    setLoading(true)
+    if (!inventoryMovementsService.hasCache?.()) setLoading(true)
     try {
-      const [m, p] = await Promise.all([
-        inventoryMovementsService.list(),
-        productsService.list()
+      const [m, p, s, u] = await Promise.all([
+        inventoryMovementsService.list().catch(() => []),
+        productsService.list().catch(() => []),
+        salesService.list().catch(() => []),
+        usersService.list().catch(() => [])
       ])
       setMovements(m || [])
       setProducts(p || [])
+      setSales(s || [])
+      setCollaborators(u || [])
     } finally {
       setLoading(false)
     }
@@ -153,6 +162,75 @@ export default function InventoryMovements() {
   useEffect(() => {
     loadAll()
   }, [])
+
+  /* ─── Helper: Resolver el colaborador responsable de cada movimiento ─── */
+  const getMovementResponsible = (m) => {
+    if (!m) return { name: 'Admin', role: 'admin', initials: 'AD', email: 'cya@gmail.com' }
+
+    // Detección de operaciones automáticas por Asistente IA
+    const refLow = (m.reference || '').toLowerCase()
+    const rsnLow = (m.reason || '').toLowerCase()
+    if (refLow.includes('asistente') || rsnLow.includes('asistente') || refLow.includes('ia')) {
+      return {
+        name: 'Asistente IA',
+        role: 'bot',
+        initials: 'IA',
+        email: 'asistente@cleanig.ai',
+        isAi: true
+      }
+    }
+
+    // Si tiene user_id directo
+    if (m.user_id) {
+      const matched = collaborators.find((c) => String(c.id) === String(m.user_id))
+      if (matched) {
+        return {
+          name: matched.full_name || matched.email?.split('@')[0] || 'Colaborador',
+          role: matched.role || 'empleado',
+          initials: (matched.full_name || matched.email || 'EM').slice(0, 2).toUpperCase(),
+          email: matched.email
+        }
+      }
+    }
+
+    // Si el movimiento proviene de una venta, rastrear el vendedor de la venta
+    if (m.reference) {
+      const refClean = m.reference.replace('#', '').trim().toLowerCase()
+      const sale = sales.find((s) => s.id && String(s.id).toLowerCase().includes(refClean))
+      if (sale) {
+        let matched = collaborators.find(
+          (u) => (sale.user_id && String(u.id) === String(sale.user_id)) ||
+                 (u.email && (sale.seller_name?.toLowerCase() === u.email.toLowerCase() || sale.notes?.toLowerCase().includes(u.email.toLowerCase()))) ||
+                 (u.full_name && sale.seller_name?.toLowerCase() === u.full_name.toLowerCase())
+        )
+        if (matched) {
+          return {
+            name: matched.full_name || matched.email?.split('@')[0],
+            role: matched.role || 'empleado',
+            initials: (matched.full_name || matched.email || 'EM').slice(0, 2).toUpperCase(),
+            email: matched.email
+          }
+        }
+        if (sale.seller_name) {
+          const isAdm = sale.seller_name.toLowerCase().includes('cya')
+          return {
+            name: sale.seller_name,
+            role: isAdm ? 'admin' : 'empleado',
+            initials: sale.seller_name.slice(0, 2).toUpperCase(),
+            email: sale.seller_name.includes('@') ? sale.seller_name : (isAdm ? 'cya@gmail.com' : 'empleado@erp.com')
+          }
+        }
+      }
+    }
+
+    // Por defecto, administrador de la empresa
+    return {
+      name: 'cya@gmail.com',
+      role: 'admin',
+      initials: 'CY',
+      email: 'cya@gmail.com'
+    }
+  }
 
   /* ─── Metrics Computations ─── */
   const stats = useMemo(() => {
@@ -178,7 +256,7 @@ export default function InventoryMovements() {
   const filtered = useMemo(() => {
     let result = [...movements]
 
-    // Text search (Product name, SKU, reason, reference)
+    // Text search (Product name, SKU, reason, reference, responsible)
     const q = search.trim().toLowerCase()
     if (q) {
       result = result.filter((m) => {
@@ -187,13 +265,25 @@ export default function InventoryMovements() {
         const pSku = (prod?.sku || '').toLowerCase()
         const reason = (m.reason || '').toLowerCase()
         const ref = (m.reference || '').toLowerCase()
-        return pName.includes(q) || pSku.includes(q) || reason.includes(q) || ref.includes(q)
+        const resp = getMovementResponsible(m)
+        const rName = (resp.name || '').toLowerCase()
+        const rEmail = (resp.email || '').toLowerCase()
+        return pName.includes(q) || pSku.includes(q) || reason.includes(q) || ref.includes(q) || rName.includes(q) || rEmail.includes(q)
       })
     }
 
     // Type filter
     if (typeFilter !== 'ALL') {
       result = result.filter((m) => m.type === typeFilter)
+    }
+
+    // Responsible filter
+    if (responsibleFilter !== 'ALL') {
+      result = result.filter((m) => {
+        const resp = getMovementResponsible(m)
+        const target = responsibleFilter.toLowerCase()
+        return resp.name?.toLowerCase().includes(target) || resp.email?.toLowerCase().includes(target)
+      })
     }
 
     // Date range filter
@@ -230,12 +320,12 @@ export default function InventoryMovements() {
     }
 
     return result
-  }, [movements, products, search, typeFilter, datePreset, dateFrom, dateTo, sortBy])
+  }, [movements, products, sales, collaborators, search, typeFilter, responsibleFilter, datePreset, dateFrom, dateTo, sortBy])
 
   // Reset pagination on filter change
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, typeFilter, datePreset, dateFrom, dateTo, sortBy, pageSize])
+  }, [search, typeFilter, responsibleFilter, datePreset, dateFrom, dateTo, sortBy, pageSize])
 
   // Paginated movements
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
@@ -262,12 +352,13 @@ export default function InventoryMovements() {
 
   // Export to Excel / CSV
   const handleExportExcel = () => {
-    const headers = ['Fecha', 'Hora', 'SKU', 'Producto', 'Tipo', 'Cantidad', 'Unidad', 'Motivo / Concepto', 'Referencia']
+    const headers = ['Fecha', 'Hora', 'SKU', 'Producto', 'Tipo', 'Cantidad', 'Unidad', 'Responsable', 'Rol', 'Motivo / Concepto', 'Referencia']
     const rows = filtered.map((m) => {
       const prod = getProduct(m.product_id)
       const { date, time } = formatDateTime(m.created_at)
       const typeLabel = m.type === 'entrada' ? 'Ingreso' : 'Egreso'
       const qty = m.type === 'entrada' ? `+${m.quantity}` : `-${m.quantity}`
+      const resp = getMovementResponsible(m)
       return [
         date,
         time,
@@ -276,6 +367,8 @@ export default function InventoryMovements() {
         typeLabel,
         qty,
         prod?.unit || 'uds.',
+        `"${resp.name.replace(/"/g, '""')}"`,
+        `"${resp.role}"`,
         `"${(m.reason || '').replace(/"/g, '""')}"`,
         `"${(m.reference || '').replace(/"/g, '""')}"`
       ]
@@ -295,13 +388,14 @@ export default function InventoryMovements() {
   const handleResetFilters = () => {
     setSearch('')
     setTypeFilter('ALL')
+    setResponsibleFilter('ALL')
     setDatePreset('ALL')
     setDateFrom('')
     setDateTo('')
     setSortBy('recent')
   }
 
-  const hasActiveFilters = search || typeFilter !== 'ALL' || datePreset !== 'ALL' || dateFrom || dateTo || sortBy !== 'recent'
+  const hasActiveFilters = search || typeFilter !== 'ALL' || responsibleFilter !== 'ALL' || datePreset !== 'ALL' || dateFrom || dateTo || sortBy !== 'recent'
 
   // Modal Handlers
   function openCreate() {
@@ -538,7 +632,7 @@ export default function InventoryMovements() {
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
               <input
                 className="w-full bg-slate-50/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl pl-10 pr-9 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-[#1a1f36] focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 transition-all outline-none"
-                placeholder="Buscar por producto, código SKU, motivo o referencia..."
+                placeholder="Buscar por producto, código SKU, motivo, responsable o referencia..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -546,7 +640,7 @@ export default function InventoryMovements() {
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
                 >
                   <X size={14} />
                 </button>
@@ -556,6 +650,25 @@ export default function InventoryMovements() {
             {/* Sort & Quick Date Controls */}
             <div className="flex flex-wrap items-center gap-2">
               
+              {/* Filter by Responsible */}
+              <div className="flex items-center gap-1.5 bg-slate-50/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-2.5 py-1.5">
+                <User size={13} className="text-slate-400 dark:text-slate-500 shrink-0" />
+                <span className="text-[11px] text-slate-400 dark:text-slate-400 font-medium shrink-0">Responsable:</span>
+                <select
+                  value={responsibleFilter}
+                  onChange={(e) => setResponsibleFilter(e.target.value)}
+                  className="bg-transparent text-xs text-slate-700 dark:text-slate-200 font-semibold outline-none cursor-pointer max-w-[130px] truncate"
+                >
+                  <option value="ALL" className="dark:bg-[#131627]">Todos</option>
+                  {collaborators.map((u) => (
+                    <option key={u.id || u.email} value={u.email || u.full_name} className="dark:bg-[#131627]">
+                      {u.full_name || u.email?.split('@')[0]} ({u.role || 'empleado'})
+                    </option>
+                  ))}
+                  <option value="Asistente IA" className="dark:bg-[#131627]">Asistente IA</option>
+                </select>
+              </div>
+
               {/* Sort selector */}
               <div className="flex items-center gap-1.5 bg-slate-50/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-2.5 py-1.5">
                 <ArrowUpDown size={13} className="text-slate-400 dark:text-slate-500 shrink-0" />
@@ -724,6 +837,7 @@ export default function InventoryMovements() {
                 const { date, time } = formatDateTime(m.created_at)
                 const isUUID = m.reference && m.reference.length > 16 && m.reference.includes('-')
                 const shortRef = isUUID ? `#${m.reference.slice(-6).toUpperCase()}` : (m.reference ? `#${m.reference}` : null)
+                const resp = getMovementResponsible(m)
 
                 return (
                   <div key={m.id} className="p-4 space-y-3 hover:bg-slate-50/60 dark:hover:bg-white/[0.02] transition-colors">
@@ -765,10 +879,31 @@ export default function InventoryMovements() {
                       </div>
                     </div>
 
-                    {/* Middle: Type badge + Reason badge */}
+                    {/* Middle: Type badge + Reason badge + Responsable badge */}
                     <div className="flex flex-wrap items-center gap-2">
                       <TypeBadge type={m.type} />
                       <ReasonBadge reason={m.reason} />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100/90 dark:bg-white/5 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-white/10 max-w-[240px] truncate">
+                        <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${
+                          resp.isAi 
+                            ? 'bg-gradient-to-tr from-purple-600 to-indigo-600' 
+                            : resp.role === 'admin' 
+                            ? 'bg-gradient-to-tr from-emerald-600 to-teal-700' 
+                            : 'bg-gradient-to-tr from-blue-600 to-indigo-600'
+                        }`}>
+                          {resp.initials}
+                        </span>
+                        <span className="truncate">{resp.name}</span>
+                        <span className={`text-[10px] font-semibold px-1 py-0.2 rounded-full ${
+                          resp.role === 'admin'
+                            ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-100/80 dark:bg-emerald-500/20'
+                            : resp.isAi
+                            ? 'text-purple-700 dark:text-purple-400 bg-purple-100/80 dark:bg-purple-500/20'
+                            : 'text-blue-700 dark:text-blue-400 bg-blue-100/80 dark:bg-blue-500/20'
+                        }`}>
+                          {resp.role === 'admin' ? 'Admin' : resp.isAi ? 'IA Bot' : 'Empleado'}
+                        </span>
+                      </span>
                     </div>
 
                     {/* Footer: Date, Reference, Actions */}
@@ -822,12 +957,13 @@ export default function InventoryMovements() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200/80 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02] text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    <th className="py-3 px-4 w-[160px]">Fecha y Hora</th>
+                    <th className="py-3 px-4 w-[150px]">Fecha y Hora</th>
                     <th className="py-3 px-4">Producto Afectado</th>
-                    <th className="py-3 px-4 text-center w-[170px]">Tipo de Movimiento</th>
-                    <th className="py-3 px-4 text-right w-[140px]">Cantidad</th>
+                    <th className="py-3 px-4 text-center w-[160px]">Tipo de Movimiento</th>
+                    <th className="py-3 px-4 text-right w-[130px]">Cantidad</th>
+                    <th className="py-3 px-4 w-[180px]">Responsable</th>
                     <th className="py-3 px-4">Motivo / Concepto</th>
-                    <th className="py-3 px-4 text-center w-[140px]">Referencia</th>
+                    <th className="py-3 px-4 text-center w-[130px]">Referencia</th>
                     <th className="py-3 px-4 text-right w-[90px]">Acciones</th>
                   </tr>
                 </thead>
@@ -838,6 +974,7 @@ export default function InventoryMovements() {
                     const { date, time } = formatDateTime(m.created_at)
                     const isUUID = m.reference && m.reference.length > 16 && m.reference.includes('-')
                     const shortRef = isUUID ? `#${m.reference.slice(-6).toUpperCase()}` : (m.reference ? `#${m.reference}` : null)
+                    const resp = getMovementResponsible(m)
 
                     return (
                       <tr key={m.id} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors group">
@@ -905,12 +1042,43 @@ export default function InventoryMovements() {
                           </span>
                         </td>
 
-                        {/* 5. Motivo / Concepto */}
+                        {/* 5. Responsable */}
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10.5px] font-bold text-white shadow-2xs shrink-0 ${
+                              resp.isAi 
+                                ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 shadow-purple-500/20' 
+                                : resp.role === 'admin' 
+                                ? 'bg-gradient-to-tr from-emerald-600 to-teal-700 shadow-emerald-500/20' 
+                                : 'bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-blue-500/20'
+                            }`}>
+                              {resp.initials}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-slate-800 dark:text-slate-200 text-xs truncate max-w-[130px]" title={resp.name}>
+                                {resp.name}
+                              </p>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded-full inline-block ${
+                                  resp.role === 'admin'
+                                    ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-500/20'
+                                    : resp.isAi
+                                    ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-200/60 dark:border-purple-500/20'
+                                    : 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200/60 dark:border-blue-500/20'
+                                }`}>
+                                  {resp.role === 'admin' ? 'Admin' : resp.isAi ? 'IA Bot' : 'Empleado'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 6. Motivo / Concepto */}
                         <td className="py-3.5 px-4">
                           <ReasonBadge reason={m.reason} />
                         </td>
 
-                        {/* 6. Referencia */}
+                        {/* 7. Referencia */}
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           {shortRef ? (
                             <button
@@ -931,7 +1099,7 @@ export default function InventoryMovements() {
                           )}
                         </td>
 
-                        {/* 7. Acciones */}
+                        {/* 8. Acciones */}
                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
                             <button

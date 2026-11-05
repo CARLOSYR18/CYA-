@@ -34,9 +34,9 @@ export default function Users() {
   const location = useLocation()
   const { user: currentAuthUser } = useAuth()
 
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [company, setCompany] = useState(null)
+  const [users, setUsers] = useState(() => usersService.getCached?.() || [])
+  const [loading, setLoading] = useState(() => !usersService.hasCache?.())
+  const [company, setCompany] = useState(() => companySettingsService.getCached?.() || null)
 
   // Filters & State
   const [search, setSearch] = useState('')
@@ -70,7 +70,7 @@ export default function Users() {
   }, [successToast])
 
   async function loadAll() {
-    setLoading(true)
+    if (!usersService.hasCache?.()) setLoading(true)
     try {
       const [usersList, comp] = await Promise.all([
         usersService.list().catch(() => []),

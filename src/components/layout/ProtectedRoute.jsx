@@ -16,8 +16,17 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-bg">
-        <p className="text-ink-muted text-sm">Cargando…</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white/90 dark:bg-[#0c0d12]/92 backdrop-blur-md p-4 animate-fade-in select-none">
+        <div className="relative mb-4 flex items-center justify-center">
+          <div className="w-14 h-14 rounded-full border-4 border-slate-200/90 dark:border-zinc-800" />
+          <div className="absolute w-14 h-14 rounded-full border-4 border-indigo-600 dark:border-indigo-400 border-t-transparent animate-spin" />
+        </div>
+        <p className="text-sm font-bold text-slate-800 dark:text-zinc-200 font-display">
+          Cargando espacio de trabajo…
+        </p>
+        <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">
+          Verificando sesión segura
+        </p>
       </div>
     )
   }

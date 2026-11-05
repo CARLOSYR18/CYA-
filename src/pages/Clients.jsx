@@ -58,8 +58,8 @@ const emptyForm = {
 }
 
 export default function Clients() {
-  const [clients, setClients] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [clients, setClients] = useState(() => clientsService.getCached?.() || [])
+  const [loading, setLoading] = useState(() => !clientsService.hasCache?.())
   
   // Selection & Details (Expediente Dossier)
   const [selected, setSelected] = useState(null)
@@ -91,7 +91,7 @@ export default function Clients() {
   const [deleting, setDeleting] = useState(false)
 
   async function loadAll() {
-    setLoading(true)
+    if (!clientsService.hasCache?.()) setLoading(true)
     try {
       const data = await getClientsHistory()
       setClients(data || [])

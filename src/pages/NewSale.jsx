@@ -34,7 +34,7 @@ export default function NewSale() {
   const [selectedClientId, setSelectedClientId] = useState('')
   const [orderType, setOrderType] = useState('COMPRA VENTA')
   const [purchaseOrder, setPurchaseOrder] = useState('')
-  const [sellerName, setSellerName] = useState(user?.full_name || 'LUCA LORENTZ')
+  const [sellerName, setSellerName] = useState(user?.full_name || user?.email || '')
   const [serie, setSerie] = useState('001')
 
   const [paymentStatus, setPaymentStatus] = useState('pagado') // 'pagado' | 'pendiente'
@@ -116,13 +116,23 @@ export default function NewSale() {
     }
   }
 
-  // Seller options
+  // Seller options con los usuarios reales del sistema
   const sellerOptions = useMemo(() => {
-    const list = new Set(['LUCA LORENTZ', 'JOHN L.', 'PAMELA KIM'])
+    const list = new Set()
     if (user?.full_name) list.add(user.full_name)
-    sellers.forEach(s => { if (s.full_name) list.add(s.full_name) })
+    if (user?.email) list.add(user.email)
+    sellers.forEach(s => {
+      const name = s.full_name || s.email
+      if (name) list.add(name)
+    })
     return Array.from(list)
   }, [user, sellers])
+
+  useEffect(() => {
+    if (user && !sellerName) {
+      setSellerName(user.full_name || user.email || '')
+    }
+  }, [user, sellerName])
 
   // Item row operations
   const addItemRow = () => {
@@ -202,9 +212,12 @@ export default function NewSale() {
         ? `[Medio: ${paymentMethod.toUpperCase()}]`
         : '[A Crédito]'
 
+      const sellerTag = sellerName ? `[Vendedor: ${sellerName}]` : (user?.full_name ? `[Vendedor: ${user.full_name}]` : (user?.email ? `[Vendedor: ${user.email}]` : ''))
+
       const finalNotes = [
         methodTag,
         purchaseOrder ? `OC: ${purchaseOrder}` : '',
+        sellerTag,
         notes
       ].filter(Boolean).join(' - ')
 
@@ -219,7 +232,7 @@ export default function NewSale() {
         notes: finalNotes || null,
         serie: serie || '001',
         order_type: orderType || 'COMPRA VENTA',
-        seller_name: sellerName
+        seller_name: sellerName || user?.full_name || user?.email || 'Admin'
       })
 
       // Return to Ventas table

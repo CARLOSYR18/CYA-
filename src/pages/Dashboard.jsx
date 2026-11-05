@@ -40,18 +40,18 @@ export default function Dashboard() {
 // ─── Contenido real del Dashboard (usa useLayout() YA dentro del LayoutContext.Provider) ───
 function DashboardContent() {
   const navigate = useNavigate()
-  const { user, logout, isPlatformAdmin } = useAuth()
+  const { user, logout, requestLogout, isPlatformAdmin } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   const { openSidebar } = useLayout()
 
   // ERP Backend States
-  const [products, setProducts] = useState([])
-  const [sales, setSales] = useState([])
-  const [categories, setCategories] = useState([])
-  const [clients, setClients] = useState([])
-  const [movements, setMovements] = useState([])
-  const [company, setCompany] = useState(() => companySettingsService.getCached())
-  const [loading, setLoading] = useState(true)
+  const [products, setProducts] = useState(() => productsService.getCached?.() || [])
+  const [sales, setSales] = useState(() => salesService.getCached?.() || [])
+  const [categories, setCategories] = useState(() => categoriesService.getCached?.() || [])
+  const [clients, setClients] = useState(() => clientsService.getCached?.() || [])
+  const [movements, setMovements] = useState(() => inventoryMovementsService.getCached?.() || [])
+  const [company, setCompany] = useState(() => companySettingsService.getCached?.())
+  const [loading, setLoading] = useState(() => !salesService.hasCache?.() && !productsService.hasCache?.())
 
   useEffect(() => {
     const handleCompanyUpdate = (e) => {
@@ -129,19 +129,25 @@ function DashboardContent() {
     getNotifications().then(list => setNotifications(list || [])).catch(() => {})
   }, [])
 
-  // Close menus on outside click
+  // Close menus on outside click or touch
   useEffect(() => {
     const handleOutside = (e) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserDropdownOpen(false)
       if (notifMenuRef.current && !notifMenuRef.current.contains(e.target)) setNotifDropdownOpen(false)
     }
     document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
+    document.addEventListener('touchstart', handleOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('touchstart', handleOutside)
+    }
   }, [])
 
   // Fetch real ERP data
   const loadData = async () => {
-    setLoading(true)
+    if (!salesService.hasCache?.() && !productsService.hasCache?.()) {
+      setLoading(true)
+    }
     try {
       const [p, s, c, cl, co, m] = await Promise.all([
         productsService.list().catch(() => []),
@@ -878,7 +884,7 @@ function DashboardContent() {
                 )}
               </button>
               {notifDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-[min(calc(100vw-32px),320px)] sm:w-80 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-3 z-40 animate-scale-in">
+                <div className="fixed inset-x-3 sm:inset-x-auto top-16 sm:top-full sm:right-0 sm:mt-2 max-w-sm sm:w-80 mx-auto sm:mx-0 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-3 z-50 animate-scale-in">
                   <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-white/10">
                     <div className="flex items-center gap-1.5">
                       <p className="text-xs font-bold text-slate-900 dark:text-white">Notificaciones</p>
@@ -1020,7 +1026,11 @@ function DashboardContent() {
                       </button>
                     )}
                     <button
-                      onClick={logout}
+                      onClick={() => {
+                        setUserDropdownOpen(false)
+                        if (requestLogout) requestLogout()
+                        else logout()
+                      }}
                       className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg flex items-center gap-2 font-semibold cursor-pointer"
                     >
                       <LogOut size={13} /> Cerrar Sesión

@@ -123,9 +123,9 @@ export default function Categories() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [categories, setCategories] = useState([])
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [categories, setCategories] = useState(() => categoriesService.getCached?.() || [])
+  const [products, setProducts] = useState(() => productsService.getCached?.() || [])
+  const [loading, setLoading] = useState(() => !categoriesService.hasCache?.())
 
   // Filters & State
   const [search, setSearch] = useState('')
@@ -158,7 +158,7 @@ export default function Categories() {
   }, [successToast])
 
   async function loadAll() {
-    setLoading(true)
+    if (!categoriesService.hasCache?.()) setLoading(true)
     try {
       const [c, p] = await Promise.all([
         categoriesService.list(),
