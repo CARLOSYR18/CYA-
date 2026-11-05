@@ -87,7 +87,10 @@ export default function Assistant() {
     : 'Asistente CYA'
 
   // Intro animation states: 'showcase' (tamaño grande + bienvenida) -> 'minimizing' -> 'idle' (bolita)
-  const [introState, setIntroState] = useState('showcase')
+  const [introState, setIntroState] = useState(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return 'idle'
+    return 'showcase'
+  })
 
   const panelRef = useRef(null)
   const buttonRef = useRef(null)
@@ -109,9 +112,10 @@ export default function Assistant() {
     clientsService.list().then(setClients).catch(() => { })
   }, [user, location.pathname])
 
-  // Secuencia de animación de entrada: se muestra en tamaño real y luego se encoge a bolita
+  // Secuencia de animación de entrada: se muestra en tamaño real y luego se encoge a bolita (solo desktop)
   useEffect(() => {
     if (!user || location.pathname === '/login') return
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return
     // Tras 3.2 segundos en tamaño real, inicia la transición a bolita
     const timer = setTimeout(() => {
       startMinimize()

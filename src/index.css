@@ -4,8 +4,15 @@
 
 
 /* ── Reset & Base ── */
-*, *::before, *::after { box-sizing: border-box; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
 html, body, #root { height: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
 body {
   background-color: #F4F6FB;
   color: #0A0F1E;
@@ -13,6 +20,13 @@ body {
   font-feature-settings: 'ss01' on, 'cv01' on, 'cv03' on;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+}
+
+/* Touch optimization to eliminate 300ms tap delay on mobile */
+a, button, input, select, textarea {
+  touch-action: manipulation;
 }
 
 /* ── Scrollbar ── */

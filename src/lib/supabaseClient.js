@@ -10,6 +10,12 @@ export const supabase = isSupabaseConfigured
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        // Bypass navigator.locks para evitar bloqueos/congelamientos en WebKit / Safari iOS
+        lock: async (_name, _acquireTimeout, fn) => {
+          return await fn()
+        },
       },
     })
   : null

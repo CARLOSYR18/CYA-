@@ -17,14 +17,17 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (isSupabaseConfigured) {
       supabase.auth.getSession().then(async ({ data }) => {
-        if (data.session) await loadProfile(data.session.user)
+        if (data?.session) await loadProfile(data.session.user).catch(() => {})
+        setLoading(false)
+      }).catch((e) => {
+        console.warn('Aviso getSession:', e)
         setLoading(false)
       })
       const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-        if (session) await loadProfile(session.user)
+        if (session) await loadProfile(session.user).catch(() => {})
         else { setUser(null); clearCompanyCache() }
       })
-      return () => sub.subscription.unsubscribe()
+      return () => sub?.subscription?.unsubscribe?.()
     }
     const raw = localStorage.getItem(SESSION_KEY)
     if (raw) setUser(JSON.parse(raw))
@@ -32,13 +35,19 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function loadProfile(authUser) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
-    const metadata = authUser?.user_metadata || {}
-    const profile = data
-      ? { ...data, email: authUser.email, avatar_url: data.avatar_url || metadata.avatar_url || null }
-      : { id: authUser.id, email: authUser.email, role: 'empleado', company_id: null, avatar_url: metadata.avatar_url || null }
-    setUser(profile)
-    if (profile.company_id) setCompanyCache(profile.company_id)
+    try {
+      const { data } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
+      const metadata = authUser?.user_metadata || {}
+      const profile = data
+        ? { ...data, email: authUser.email, avatar_url: data.avatar_url || metadata.avatar_url || null }
+        : { id: authUser.id, email: authUser.email, role: 'empleado', company_id: null, avatar_url: metadata.avatar_url || null }
+      setUser(profile)
+      if (profile.company_id) setCompanyCache(profile.company_id)
+    } catch (err) {
+      console.warn('Aviso cargando perfil:', err)
+      const metadata = authUser?.user_metadata || {}
+      setUser({ id: authUser.id, email: authUser.email, role: 'empleado', company_id: null, avatar_url: metadata.avatar_url || null })
+    }
 
     // Precarga silenciosa en segundo plano para que todas las secciones carguen en milisegundos
     setTimeout(() => {
@@ -55,7 +64,16 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const cleanEmail = (email || '').trim().toLowerCase()
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: (password || '').trim() })
+      // Carrera con timeout para evitar bloqueos indefinidos en WebKit / Safari iOS
+      const signInPromise = supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: (password || '').trim()
+      })
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('La conexión tardó demasiado. Por favor verifica tu señal de internet o intenta nuevamente.')), 15000)
+      )
+
+      const { data, error } = await Promise.race([signInPromise, timeoutPromise])
       if (error) {
         const msg = (error.message || '').toLowerCase()
         if (msg.includes('email not confirmed')) {
@@ -71,7 +89,7 @@ export function AuthProvider({ children }) {
       })
 
       if (data?.user) {
-        await loadProfile(data.user)
+        await loadProfile(data.user).catch(() => {})
       }
       await new Promise((r) => setTimeout(r, 650))
       setAuthTransition(null)

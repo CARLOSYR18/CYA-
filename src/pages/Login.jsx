@@ -47,7 +47,7 @@ export default function Login() {
     setLoading(true)
     try {
       await login(email, password)
-      navigate('/')
+      navigate('/', { replace: true })
     } catch (err) {
       setError(err.message || 'Credenciales incorrectas. Verifique correo y contraseña.')
     } finally {
