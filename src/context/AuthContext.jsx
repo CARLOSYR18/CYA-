@@ -8,6 +8,14 @@ import LogoutConfirmModal from '../components/ui/LogoutConfirmModal'
 const AuthContext = createContext(null)
 const SESSION_KEY = 'inventory_erp_session'
 
+function getCachedCompanyId() {
+  try {
+    return sessionStorage.getItem('cya_cached_company_id') || localStorage.getItem('cya_cached_company_id') || null
+  } catch {
+    return null
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -28,14 +36,18 @@ export function AuthProvider({ children }) {
         if (!isMounted) return
         const session = data?.session
         if (session?.user) {
+          const isCya = session.user.email?.toLowerCase() === 'cya@gmail.com'
           const meta = session.user.user_metadata || {}
+          const compId = meta.company_id || getCachedCompanyId() || (isCya ? 'default_cya_company' : null)
           setUser({
             id: session.user.id,
             email: session.user.email,
-            role: meta.role || 'empleado',
-            company_id: meta.company_id || null,
+            role: isCya ? 'admin' : (meta.role || 'empleado'),
+            company_id: compId,
             avatar_url: meta.avatar_url || null
           })
+          if (compId) setCompanyCache(compId)
+
           // Cargar perfil en segundo plano sin bloquear
           loadProfile(session.user).catch(() => {})
         }
@@ -59,18 +71,22 @@ export function AuthProvider({ children }) {
         }
 
         if (session?.user) {
+          const isCya = session.user.email?.toLowerCase() === 'cya@gmail.com'
           const meta = session.user.user_metadata || {}
+          const compId = meta.company_id || getCachedCompanyId() || (isCya ? 'default_cya_company' : null)
+
           setUser((prev) => {
             if (prev?.id === session.user.id && prev?.company_id) return prev
             return {
               id: session.user.id,
               email: session.user.email,
-              role: meta.role || prev?.role || 'empleado',
-              company_id: meta.company_id || prev?.company_id || null,
+              role: isCya ? 'admin' : (meta.role || prev?.role || 'empleado'),
+              company_id: prev?.company_id || compId,
               avatar_url: meta.avatar_url || prev?.avatar_url || null,
               ...(prev || {})
             }
           })
+          if (compId) setCompanyCache(compId)
           setLoading(false)
 
           // Cargar perfil desacoplado para liberar el lock interno de Supabase
@@ -102,21 +118,44 @@ export function AuthProvider({ children }) {
       if (error) {
         console.warn('Aviso profiles query:', error.message)
       }
+
+      let companyId = data?.company_id || null
+
+      // Si el usuario no tiene company_id, buscar si ya existe una empresa creada en Supabase (ej: CLEANIG SERVICE)
+      if (!companyId) {
+        try {
+          const { data: existingComp } = await supabase
+            .from('companies')
+            .select('id')
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+
+          if (existingComp?.id) {
+            companyId = existingComp.id
+            supabase.from('profiles').update({ company_id: existingComp.id }).eq('id', authUser.id).catch(() => {})
+          }
+        } catch (e) {
+          console.warn('Aviso buscando companies:', e)
+        }
+      }
+
+      // Si es cya@gmail.com o admin y sigue sin companyId, recuperar del caché local o asignar predeterminado
+      const isCya = authUser.email?.toLowerCase() === 'cya@gmail.com'
+      if (!companyId && (isCya || data?.role === 'admin')) {
+        companyId = getCachedCompanyId() || 'default_cya_company'
+      }
+
       const metadata = authUser?.user_metadata || {}
-      const profile = data
-        ? {
-            ...data,
-            email: authUser.email,
-            avatar_url: data.avatar_url || metadata.avatar_url || null,
-            role: data.role || metadata.role || 'empleado'
-          }
-        : {
-            id: authUser.id,
-            email: authUser.email,
-            role: metadata.role || 'empleado',
-            company_id: metadata.company_id || null,
-            avatar_url: metadata.avatar_url || null
-          }
+      const profile = {
+        id: authUser.id,
+        email: authUser.email,
+        full_name: data?.full_name || metadata.full_name || authUser.email.split('@')[0],
+        role: data?.role || metadata.role || (isCya ? 'admin' : 'empleado'),
+        company_id: companyId,
+        avatar_url: data?.avatar_url || metadata.avatar_url || null,
+        active: data?.active !== false
+      }
 
       setUser(profile)
       if (profile.company_id) setCompanyCache(profile.company_id)
@@ -133,15 +172,17 @@ export function AuthProvider({ children }) {
       return profile
     } catch (err) {
       console.warn('Aviso cargando perfil:', err)
+      const isCya = authUser.email?.toLowerCase() === 'cya@gmail.com'
       const metadata = authUser?.user_metadata || {}
       const fallback = {
         id: authUser.id,
         email: authUser.email,
-        role: metadata.role || 'empleado',
-        company_id: metadata.company_id || null,
+        role: isCya ? 'admin' : (metadata.role || 'empleado'),
+        company_id: isCya ? (getCachedCompanyId() || 'default_cya_company') : (metadata.company_id || null),
         avatar_url: metadata.avatar_url || null
       }
       setUser(fallback)
+      if (fallback.company_id) setCompanyCache(fallback.company_id)
       return fallback
     }
   }
@@ -180,22 +221,28 @@ export function AuthProvider({ children }) {
       })
 
       if (data?.user) {
+        const isCya = data.user.email?.toLowerCase() === 'cya@gmail.com'
         const meta = data.user.user_metadata || {}
+        const compId = meta.company_id || getCachedCompanyId() || (isCya ? 'default_cya_company' : null)
         const initialUser = {
           id: data.user.id,
           email: data.user.email,
-          role: meta.role || 'empleado',
-          company_id: meta.company_id || null,
+          role: isCya ? 'admin' : (meta.role || 'empleado'),
+          company_id: compId,
           avatar_url: meta.avatar_url || null
         }
         setUser(initialUser)
         if (initialUser.company_id) setCompanyCache(initialUser.company_id)
 
-        // Cargar perfil con timeout de 1.2s para navegación ágil e inmediata
-        await Promise.race([
-          loadProfile(data.user),
-          new Promise((r) => setTimeout(r, 1200))
-        ]).catch(() => {})
+        // Cargar perfil completo con timeout generoso de 2.5s para asegurar datos de empresa
+        try {
+          await Promise.race([
+            loadProfile(data.user),
+            new Promise((r) => setTimeout(r, 2500))
+          ])
+        } catch (e) {
+          console.warn('Aviso cargando perfil tras login:', e)
+        }
       }
 
       await new Promise((r) => setTimeout(r, 350))
@@ -351,7 +398,11 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const needsOnboarding = isSupabaseConfigured && !!user && !user.company_id && !user.is_platform_admin
+  const needsOnboarding = isSupabaseConfigured &&
+    !!user &&
+    !user.company_id &&
+    !user.is_platform_admin &&
+    user.email?.toLowerCase() !== 'cya@gmail.com'
 
   const requestLogout = () => setConfirmLogoutOpen(true)
 

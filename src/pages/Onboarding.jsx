@@ -15,8 +15,15 @@ import { useAuth } from '../context/AuthContext'
 import { productsService } from '../services/productsService'
 
 export default function Onboarding() {
-  const { completeOnboarding } = useAuth()
+  const { user, completeOnboarding } = useAuth()
   const navigate = useNavigate()
+
+  // Si el usuario ya cuenta con empresa o es cya@gmail.com, redirigir directo al Dashboard principal
+  useEffect(() => {
+    if (user?.company_id || user?.email?.toLowerCase() === 'cya@gmail.com') {
+      navigate('/', { replace: true })
+    }
+  }, [user, navigate])
 
   const [name, setName] = useState('')
   const [ruc, setRuc] = useState('')
