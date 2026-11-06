@@ -90,11 +90,9 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
         setNotifOpen(false)
       }
     }
-    document.addEventListener('mousedown', handleOutside)
-    document.addEventListener('touchstart', handleOutside)
+    document.addEventListener('click', handleOutside)
     return () => {
-      document.removeEventListener('mousedown', handleOutside)
-      document.removeEventListener('touchstart', handleOutside)
+      document.removeEventListener('click', handleOutside)
     }
   }, [])
 
@@ -142,19 +140,22 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
         <div className="relative" ref={notifRef}>
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation()
+              setUserOpen(false)
               const next = !notifOpen
               setNotifOpen(next)
               if (next) loadNotifs()
             }}
-            className={`relative p-2 rounded-xl transition-all ${
+            className={`relative p-2 rounded-xl transition-all cursor-pointer ${
               notifOpen ? 'bg-blue-50 text-blue-700 dark:bg-blue-600/20 dark:text-blue-400' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
-            title="Notificaciones"
+            title="Notificaciones y alertas"
+            aria-label="Notificaciones"
           >
-            <Bell size={18} />
+            <Bell size={18} className="pointer-events-none" />
             {notifications.length > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-bad text-white text-[10px] font-extrabold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-900 shadow-xs">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-bad text-white text-[10px] font-extrabold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-900 shadow-xs pointer-events-none">
                 {notifications.length > 9 ? '9+' : notifications.length}
               </span>
             )}
@@ -162,7 +163,7 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
 
           {notifOpen && (
             <div
-              className="fixed inset-x-3 sm:inset-x-auto top-16 sm:top-[calc(100%+8px)] sm:right-0 max-w-sm sm:w-80 mx-auto sm:mx-0 bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#27272a] rounded-2xl animate-scale-in z-50 overflow-hidden shadow-2xl"
+              className="absolute right-0 top-full mt-2 w-[calc(100vw-24px)] max-w-sm sm:w-84 bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#27272a] rounded-2xl animate-scale-in z-50 overflow-hidden shadow-2xl"
               style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}
             >
               <div className="px-4 py-3 bg-slate-50 dark:bg-[#18181c] border-b border-slate-100 dark:border-[#27272a] flex items-center justify-between">
@@ -195,11 +196,12 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
                       <button
                         key={n.id}
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           setNotifOpen(false)
                           if (n.link) navigate(n.link)
                         }}
-                        className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 active:bg-slate-100 dark:active:bg-slate-800 transition-colors flex items-start gap-2.5 group"
+                        className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 active:bg-slate-100 dark:active:bg-slate-800 transition-colors flex items-start gap-2.5 group cursor-pointer"
                       >
                         <span
                           className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
@@ -254,8 +256,14 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
 
         {/* User */}
         <div className="relative" ref={userRef}>
-          <button onClick={() => setUserOpen(v => !v)}
-            className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl border transition-all ${
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setNotifOpen(false)
+              setUserOpen(v => !v)
+            }}
+            className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer ${
               userOpen ? 'border-blue-200 bg-blue-50 dark:border-blue-500/40 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}>
             <div

@@ -132,14 +132,16 @@ function DashboardContent() {
   // Close menus on outside click or touch
   useEffect(() => {
     const handleOutside = (e) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserDropdownOpen(false)
-      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target)) setNotifDropdownOpen(false)
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserDropdownOpen(false)
+      }
+      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target)) {
+        setNotifDropdownOpen(false)
+      }
     }
-    document.addEventListener('mousedown', handleOutside)
-    document.addEventListener('touchstart', handleOutside)
+    document.addEventListener('click', handleOutside)
     return () => {
-      document.removeEventListener('mousedown', handleOutside)
-      document.removeEventListener('touchstart', handleOutside)
+      document.removeEventListener('click', handleOutside)
     }
   }, [])
 
@@ -873,18 +875,25 @@ function DashboardContent() {
             {/* Notification Bell with Badge (Circular Pill) */}
             <div className="relative" ref={notifMenuRef}>
               <button
-                onClick={() => setNotifDropdownOpen(o => !o)}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setUserDropdownOpen(false)
+                  setNotifDropdownOpen(o => !o)
+                }}
                 className="w-8 h-8 rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/10 flex items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/15 relative transition-all cursor-pointer shadow-2xs"
+                title="Notificaciones y alertas"
+                aria-label="Notificaciones"
               >
-                <Bell size={14} />
+                <Bell size={14} className="shrink-0 pointer-events-none" />
                 {notifications.length > 0 && (
-                  <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center absolute -top-1 -right-1 ring-2 ring-white dark:ring-[#131627]">
-                    {notifications.length}
+                  <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center absolute -top-1 -right-1 ring-2 ring-white dark:ring-[#131627] pointer-events-none">
+                    {notifications.length > 9 ? '9+' : notifications.length}
                   </span>
                 )}
               </button>
               {notifDropdownOpen && (
-                <div className="fixed inset-x-3 sm:inset-x-auto top-16 sm:top-full sm:right-0 sm:mt-2 max-w-sm sm:w-80 mx-auto sm:mx-0 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-3 z-50 animate-scale-in">
+                <div className="absolute right-0 top-full mt-2 w-[calc(100vw-24px)] max-w-sm sm:w-84 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-3 z-50 animate-scale-in">
                   <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-white/10">
                     <div className="flex items-center gap-1.5">
                       <p className="text-xs font-bold text-slate-900 dark:text-white">Notificaciones</p>
@@ -911,7 +920,8 @@ function DashboardContent() {
                           <button
                             key={n.id || i}
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation()
                               setNotifDropdownOpen(false)
                               if (n.link) navigate(n.link)
                             }}
@@ -954,7 +964,8 @@ function DashboardContent() {
                     <div className="pt-2 mt-2 border-t border-slate-100 dark:border-white/10">
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           setNotifDropdownOpen(false)
                           navigate('/productos')
                         }}
@@ -971,7 +982,12 @@ function DashboardContent() {
             {/* User Profile Dropdown */}
             <div className="relative ml-1" ref={userMenuRef}>
               <button
-                onClick={() => setUserDropdownOpen(o => !o)}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setNotifDropdownOpen(false)
+                  setUserDropdownOpen(o => !o)
+                }}
                 className="flex items-center cursor-pointer focus:outline-none"
               >
                 <div className="h-9 min-w-[36px] max-w-[50px] px-1 rounded-xl overflow-hidden ring-2 ring-indigo-500/25 hover:ring-indigo-500 transition-all shadow-2xs bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 flex items-center justify-center">
