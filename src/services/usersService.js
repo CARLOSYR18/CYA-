@@ -114,12 +114,12 @@ export const usersService = {
 
     if (isSupabaseConfigured) {
       try {
-        // Si tenemos la empresa actual, asegurar que Carlos quede vinculado a ella si aún no lo estaba
-        if (companyId) {
+        // Si tenemos la empresa actual, asegurar que el usuario autenticado quede vinculado a ella si aún no lo estaba
+        if (companyId && currentAuthId) {
           supabase
             .from('profiles')
             .update({ company_id: companyId })
-            .eq('email', 'carlosdanielyamacachorocca@gmail.com')
+            .eq('id', currentAuthId)
             .is('company_id', null)
             .then(() => {})
             .catch(() => {})

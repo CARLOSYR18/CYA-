@@ -18,9 +18,9 @@ export default function Onboarding() {
   const { user, completeOnboarding } = useAuth()
   const navigate = useNavigate()
 
-  // Si el usuario ya cuenta con empresa o es cya@gmail.com, redirigir directo al Dashboard principal
+  // Si el usuario ya cuenta con empresa o no es administrador, redirigir directo al Dashboard principal
   useEffect(() => {
-    if (user?.company_id || user?.email?.toLowerCase() === 'cya@gmail.com') {
+    if (user?.company_id || (user && user.role !== 'admin')) {
       navigate('/', { replace: true })
     }
   }, [user, navigate])
