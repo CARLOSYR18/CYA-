@@ -146,18 +146,32 @@ function DashboardContent() {
   }, [])
 
   // Fetch real ERP data
-  const loadData = async () => {
-    if (!salesService.hasCache?.() && !productsService.hasCache?.()) {
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await loadData(true)
+      const notifs = await getNotifications().catch(() => [])
+      setNotifications(notifs || [])
+    } finally {
+      setTimeout(() => setRefreshing(false), 550)
+    }
+  }
+
+  const loadData = async (force = false) => {
+    if (force || (!salesService.hasCache?.() && !productsService.hasCache?.())) {
       setLoading(true)
     }
     try {
+      const opts = force ? { forceRefresh: true } : {}
       const [p, s, c, cl, co, m] = await Promise.all([
-        productsService.list().catch(() => []),
-        salesService.list().catch(() => []),
-        categoriesService.list().catch(() => []),
-        clientsService.list().catch(() => []),
-        companySettingsService.get().catch(() => null),
-        inventoryMovementsService.list().catch(() => [])
+        productsService.list(opts).catch(() => []),
+        salesService.list(opts).catch(() => []),
+        categoriesService.list(opts).catch(() => []),
+        clientsService.list(opts).catch(() => []),
+        companySettingsService.get(opts).catch(() => null),
+        inventoryMovementsService.list(opts).catch(() => [])
       ])
       setProducts(p || [])
       setSales(s || [])
@@ -865,11 +879,14 @@ function DashboardContent() {
 
             {/* Reload Button (Circular Pill) */}
             <button
-              onClick={loadData}
-              className="hidden sm:flex w-8 h-8 rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/10 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/15 transition-all cursor-pointer shadow-2xs"
-              title="Actualizar Datos"
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex w-8 h-8 rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/10 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/15 transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-60"
+              title="Actualizar Datos del ERP"
+              aria-label="Actualizar Datos"
             >
-              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={13} className={refreshing ? 'animate-spin text-blue-600 dark:text-blue-400' : ''} />
             </button>
 
             {/* Notification Bell with Badge (Circular Pill) */}
