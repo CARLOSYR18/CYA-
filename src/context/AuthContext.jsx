@@ -15,77 +15,190 @@ export function AuthProvider({ children }) {
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
 
   useEffect(() => {
+    let isMounted = true
+
     if (isSupabaseConfigured) {
-      supabase.auth.getSession().then(async ({ data }) => {
-        if (data?.session) await loadProfile(data.session.user).catch(() => {})
+      // 1. Temporizador de seguridad: NUNCA dejar la UI bloqueada en loading más de 2s
+      const fallbackTimer = setTimeout(() => {
+        if (isMounted) setLoading(false)
+      }, 2000)
+
+      // 2. getSession() sin bloquear setLoading por la carga de perfil
+      supabase.auth.getSession().then(({ data }) => {
+        if (!isMounted) return
+        const session = data?.session
+        if (session?.user) {
+          const meta = session.user.user_metadata || {}
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            role: meta.role || 'empleado',
+            company_id: meta.company_id || null,
+            avatar_url: meta.avatar_url || null
+          })
+          // Cargar perfil en segundo plano sin bloquear
+          loadProfile(session.user).catch(() => {})
+        }
         setLoading(false)
+        clearTimeout(fallbackTimer)
       }).catch((e) => {
         console.warn('Aviso getSession:', e)
-        setLoading(false)
+        if (isMounted) setLoading(false)
+        clearTimeout(fallbackTimer)
       })
-      const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-        if (session) await loadProfile(session.user).catch(() => {})
-        else { setUser(null); clearCompanyCache() }
+
+      // 3. onAuthStateChange: SÍNCRONO (NUNCA async) para evitar deadlock interno en @supabase/auth-js
+      const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+        if (!isMounted) return
+
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null)
+          clearCompanyCache()
+          setLoading(false)
+          return
+        }
+
+        if (session?.user) {
+          const meta = session.user.user_metadata || {}
+          setUser((prev) => {
+            if (prev?.id === session.user.id && prev?.company_id) return prev
+            return {
+              id: session.user.id,
+              email: session.user.email,
+              role: meta.role || prev?.role || 'empleado',
+              company_id: meta.company_id || prev?.company_id || null,
+              avatar_url: meta.avatar_url || prev?.avatar_url || null,
+              ...(prev || {})
+            }
+          })
+          setLoading(false)
+
+          // Cargar perfil desacoplado para liberar el lock interno de Supabase
+          setTimeout(() => {
+            if (isMounted) {
+              loadProfile(session.user).catch(() => {})
+            }
+          }, 0)
+        }
       })
-      return () => sub?.subscription?.unsubscribe?.()
+
+      return () => {
+        isMounted = false
+        clearTimeout(fallbackTimer)
+        sub?.subscription?.unsubscribe?.()
+      }
     }
+
     const raw = localStorage.getItem(SESSION_KEY)
     if (raw) setUser(JSON.parse(raw))
     setLoading(false)
   }, [])
 
   async function loadProfile(authUser) {
+    if (!authUser?.id) return null
     try {
-      const { data } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
+      // Usar maybeSingle() para no arrojar error si aún no existe registro en profiles
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle()
+      if (error) {
+        console.warn('Aviso profiles query:', error.message)
+      }
       const metadata = authUser?.user_metadata || {}
       const profile = data
-        ? { ...data, email: authUser.email, avatar_url: data.avatar_url || metadata.avatar_url || null }
-        : { id: authUser.id, email: authUser.email, role: 'empleado', company_id: null, avatar_url: metadata.avatar_url || null }
+        ? {
+            ...data,
+            email: authUser.email,
+            avatar_url: data.avatar_url || metadata.avatar_url || null,
+            role: data.role || metadata.role || 'empleado'
+          }
+        : {
+            id: authUser.id,
+            email: authUser.email,
+            role: metadata.role || 'empleado',
+            company_id: metadata.company_id || null,
+            avatar_url: metadata.avatar_url || null
+          }
+
       setUser(profile)
       if (profile.company_id) setCompanyCache(profile.company_id)
+
+      // Precarga silenciosa en segundo plano
+      setTimeout(() => {
+        import('../services/productsService').then(m => m.productsService.list().catch(() => {})).catch(() => {})
+        import('../services/salesService').then(m => m.salesService.list().catch(() => {})).catch(() => {})
+        import('../services/categoriesService').then(m => m.categoriesService.list().catch(() => {})).catch(() => {})
+        import('../services/clientsService').then(m => m.clientsService.list().catch(() => {})).catch(() => {})
+        import('../services/companySettingsService').then(m => m.companySettingsService.get().catch(() => {})).catch(() => {})
+      }, 300)
+
+      return profile
     } catch (err) {
       console.warn('Aviso cargando perfil:', err)
       const metadata = authUser?.user_metadata || {}
-      setUser({ id: authUser.id, email: authUser.email, role: 'empleado', company_id: null, avatar_url: metadata.avatar_url || null })
+      const fallback = {
+        id: authUser.id,
+        email: authUser.email,
+        role: metadata.role || 'empleado',
+        company_id: metadata.company_id || null,
+        avatar_url: metadata.avatar_url || null
+      }
+      setUser(fallback)
+      return fallback
     }
-
-    // Precarga silenciosa en segundo plano para que todas las secciones carguen en milisegundos
-    setTimeout(() => {
-      import('../services/productsService').then(m => m.productsService.list().catch(() => {})).catch(() => {})
-      import('../services/salesService').then(m => m.salesService.list().catch(() => {})).catch(() => {})
-      import('../services/categoriesService').then(m => m.categoriesService.list().catch(() => {})).catch(() => {})
-      import('../services/clientsService').then(m => m.clientsService.list().catch(() => {})).catch(() => {})
-      import('../services/companySettingsService').then(m => m.companySettingsService.get().catch(() => {})).catch(() => {})
-      import('../services/inventoryMovementsService').then(m => m.inventoryMovementsService.list().catch(() => {})).catch(() => {})
-      import('../services/usersService').then(m => m.usersService.list().catch(() => {})).catch(() => {})
-    }, 200)
   }
 
   async function login(email, password) {
     const cleanEmail = (email || '').trim().toLowerCase()
+    const cleanPassword = (password || '').trim()
+
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Timeout de 12 segundos para evitar que la interfaz se quede pegada si falla la red móvil
+      const loginPromise = supabase.auth.signInWithPassword({
         email: cleanEmail,
-        password: (password || '').trim()
+        password: cleanPassword
       })
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('La conexión tardó demasiado. Por favor verifica tu señal de internet o intenta nuevamente.')), 12000)
+      )
+
+      const { data, error } = await Promise.race([loginPromise, timeoutPromise])
+
       if (error) {
         const msg = (error.message || '').toLowerCase()
         if (msg.includes('email not confirmed')) {
           throw new Error('El correo electrónico aún no ha sido verificado. Confírmalo en Supabase o desactiva "Confirm email" en Auth Providers.')
         }
-        throw new Error('Credenciales incorrectas. Verifica que el correo y la contraseña estén bien escritos.')
+        if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+          throw new Error('Credenciales incorrectas. Verifica que el correo y la contraseña estén bien escritos.')
+        }
+        throw new Error(error.message || 'Credenciales incorrectas. Verifica que el correo y la contraseña estén bien escritos.')
       }
 
       setAuthTransition({
         type: 'login',
         title: 'Iniciando sesión…',
-        subtitle: 'Cargando tu espacio de trabajo y catálogo…'
+        subtitle: 'Cargando tu espacio de trabajo…'
       })
 
       if (data?.user) {
-        await loadProfile(data.user).catch(() => {})
+        const meta = data.user.user_metadata || {}
+        const initialUser = {
+          id: data.user.id,
+          email: data.user.email,
+          role: meta.role || 'empleado',
+          company_id: meta.company_id || null,
+          avatar_url: meta.avatar_url || null
+        }
+        setUser(initialUser)
+        if (initialUser.company_id) setCompanyCache(initialUser.company_id)
+
+        // Cargar perfil con timeout de 1.2s para navegación ágil e inmediata
+        await Promise.race([
+          loadProfile(data.user),
+          new Promise((r) => setTimeout(r, 1200))
+        ]).catch(() => {})
       }
-      await new Promise((r) => setTimeout(r, 650))
+
+      await new Promise((r) => setTimeout(r, 350))
       setAuthTransition(null)
       return
     }

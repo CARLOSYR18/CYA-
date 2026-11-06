@@ -7,6 +7,20 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading, isAdmin, needsOnboarding, isPlatformAdmin } = useAuth()
   const location = useLocation()
   const [companyActive, setCompanyActive] = useState(true)
+  const [safetyTimeoutReached, setSafetyTimeoutReached] = useState(false)
+
+  // En caso de latencia de red móvil, nunca mantener la pantalla de carga más de 2.2s
+  useEffect(() => {
+    let t
+    if (loading) {
+      t = setTimeout(() => {
+        setSafetyTimeoutReached(true)
+      }, 2200)
+    } else {
+      setSafetyTimeoutReached(false)
+    }
+    return () => clearTimeout(t)
+  }, [loading])
 
   useEffect(() => {
     if (user?.company_id) {
@@ -14,7 +28,7 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
     }
   }, [user])
 
-  if (loading) {
+  if (loading && !safetyTimeoutReached) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white/90 dark:bg-[#0c0d12]/92 backdrop-blur-md p-4 animate-fade-in select-none">
         <div className="relative mb-4 flex items-center justify-center">

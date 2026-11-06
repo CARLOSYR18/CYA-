@@ -249,6 +249,10 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Ingrese su correo corporativo"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck="false"
                   className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
                   autoFocus
                 />
@@ -270,6 +274,10 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Ingrese su contraseña"
+                  autoComplete="current-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck="false"
                   className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
                 />
                 <button
