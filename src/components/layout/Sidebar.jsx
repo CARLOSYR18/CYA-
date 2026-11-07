@@ -3,11 +3,18 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Boxes, Tags, ArrowLeftRight, ShoppingCart,
   Truck, Users, UserCog, Warehouse, X, Settings2, Sparkles, ShieldAlert,
-  ChevronsLeft, ChevronsRight, UserCircle, Activity
+  ChevronsLeft, ChevronsRight, UserCircle, Activity, LogOut
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { planService } from '../../services/planService'
 import { companySettingsService } from '../../services/companySettingsService'
+
+const COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#06B6D4']
+function avatarColor(name = '') {
+  let h = 0
+  for (const c of name) h = c.charCodeAt(0) + ((h << 5) - h)
+  return COLORS[Math.abs(h) % COLORS.length]
+}
 
 const NAV_MAIN = [
   { to: '/', label: 'Panel', icon: LayoutDashboard, end: true },
@@ -36,10 +43,10 @@ const NAV_PLATFORM = [
 
 function Label({ children, isCollapsed }) {
   if (isCollapsed) {
-    return <div className="border-t border-slate-200/80 dark:border-slate-800 my-2.5 mx-3" />
+    return <div className="border-t border-white/10 my-2.5 mx-3" />
   }
   return (
-    <p className="px-3 pt-4 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500 truncate">
+    <p className="px-3 pt-4 pb-1.5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-blue-300/60 truncate">
       {children}
     </p>
   )
@@ -55,12 +62,12 @@ function Item({ to, label, icon: Icon, end, onClick, isCollapsed }) {
       className={({ isActive }) =>
         `group relative flex items-center transition-all duration-150 ${
           isCollapsed
-            ? 'justify-center mx-1 px-0 py-2.5 rounded-xl'
-            : 'gap-2.5 mx-1 px-3 py-2.5 rounded-xl text-[13.5px]'
+            ? 'justify-center mx-1.5 px-0 py-2.5 rounded-xl'
+            : 'gap-2.5 mx-1.5 px-3 py-2.5 rounded-xl text-[13px]'
         } font-medium ${
           isActive
-            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-500/25'
-            : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/80 dark:hover:bg-blue-950/40 active:scale-[0.98]'
+            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-600/35'
+            : 'text-slate-300/85 hover:text-white hover:bg-white/[0.08] active:scale-[0.98]'
         }`
       }
     >
@@ -72,7 +79,7 @@ function Item({ to, label, icon: Icon, end, onClick, isCollapsed }) {
             className={`shrink-0 transition-transform duration-150 ${
               isActive
                 ? 'text-white'
-                : 'text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:scale-105'
+                : 'text-slate-400 group-hover:text-blue-300 group-hover:scale-105'
             }`}
           />
           {!isCollapsed && (
@@ -90,7 +97,7 @@ function Item({ to, label, icon: Icon, end, onClick, isCollapsed }) {
 }
 
 export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) {
-  const { isAdmin, isPlatformAdmin } = useAuth()
+  const { user, logout, requestLogout, isAdmin, isPlatformAdmin } = useAuth()
   const [activePlan, setActivePlan] = useState(planService.getActivePlanData())
   const [company, setCompany] = useState(() => companySettingsService.getCached())
 
@@ -112,19 +119,31 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
     return () => window.removeEventListener('cya_plan_changed', handlePlanChange)
   }, [])
 
-  const isPro = activePlan.id !== 'free'
+  const handleLogout = (e) => {
+    e?.stopPropagation?.()
+    if (onClose) onClose()
+    if (requestLogout) requestLogout()
+    else if (logout) logout()
+  }
+
+  const isPro = activePlan?.id !== 'free'
+
+  // User initials & avatar background color
+  const userInitial = user?.full_name
+    ? user.full_name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
+    : (user?.email ? user.email.charAt(0).toUpperCase() : 'U')
+  const userBgColor = avatarColor(user?.full_name || user?.email || '')
 
   // En móvil (cuando el sidebar se abre como drawer), siempre mostrar versión completa
-  // isCollapsed solo aplica en desktop (lg+)
   const effectiveCollapsed = isCollapsed && !isOpen
 
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 lg:hidden animate-fade-in" onClick={onClose} />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 lg:hidden animate-fade-in" onClick={onClose} />
       )}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col h-screen shrink-0 bg-white dark:bg-[#101726] border-r border-slate-200/90 dark:border-slate-800 text-slate-800 dark:text-slate-200 shadow-sm transition-[width,transform] duration-300 ease-in-out ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col h-screen shrink-0 bg-gradient-to-b from-[#0A182F] via-[#0B1C38] to-[#071326] border-r border-[#162744] text-slate-200 shadow-2xl transition-[width,transform] duration-300 ease-in-out ${
           isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
         } ${isCollapsed ? 'lg:w-[72px]' : 'lg:w-64'}`}
       >
@@ -134,7 +153,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="hidden lg:flex absolute -right-3 top-5 z-50 w-6 h-6 rounded-full bg-white dark:bg-[#182234] border border-slate-200 dark:border-slate-700 shadow-md items-center justify-center text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-400 hover:scale-110 transition-all cursor-pointer"
+            className="hidden lg:flex absolute -right-3 top-5 z-50 w-6 h-6 rounded-full bg-[#0D2140] border border-blue-400/40 shadow-lg items-center justify-center text-blue-300 hover:text-white hover:bg-blue-600 hover:border-blue-400 hover:scale-110 transition-all cursor-pointer"
             title={isCollapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'}
             aria-label={isCollapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'}
           >
@@ -143,10 +162,10 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         )}
 
         {/* Logo Header */}
-        <div className={`h-[64px] flex items-center ${effectiveCollapsed ? 'justify-center px-2' : 'justify-between px-4'} border-b border-slate-100 dark:border-slate-800/90 shrink-0 bg-white/80 dark:bg-[#101726]/80 backdrop-blur-sm`}>
+        <div className={`h-[64px] flex items-center ${effectiveCollapsed ? 'justify-center px-2' : 'justify-between px-4'} border-b border-[#162744] shrink-0 bg-[#0A182F]/70 backdrop-blur-sm`}>
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className={`h-10 ${effectiveCollapsed ? 'w-10' : 'min-w-[40px] max-w-[60px]'} rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-800 shrink-0 flex items-center justify-center border border-slate-200/80 dark:border-slate-700 shadow-2xs p-1`}
+              className={`h-10 ${effectiveCollapsed ? 'w-10' : 'min-w-[40px] max-w-[60px]'} rounded-xl overflow-hidden bg-white shrink-0 flex items-center justify-center border border-white/20 shadow-md p-1`}
               title={effectiveCollapsed ? (company?.name || 'CYA STORE') : undefined}
             >
               <img
@@ -160,23 +179,23 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
             </div>
             {!effectiveCollapsed && (
               <div className="min-w-0">
-                <p className="font-display font-bold text-slate-900 dark:text-white text-[14px] leading-tight truncate">
+                <p className="font-display font-bold text-white text-[14px] leading-tight truncate">
                   {company?.name || 'CYA STORE'}
                 </p>
-                <p className="text-[10.5px] text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wider mt-0.5 truncate">
+                <p className="text-[10px] text-blue-300/80 font-semibold uppercase tracking-wider mt-0.5 truncate">
                   {isPlatformAdmin ? 'Super Administrador' : (company?.ruc ? `RUC: ${company.ruc}` : 'Gestión Empresarial')}
                 </p>
               </div>
             )}
           </div>
 
-          <button onClick={onClose} className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          <button onClick={onClose} className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
             <X size={16} />
           </button>
         </div>
 
-        {/* Navigation list with hidden native scrollbar and ample bottom padding */}
-        <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-0.5 no-scrollbar overscroll-contain pb-8">
+        {/* Navigation list with hidden native scrollbar */}
+        <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-0.5 no-scrollbar overscroll-contain pb-6">
           {!isPlatformAdmin ? (
             <>
               <Label isCollapsed={effectiveCollapsed}>Principal</Label>
@@ -212,7 +231,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
 
         {/* Upgrade Card ONLY for Free Plan Admins (disappears on Pro/Paid plans) */}
         {!isPlatformAdmin && isAdmin && !isPro && (
-          <div className={`${effectiveCollapsed ? 'p-2 flex justify-center' : 'p-3'} border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/60 dark:bg-slate-900/40`}>
+          <div className={`${effectiveCollapsed ? 'p-2 flex justify-center' : 'p-3'} border-t border-[#162744] shrink-0 bg-[#08152B]/80 backdrop-blur-sm`}>
             {effectiveCollapsed ? (
               <NavLink
                 to="/planes"
@@ -248,28 +267,91 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
           </div>
         )}
 
-        {/* System Active Footer */}
-        <div className={`${effectiveCollapsed ? 'p-2 flex justify-center' : 'p-3'} border-t border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-[#0B101B]/80`}>
+        {/* User Account & Logout Footer */}
+        <div className={`border-t border-[#162744] shrink-0 ${effectiveCollapsed ? 'p-2 flex flex-col items-center gap-2' : 'p-3'} bg-[#071326]/90 backdrop-blur-sm`}>
           {effectiveCollapsed ? (
-            <div
-              className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-center shadow-2xs"
-              title="Sistema activo v1.2"
-            >
-              <span className="relative flex h-2.5 w-2.5 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
-              </span>
-            </div>
+            <>
+              <NavLink
+                to="/perfil"
+                onClick={onClose}
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-md hover:scale-105 transition-transform overflow-hidden border border-white/20"
+                style={{ backgroundColor: userBgColor }}
+                title={`${user?.full_name || 'Mi Perfil'} (${user?.email || ''})`}
+              >
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  userInitial
+                )}
+              </NavLink>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Cerrar sesión"
+                className="w-10 h-10 rounded-xl bg-white/[0.05] hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-white/[0.08] flex items-center justify-center transition-all cursor-pointer"
+              >
+                <LogOut size={16} />
+              </button>
+
+              <div className="pt-1 flex items-center justify-center" title="Sistema activo v1.2">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                </span>
+              </div>
+            </>
           ) : (
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 shadow-2xs">
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
-              </span>
-              <span className="text-[11.5px] font-medium text-slate-600 dark:text-slate-300 flex-1 truncate">
-                {isPlatformAdmin ? 'Plataforma activa' : 'Sistema activo'}
-              </span>
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono font-semibold">v1.2</span>
+            <div className="space-y-2.5">
+              {/* User Card with Email and Logout */}
+              <div className="group flex items-center gap-2.5 p-2 rounded-2xl bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.08] transition-all">
+                <NavLink
+                  to="/perfil"
+                  onClick={onClose}
+                  className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                  title="Ver Mi Perfil"
+                >
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-xs overflow-hidden border border-white/20"
+                    style={{ backgroundColor: userBgColor }}
+                  >
+                    {user?.avatar_url ? (
+                      <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      userInitial
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-white truncate group-hover:text-blue-300 transition-colors">
+                      {user?.full_name || 'Usuario'}
+                    </p>
+                    <p className="text-[11px] text-blue-200/70 font-medium truncate">
+                      {user?.email || 'Sin correo'}
+                    </p>
+                  </div>
+                </NavLink>
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  title="Cerrar sesión"
+                  className="p-2 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+                >
+                  <LogOut size={16} strokeWidth={2.2} />
+                </button>
+              </div>
+
+              {/* Status and Version Bar */}
+              <div className="flex items-center justify-between px-2 text-[10.5px] text-blue-200/50 font-medium">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                  </span>
+                  <span>{isPlatformAdmin ? 'Plataforma activa' : 'Sistema activo'}</span>
+                </div>
+                <span className="font-mono text-[10px] text-blue-300/50 font-semibold">v1.2</span>
+              </div>
             </div>
           )}
         </div>
