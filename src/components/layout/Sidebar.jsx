@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Boxes, Tags, ArrowLeftRight, ShoppingCart,
   Truck, Users, UserCog, Warehouse, X, Settings2, Sparkles, ShieldAlert,
   ChevronsLeft, ChevronsRight, Activity, LogOut, ChevronRight, ChevronDown,
-  Headphones
+  ChevronUp, Headphones
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { companySettingsService } from '../../services/companySettingsService'
@@ -20,7 +20,7 @@ const MODULES = [
   {
     type: 'accordion',
     id: 'ventas',
-    label: 'Ventas',
+    label: 'VENTAS',
     icon: ShoppingCart,
     basePath: '/ventas',
     items: [
@@ -31,7 +31,7 @@ const MODULES = [
   {
     type: 'accordion',
     id: 'compras',
-    label: 'Compras',
+    label: 'COMPRAS',
     icon: Truck,
     basePath: '/compras',
     items: [
@@ -42,7 +42,7 @@ const MODULES = [
   {
     type: 'accordion',
     id: 'inventario',
-    label: 'Inventario',
+    label: 'INVENTARIO',
     icon: Boxes,
     basePath: '/productos',
     items: [
@@ -54,7 +54,7 @@ const MODULES = [
   {
     type: 'accordion',
     id: 'administracion',
-    label: 'Administración',
+    label: 'ADMINISTRACIÓN',
     icon: Settings2,
     basePath: '/configuracion',
     adminOnly: true,
@@ -126,15 +126,8 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
     })
   }
 
-  const handleModuleHeaderClick = (mod) => {
-    navigate(mod.basePath)
-    if (onClose) onClose()
-    // Open this module without closing any other open modules
-    setOpenModules(prev => {
-      const next = { ...prev, [mod.id]: true }
-      saveModules(next)
-      return next
-    })
+  const handleModuleHeaderClick = (mod, e) => {
+    toggleModule(mod.id, e)
   }
 
   useEffect(() => {
@@ -179,82 +172,75 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 lg:hidden animate-fade-in" onClick={onClose} />
       )}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col h-screen shrink-0 bg-gradient-to-b from-[#041026] via-[#061838] to-[#030d1e] border-r border-[#0D2852] text-white shadow-2xl transition-[width,transform] duration-300 ease-in-out ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col h-screen shrink-0 bg-gradient-to-b from-[#072563] via-[#061d4f] to-[#041338] border-r border-[#0D3075] text-white shadow-2xl transition-[width,transform] duration-300 ease-in-out ${
           isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
         } ${isCollapsed ? 'lg:w-[76px]' : 'lg:w-64'}`}
       >
 
-        {/* Abstract 3D layered curved waves background (exact match to Capturas 2 y 3 / MTA Software ERP) */}
+        {/* Abstract 3D layered curved waves background (positioned softly behind Help Card & Footer) */}
         {!effectiveCollapsed && (
-          <div className="absolute bottom-0 left-0 right-0 h-[380px] pointer-events-none overflow-hidden z-0 select-none">
+          <div className="absolute bottom-0 left-0 right-0 h-72 pointer-events-none overflow-hidden z-0 select-none opacity-35">
             <svg
-              viewBox="0 0 260 380"
+              viewBox="0 0 260 290"
               className="w-full h-full"
               preserveAspectRatio="none"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
-                {/* Back wave gradient - rich deep sapphire */}
                 <linearGradient id="waveBackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#1E3A8A" stopOpacity="0.85" />
                   <stop offset="50%" stopColor="#172554" stopOpacity="0.9" />
                   <stop offset="100%" stopColor="#030712" stopOpacity="0.95" />
                 </linearGradient>
 
-                {/* Front wave gradient - luminous electric cobalt */}
                 <linearGradient id="waveFrontGrad" x1="0%" y1="0%" x2="80%" y2="100%">
-                  <stop offset="0%" stopColor="#2563EB" stopOpacity="0.9" />
-                  <stop offset="35%" stopColor="#1D4ED8" stopOpacity="0.85" />
-                  <stop offset="70%" stopColor="#1E3A8A" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor="#0B1E48" stopOpacity="0.98" />
+                  <stop offset="0%" stopColor="#2563EB" stopOpacity="0.85" />
+                  <stop offset="35%" stopColor="#1D4ED8" stopOpacity="0.8" />
+                  <stop offset="70%" stopColor="#1E3A8A" stopOpacity="0.85" />
+                  <stop offset="100%" stopColor="#0B1E48" stopOpacity="0.95" />
                 </linearGradient>
 
-                {/* Luminous crest glow strokes */}
                 <linearGradient id="crestGlowBack" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.1" />
-                  <stop offset="30%" stopColor="#93C5FD" stopOpacity="0.85" />
-                  <stop offset="70%" stopColor="#3B82F6" stopOpacity="0.5" />
+                  <stop offset="30%" stopColor="#93C5FD" stopOpacity="0.6" />
+                  <stop offset="70%" stopColor="#3B82F6" stopOpacity="0.4" />
                   <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0" />
                 </linearGradient>
 
                 <linearGradient id="crestGlowFront" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.3" />
-                  <stop offset="25%" stopColor="#60A5FA" stopOpacity="0.95" />
-                  <stop offset="65%" stopColor="#3B82F6" stopOpacity="0.75" />
+                  <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.2" />
+                  <stop offset="25%" stopColor="#60A5FA" stopOpacity="0.75" />
+                  <stop offset="65%" stopColor="#3B82F6" stopOpacity="0.5" />
                   <stop offset="100%" stopColor="#1E40AF" stopOpacity="0" />
                 </linearGradient>
 
-                {/* Ambient glow under waves */}
-                <radialGradient id="waveAmbientGlow" cx="50%" cy="40%" r="50%">
-                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.25" />
+                <radialGradient id="waveAmbientGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.2" />
                   <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0" />
                 </radialGradient>
               </defs>
 
-              {/* Ambient backlight glow */}
-              <circle cx="130" cy="180" r="140" fill="url(#waveAmbientGlow)" />
+              <circle cx="130" cy="150" r="130" fill="url(#waveAmbientGlow)" />
 
-              {/* Layer 1: Back atmospheric wave swooping from left crest down to right */}
               <path
-                d="M -30,380 L -30,170 Q 75,55 290,195 L 290,380 Z"
+                d="M -30,290 L -30,130 Q 75,35 290,145 L 290,290 Z"
                 fill="url(#waveBackGrad)"
               />
               <path
-                d="M -30,170 Q 75,55 290,195"
+                d="M -30,130 Q 75,35 290,145"
                 stroke="url(#crestGlowBack)"
-                strokeWidth="2"
+                strokeWidth="1.5"
               />
 
-              {/* Layer 2: Front bold 3D curved wave sweeping across */}
               <path
-                d="M -30,380 L -30,240 Q 110,95 290,150 L 290,380 Z"
+                d="M -30,290 L -30,185 Q 110,75 290,110 L 290,290 Z"
                 fill="url(#waveFrontGrad)"
               />
               <path
-                d="M -30,240 Q 110,95 290,150"
+                d="M -30,185 Q 110,75 290,110"
                 stroke="url(#crestGlowFront)"
-                strokeWidth="2.5"
+                strokeWidth="1.8"
               />
             </svg>
           </div>
@@ -307,7 +293,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         </div>
 
         {/* Navigation list with hidden native scrollbar */}
-        <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-1 no-scrollbar overscroll-contain z-10">
+        <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-1.5 no-scrollbar overscroll-contain z-10">
           {!isPlatformAdmin ? (
             MODULES.map((mod) => {
               if (mod.adminOnly && !isAdmin) return null
@@ -326,9 +312,9 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
                         effectiveCollapsed
                           ? 'justify-center mx-1 px-0 py-2.5 rounded-2xl'
                           : 'gap-3 mx-1 px-3.5 py-2.5 rounded-2xl text-[13.5px]'
-                      } font-medium ${
+                      } font-semibold ${
                         isActive
-                          ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-500/40'
+                          ? 'bg-white text-[#0B4FC5] shadow-md shadow-black/15 font-bold'
                           : 'text-slate-200/90 hover:text-white hover:bg-white/[0.08] active:scale-[0.98]'
                       }`
                     }
@@ -339,8 +325,8 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
                         <>
                           <Icon
                             size={18}
-                            strokeWidth={isActive ? 2.3 : 1.9}
-                            className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'}`}
+                            strokeWidth={isActive ? 2.4 : 2}
+                            className={`shrink-0 ${isActive ? 'text-[#0B4FC5]' : 'text-blue-200/80 group-hover:text-white'}`}
                           />
                           {!effectiveCollapsed && <span className="truncate flex-1">{mod.label}</span>}
                         </>
@@ -350,7 +336,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
                 )
               }
 
-              // Accordion module (Ventas, Compras, Inventario, Administración)
+              // Accordion module (VENTAS, COMPRAS, INVENTARIO, ADMINISTRACIÓN)
               const isOpenModule = !!openModules[mod.id]
               const isChildActive = mod.items.some(it => location.pathname === it.to || location.pathname.startsWith(it.to + '/'))
 
@@ -361,8 +347,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
                     key={mod.id}
                     type="button"
                     onClick={() => {
-                      navigate(mod.basePath)
-                      if (onClose) onClose()
+                      toggleModule(mod.id)
                     }}
                     title={mod.label}
                     className={`w-full flex items-center justify-center py-2.5 rounded-2xl transition-all ${
@@ -379,42 +364,42 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
               const Icon = mod.icon
               return (
                 <div key={mod.id} className="space-y-0.5">
-                  {/* Module header button */}
-                  <div
-                    onClick={() => handleModuleHeaderClick(mod)}
-                    className={`group relative flex items-center gap-3 mx-1 px-3.5 py-2.5 rounded-2xl text-[13.5px] font-medium transition-all duration-150 cursor-pointer select-none ${
-                      isChildActive && !isOpenModule
-                        ? 'bg-blue-600/40 text-white border border-blue-500/40'
-                        : 'text-slate-200/90 hover:text-white hover:bg-white/[0.08]'
+                  {/* Category Header Row (Exact match to Image 2 & 3: Uppercase small bold + icon + chevron ^/v) */}
+                  <button
+                    type="button"
+                    onClick={() => toggleModule(mod.id)}
+                    className={`w-full group flex items-center justify-between mx-1 px-3 py-2 rounded-xl text-left transition-all duration-150 select-none cursor-pointer ${
+                      isChildActive
+                        ? 'text-white font-bold bg-white/[0.08]'
+                        : 'text-blue-100/80 hover:text-white hover:bg-white/[0.05]'
                     }`}
                   >
-                    <Icon
-                      size={18}
-                      strokeWidth={isChildActive ? 2.3 : 1.9}
-                      className={`shrink-0 transition-colors ${
-                        isChildActive ? 'text-white' : 'text-slate-300 group-hover:text-white'
-                      }`}
-                    />
-                    <span className="truncate flex-1 font-semibold">{mod.label}</span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon
+                        size={16}
+                        strokeWidth={2.2}
+                        className={`shrink-0 transition-colors ${
+                          isChildActive ? 'text-blue-300' : 'text-blue-300/75 group-hover:text-white'
+                        }`}
+                      />
+                      <span className="text-[11.5px] font-bold uppercase tracking-wider truncate">
+                        {mod.label}
+                      </span>
+                    </div>
 
-                    {/* Chevron icon (Image 5 touch target) */}
-                    <button
-                      type="button"
-                      onClick={(e) => toggleModule(mod.id, e)}
-                      title={isOpenModule ? 'Contraer módulo' : 'Expandir módulo'}
-                      className="p-1 rounded-lg text-blue-200/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-                    >
+                    {/* Chevron indicator: Up when open, Down when closed (Image 2 & 3 exact match) */}
+                    <span className="p-0.5 text-blue-200/70 group-hover:text-white transition-colors shrink-0">
                       {isOpenModule ? (
-                        <ChevronDown size={15} strokeWidth={2.4} className="text-white" />
+                        <ChevronUp size={14} strokeWidth={2.5} />
                       ) : (
-                        <ChevronRight size={15} strokeWidth={2.4} className="group-hover:translate-x-0.5 transition-transform" />
+                        <ChevronDown size={14} strokeWidth={2.5} />
                       )}
-                    </button>
-                  </div>
+                    </span>
+                  </button>
 
-                  {/* Submenu items */}
+                  {/* Submenu items with vertical hierarchy tree branch line (Image 2 & 3 exact match) */}
                   {isOpenModule && (
-                    <div className="pl-6 pr-2 py-1 space-y-0.5 animate-fade-in">
+                    <div className="relative ml-5 pl-3.5 my-1 space-y-1 border-l-2 border-blue-400/30 animate-fade-in">
                       {mod.items.map((sub) => {
                         const SubIcon = sub.icon
                         return (
@@ -424,19 +409,21 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
                             end={sub.end}
                             onClick={onClose}
                             className={({ isActive }) =>
-                              `group flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12.5px] font-medium transition-all ${
+                              `group flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all ${
                                 isActive
-                                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-md shadow-blue-500/30'
-                                  : 'text-slate-300/85 hover:text-white hover:bg-white/[0.08]'
+                                  ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/40'
+                                  : 'text-slate-200/85 hover:text-white hover:bg-white/[0.08]'
                               }`
                             }
                           >
                             {({ isActive }) => (
                               <>
                                 <SubIcon
-                                  size={15}
-                                  strokeWidth={isActive ? 2.2 : 1.8}
-                                  className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}
+                                  size={16}
+                                  strokeWidth={isActive ? 2.3 : 1.9}
+                                  className={`shrink-0 transition-colors ${
+                                    isActive ? 'text-white' : 'text-blue-300/70 group-hover:text-white'
+                                  }`}
                                 />
                                 <span className="truncate flex-1">{sub.label}</span>
                               </>
