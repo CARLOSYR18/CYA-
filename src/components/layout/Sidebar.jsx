@@ -179,13 +179,86 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 lg:hidden animate-fade-in" onClick={onClose} />
       )}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col h-screen shrink-0 bg-gradient-to-b from-[#061838] via-[#08214D] to-[#05142E] border-r border-[#0E2C60] text-white shadow-2xl transition-[width,transform] duration-300 ease-in-out ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col h-screen shrink-0 bg-gradient-to-b from-[#041026] via-[#061838] to-[#030d1e] border-r border-[#0D2852] text-white shadow-2xl transition-[width,transform] duration-300 ease-in-out ${
           isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
         } ${isCollapsed ? 'lg:w-[76px]' : 'lg:w-64'}`}
       >
 
-        {/* Ambient background curve glow */}
-        <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Abstract 3D layered curved waves background (exact match to Capturas 2 y 3 / MTA Software ERP) */}
+        {!effectiveCollapsed && (
+          <div className="absolute bottom-0 left-0 right-0 h-[380px] pointer-events-none overflow-hidden z-0 select-none">
+            <svg
+              viewBox="0 0 260 380"
+              className="w-full h-full"
+              preserveAspectRatio="none"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <defs>
+                {/* Back wave gradient - rich deep sapphire */}
+                <linearGradient id="waveBackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#1E3A8A" stopOpacity="0.85" />
+                  <stop offset="50%" stopColor="#172554" stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#030712" stopOpacity="0.95" />
+                </linearGradient>
+
+                {/* Front wave gradient - luminous electric cobalt */}
+                <linearGradient id="waveFrontGrad" x1="0%" y1="0%" x2="80%" y2="100%">
+                  <stop offset="0%" stopColor="#2563EB" stopOpacity="0.9" />
+                  <stop offset="35%" stopColor="#1D4ED8" stopOpacity="0.85" />
+                  <stop offset="70%" stopColor="#1E3A8A" stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#0B1E48" stopOpacity="0.98" />
+                </linearGradient>
+
+                {/* Luminous crest glow strokes */}
+                <linearGradient id="crestGlowBack" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.1" />
+                  <stop offset="30%" stopColor="#93C5FD" stopOpacity="0.85" />
+                  <stop offset="70%" stopColor="#3B82F6" stopOpacity="0.5" />
+                  <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0" />
+                </linearGradient>
+
+                <linearGradient id="crestGlowFront" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.3" />
+                  <stop offset="25%" stopColor="#60A5FA" stopOpacity="0.95" />
+                  <stop offset="65%" stopColor="#3B82F6" stopOpacity="0.75" />
+                  <stop offset="100%" stopColor="#1E40AF" stopOpacity="0" />
+                </linearGradient>
+
+                {/* Ambient glow under waves */}
+                <radialGradient id="waveAmbientGlow" cx="50%" cy="40%" r="50%">
+                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#1D4ED8" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+
+              {/* Ambient backlight glow */}
+              <circle cx="130" cy="180" r="140" fill="url(#waveAmbientGlow)" />
+
+              {/* Layer 1: Back atmospheric wave swooping from left crest down to right */}
+              <path
+                d="M -30,380 L -30,170 Q 75,55 290,195 L 290,380 Z"
+                fill="url(#waveBackGrad)"
+              />
+              <path
+                d="M -30,170 Q 75,55 290,195"
+                stroke="url(#crestGlowBack)"
+                strokeWidth="2"
+              />
+
+              {/* Layer 2: Front bold 3D curved wave sweeping across */}
+              <path
+                d="M -30,380 L -30,240 Q 110,95 290,150 L 290,380 Z"
+                fill="url(#waveFrontGrad)"
+              />
+              <path
+                d="M -30,240 Q 110,95 290,150"
+                stroke="url(#crestGlowFront)"
+                strokeWidth="2.5"
+              />
+            </svg>
+          </div>
+        )}
 
         {/* Floating Circular Toggle Button on the sidebar border — fully visible, not cut off */}
         {onToggleCollapse && (
@@ -380,19 +453,19 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
             <Item to="/admin-plataforma" label="Panel Plataforma" icon={ShieldAlert} onClick={onClose} isCollapsed={effectiveCollapsed} />
           )}
 
-          {/* Help Support Card (exact match to reference image) */}
+          {/* Help Support Card (exact match to Captura 3) */}
           {!effectiveCollapsed && (
-            <div className="mx-2 mt-4 mb-2 p-3 rounded-2xl bg-gradient-to-b from-white/[0.08] to-white/[0.03] backdrop-blur-md border border-white/[0.12] text-center relative overflow-hidden shadow-lg shadow-black/20">
-              <div className="w-10 h-10 mx-auto rounded-full bg-blue-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(37,99,235,0.8)]">
-                <Headphones size={18} strokeWidth={2.2} />
+            <div className="mx-2 mt-4 mb-2 p-3.5 rounded-2xl bg-[#09224E]/75 backdrop-blur-md border border-blue-400/25 text-center relative overflow-hidden shadow-xl shadow-black/30 z-10">
+              <div className="w-11 h-11 mx-auto rounded-full bg-blue-600 flex items-center justify-center text-white shadow-[0_0_20px_rgba(37,99,235,0.9)] ring-4 ring-blue-500/20">
+                <Headphones size={20} strokeWidth={2.3} />
               </div>
-              <p className="text-xs font-bold text-white mt-2 leading-tight">¿Necesitas ayuda?</p>
-              <p className="text-[10.5px] text-blue-200/70 mt-0.5">Contáctanos en soporte</p>
+              <p className="text-[13px] font-bold text-white mt-2 leading-tight">¿Necesitas ayuda?</p>
+              <p className="text-[11px] text-blue-200/80 mt-0.5">Contáctanos en soporte</p>
               <a
                 href="https://wa.me/51987654321?text=Hola,%20necesito%20soporte%20con%20el%20sistema%20ERP"
                 target="_blank"
                 rel="noreferrer"
-                className="mt-2.5 w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-semibold text-xs flex items-center justify-center gap-1 shadow-md shadow-blue-600/30 transition-all cursor-pointer"
+                className="mt-3 w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-blue-600/40 transition-all cursor-pointer"
               >
                 <span>Soporte en línea</span>
                 <span className="text-sm">→</span>
