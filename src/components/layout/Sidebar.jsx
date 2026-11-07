@@ -67,38 +67,74 @@ const MODULES = [
   },
 ]
 
+const STORAGE_MODULES_KEY = 'cya_sidebar_open_modules'
+
+function getSavedModules() {
+  try {
+    const raw = localStorage.getItem(STORAGE_MODULES_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return null
+}
+
+function saveModules(modules) {
+  try {
+    localStorage.setItem(STORAGE_MODULES_KEY, JSON.stringify(modules))
+  } catch {}
+}
+
 export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) {
   const { user, logout, requestLogout, isAdmin, isPlatformAdmin } = useAuth()
   const [company, setCompany] = useState(() => companySettingsService.getCached())
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Track which modules are open in accordion
+  // Track which modules are open in accordion (persisted so opened modules stay open across navigation)
   const [openModules, setOpenModules] = useState(() => {
     const p = window.location.pathname
+    const saved = getSavedModules()
     return {
-      ventas: p.startsWith('/ventas') || p === '/clientes',
-      compras: p.startsWith('/compras') || p === '/proveedores',
-      inventario: p === '/productos' || p === '/categorias' || p === '/movimientos',
-      administracion: p === '/actividad-empleados' || p === '/usuarios' || p === '/planes' || p === '/configuracion',
+      ventas: saved?.ventas ?? (p.startsWith('/ventas') || p === '/clientes'),
+      compras: saved?.compras ?? (p.startsWith('/compras') || p === '/proveedores'),
+      inventario: saved?.inventario ?? (p === '/productos' || p === '/categorias' || p === '/movimientos'),
+      administracion: saved?.administracion ?? (p === '/actividad-empleados' || p === '/usuarios' || p === '/planes' || p === '/configuracion'),
     }
   })
 
-  // Auto-expand module if the active URL is inside it
+  // Whenever a module opens due to active route, keep it open and preserve existing open modules
   useEffect(() => {
     const p = location.pathname
-    setOpenModules(prev => ({
-      ...prev,
-      ventas: prev.ventas || p.startsWith('/ventas') || p === '/clientes',
-      compras: prev.compras || p.startsWith('/compras') || p === '/proveedores',
-      inventario: prev.inventario || p === '/productos' || p === '/categorias' || p === '/movimientos',
-      administracion: prev.administracion || p === '/actividad-empleados' || p === '/usuarios' || p === '/planes' || p === '/configuracion',
-    }))
+    setOpenModules(prev => {
+      const next = {
+        ...prev,
+        ventas: prev.ventas || p.startsWith('/ventas') || p === '/clientes',
+        compras: prev.compras || p.startsWith('/compras') || p === '/proveedores',
+        inventario: prev.inventario || p === '/productos' || p === '/categorias' || p === '/movimientos',
+        administracion: prev.administracion || p === '/actividad-empleados' || p === '/usuarios' || p === '/planes' || p === '/configuracion',
+      }
+      saveModules(next)
+      return next
+    })
   }, [location.pathname])
 
   const toggleModule = (id, e) => {
     e?.stopPropagation?.()
-    setOpenModules(prev => ({ ...prev, [id]: !prev[id] }))
+    setOpenModules(prev => {
+      const next = { ...prev, [id]: !prev[id] }
+      saveModules(next)
+      return next
+    })
+  }
+
+  const handleModuleHeaderClick = (mod) => {
+    navigate(mod.basePath)
+    if (onClose) onClose()
+    // Open this module without closing any other open modules
+    setOpenModules(prev => {
+      const next = { ...prev, [mod.id]: true }
+      saveModules(next)
+      return next
+    })
   }
 
   useEffect(() => {
@@ -272,10 +308,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
                 <div key={mod.id} className="space-y-0.5">
                   {/* Module header button */}
                   <div
-                    onClick={() => {
-                      navigate(mod.basePath)
-                      setOpenModules(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))
-                    }}
+                    onClick={() => handleModuleHeaderClick(mod)}
                     className={`group relative flex items-center gap-3 mx-1 px-3.5 py-2.5 rounded-2xl text-[13.5px] font-medium transition-all duration-150 cursor-pointer select-none ${
                       isChildActive && !isOpenModule
                         ? 'bg-blue-600/40 text-white border border-blue-500/40'
