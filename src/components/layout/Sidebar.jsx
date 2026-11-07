@@ -1,80 +1,105 @@
 import { useState, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Boxes, Tags, ArrowLeftRight, ShoppingCart,
   Truck, Users, UserCog, Warehouse, X, Settings2, Sparkles, ShieldAlert,
-  ChevronsLeft, ChevronsRight, Activity, LogOut, ChevronRight, Headphones, UserCircle
+  ChevronsLeft, ChevronsRight, Activity, LogOut, ChevronRight, ChevronDown,
+  Headphones
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { companySettingsService } from '../../services/companySettingsService'
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Panel', icon: LayoutDashboard, end: true },
-  { to: '/ventas', label: 'Ventas', icon: ShoppingCart },
-  { to: '/compras', label: 'Compras', icon: Truck },
-  { to: '/productos', label: 'Productos', icon: Boxes },
-  { to: '/clientes', label: 'Clientes', icon: Users },
-  { to: '/movimientos', label: 'Movimientos', icon: ArrowLeftRight },
-  { to: '/categorias', label: 'Categorías', icon: Tags },
-  { to: '/proveedores', label: 'Proveedores', icon: Warehouse },
-  { to: '/actividad-empleados', label: 'Movimientos Empleados', icon: Activity, adminOnly: true },
-  { to: '/usuarios', label: 'Usuarios y Roles', icon: UserCog, adminOnly: true },
-  { to: '/planes', label: 'Tu Plan', icon: Sparkles, adminOnly: true },
-  { to: '/configuracion', label: 'Configuración', icon: Settings2, adminOnly: true },
-  { to: '/perfil', label: 'Mi Perfil', icon: UserCircle },
+const MODULES = [
+  {
+    type: 'single',
+    to: '/',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    end: true,
+  },
+  {
+    type: 'accordion',
+    id: 'ventas',
+    label: 'Ventas',
+    icon: ShoppingCart,
+    basePath: '/ventas',
+    items: [
+      { to: '/ventas', label: 'Ventas', icon: ShoppingCart, end: true },
+      { to: '/clientes', label: 'Clientes', icon: Users },
+    ],
+  },
+  {
+    type: 'accordion',
+    id: 'compras',
+    label: 'Compras',
+    icon: Truck,
+    basePath: '/compras',
+    items: [
+      { to: '/compras', label: 'Compras', icon: Truck, end: true },
+      { to: '/proveedores', label: 'Proveedores', icon: Warehouse },
+    ],
+  },
+  {
+    type: 'accordion',
+    id: 'inventario',
+    label: 'Inventario',
+    icon: Boxes,
+    basePath: '/productos',
+    items: [
+      { to: '/productos', label: 'Productos', icon: Boxes, end: true },
+      { to: '/categorias', label: 'Categorías', icon: Tags },
+      { to: '/movimientos', label: 'Movimientos', icon: ArrowLeftRight },
+    ],
+  },
+  {
+    type: 'accordion',
+    id: 'administracion',
+    label: 'Administración',
+    icon: Settings2,
+    basePath: '/configuracion',
+    adminOnly: true,
+    items: [
+      { to: '/actividad-empleados', label: 'Movimientos Empleados', icon: Activity },
+      { to: '/usuarios', label: 'Usuarios y Roles', icon: UserCog },
+      { to: '/planes', label: 'Tu Plan', icon: Sparkles },
+      { to: '/configuracion', label: 'Configuración', icon: Settings2 },
+    ],
+  },
 ]
-
-function Item({ to, label, icon: Icon, end, onClick, isCollapsed }) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      onClick={onClick}
-      title={isCollapsed ? label : undefined}
-      className={({ isActive }) =>
-        `group relative flex items-center transition-all duration-150 ${
-          isCollapsed
-            ? 'justify-center mx-1.5 px-0 py-2.5 rounded-xl'
-            : 'gap-3 mx-2 px-3.5 py-2.5 rounded-xl text-[13px]'
-        } font-medium ${
-          isActive
-            ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-500/35'
-            : 'text-slate-200/90 hover:text-white hover:bg-white/[0.08] active:scale-[0.98]'
-        }`
-      }
-    >
-      {({ isActive }) => (
-        <>
-          <Icon
-            size={18}
-            strokeWidth={isActive ? 2.3 : 1.9}
-            className={`shrink-0 transition-transform duration-150 ${
-              isActive
-                ? 'text-white'
-                : 'text-slate-300 group-hover:text-white group-hover:scale-105'
-            }`}
-          />
-          {!isCollapsed && (
-            <>
-              <span className="truncate flex-1">{label}</span>
-              {!isActive && (
-                <ChevronRight
-                  size={14}
-                  strokeWidth={2.2}
-                  className="ml-auto text-blue-200/40 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0"
-                />
-              )}
-            </>
-          )}
-        </>
-      )}
-    </NavLink>
-  )
-}
 
 export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) {
   const { user, logout, requestLogout, isAdmin, isPlatformAdmin } = useAuth()
   const [company, setCompany] = useState(() => companySettingsService.getCached())
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // Track which modules are open in accordion
+  const [openModules, setOpenModules] = useState(() => {
+    const p = window.location.pathname
+    return {
+      ventas: p.startsWith('/ventas') || p === '/clientes',
+      compras: p.startsWith('/compras') || p === '/proveedores',
+      inventario: p === '/productos' || p === '/categorias' || p === '/movimientos',
+      administracion: p === '/actividad-empleados' || p === '/usuarios' || p === '/planes' || p === '/configuracion',
+    }
+  })
+
+  // Auto-expand module if the active URL is inside it
+  useEffect(() => {
+    const p = location.pathname
+    setOpenModules(prev => ({
+      ...prev,
+      ventas: prev.ventas || p.startsWith('/ventas') || p === '/clientes',
+      compras: prev.compras || p.startsWith('/compras') || p === '/proveedores',
+      inventario: prev.inventario || p === '/productos' || p === '/categorias' || p === '/movimientos',
+      administracion: prev.administracion || p === '/actividad-empleados' || p === '/usuarios' || p === '/planes' || p === '/configuracion',
+    }))
+  }, [location.pathname])
+
+  const toggleModule = (id, e) => {
+    e?.stopPropagation?.()
+    setOpenModules(prev => ({ ...prev, [id]: !prev[id] }))
+  }
 
   useEffect(() => {
     companySettingsService.get().then(c => { if (c) setCompany(c) }).catch(() => {})
@@ -173,23 +198,158 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         </div>
 
         {/* Navigation list with hidden native scrollbar */}
-        <nav className="flex-1 min-h-0 overflow-y-auto px-1.5 py-2.5 space-y-0.5 no-scrollbar overscroll-contain z-10">
+        <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-1 no-scrollbar overscroll-contain z-10">
           {!isPlatformAdmin ? (
-            NAV_ITEMS.map((item) => {
-              if (item.adminOnly && !isAdmin) return null
+            MODULES.map((mod) => {
+              if (mod.adminOnly && !isAdmin) return null
+
+              // Single item (Dashboard)
+              if (mod.type === 'single') {
+                return (
+                  <NavLink
+                    key={mod.to}
+                    to={mod.to}
+                    end={mod.end}
+                    onClick={onClose}
+                    title={effectiveCollapsed ? mod.label : undefined}
+                    className={({ isActive }) =>
+                      `group relative flex items-center transition-all duration-150 ${
+                        effectiveCollapsed
+                          ? 'justify-center mx-1 px-0 py-2.5 rounded-2xl'
+                          : 'gap-3 mx-1 px-3.5 py-2.5 rounded-2xl text-[13.5px]'
+                      } font-medium ${
+                        isActive
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-500/40'
+                          : 'text-slate-200/90 hover:text-white hover:bg-white/[0.08] active:scale-[0.98]'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => {
+                      const Icon = mod.icon
+                      return (
+                        <>
+                          <Icon
+                            size={18}
+                            strokeWidth={isActive ? 2.3 : 1.9}
+                            className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'}`}
+                          />
+                          {!effectiveCollapsed && <span className="truncate flex-1">{mod.label}</span>}
+                        </>
+                      )
+                    }}
+                  </NavLink>
+                )
+              }
+
+              // Accordion module (Ventas, Compras, Inventario, Administración)
+              const isOpenModule = !!openModules[mod.id]
+              const isChildActive = mod.items.some(it => location.pathname === it.to || location.pathname.startsWith(it.to + '/'))
+
+              if (effectiveCollapsed) {
+                const Icon = mod.icon
+                return (
+                  <button
+                    key={mod.id}
+                    type="button"
+                    onClick={() => {
+                      navigate(mod.basePath)
+                      if (onClose) onClose()
+                    }}
+                    title={mod.label}
+                    className={`w-full flex items-center justify-center py-2.5 rounded-2xl transition-all ${
+                      isChildActive
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/40'
+                        : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
+                    }`}
+                  >
+                    <Icon size={18} strokeWidth={isChildActive ? 2.3 : 1.9} />
+                  </button>
+                )
+              }
+
+              const Icon = mod.icon
               return (
-                <Item key={item.to} {...item} onClick={onClose} isCollapsed={effectiveCollapsed} />
+                <div key={mod.id} className="space-y-0.5">
+                  {/* Module header button */}
+                  <div
+                    onClick={() => {
+                      navigate(mod.basePath)
+                      setOpenModules(prev => ({ ...prev, [mod.id]: !prev[mod.id] }))
+                    }}
+                    className={`group relative flex items-center gap-3 mx-1 px-3.5 py-2.5 rounded-2xl text-[13.5px] font-medium transition-all duration-150 cursor-pointer select-none ${
+                      isChildActive && !isOpenModule
+                        ? 'bg-blue-600/40 text-white border border-blue-500/40'
+                        : 'text-slate-200/90 hover:text-white hover:bg-white/[0.08]'
+                    }`}
+                  >
+                    <Icon
+                      size={18}
+                      strokeWidth={isChildActive ? 2.3 : 1.9}
+                      className={`shrink-0 transition-colors ${
+                        isChildActive ? 'text-white' : 'text-slate-300 group-hover:text-white'
+                      }`}
+                    />
+                    <span className="truncate flex-1 font-semibold">{mod.label}</span>
+
+                    {/* Chevron icon (Image 5 touch target) */}
+                    <button
+                      type="button"
+                      onClick={(e) => toggleModule(mod.id, e)}
+                      title={isOpenModule ? 'Contraer módulo' : 'Expandir módulo'}
+                      className="p-1 rounded-lg text-blue-200/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                    >
+                      {isOpenModule ? (
+                        <ChevronDown size={15} strokeWidth={2.4} className="text-white" />
+                      ) : (
+                        <ChevronRight size={15} strokeWidth={2.4} className="group-hover:translate-x-0.5 transition-transform" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Submenu items */}
+                  {isOpenModule && (
+                    <div className="pl-6 pr-2 py-1 space-y-0.5 animate-fade-in">
+                      {mod.items.map((sub) => {
+                        const SubIcon = sub.icon
+                        return (
+                          <NavLink
+                            key={sub.to}
+                            to={sub.to}
+                            end={sub.end}
+                            onClick={onClose}
+                            className={({ isActive }) =>
+                              `group flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12.5px] font-medium transition-all ${
+                                isActive
+                                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-md shadow-blue-500/30'
+                                  : 'text-slate-300/85 hover:text-white hover:bg-white/[0.08]'
+                              }`
+                            }
+                          >
+                            {({ isActive }) => (
+                              <>
+                                <SubIcon
+                                  size={15}
+                                  strokeWidth={isActive ? 2.2 : 1.8}
+                                  className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}
+                                />
+                                <span className="truncate flex-1">{sub.label}</span>
+                              </>
+                            )}
+                          </NavLink>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               )
             })
           ) : (
-            <>
-              <Item to="/admin-plataforma" label="Panel Plataforma" icon={ShieldAlert} onClick={onClose} isCollapsed={effectiveCollapsed} />
-            </>
+            <Item to="/admin-plataforma" label="Panel Plataforma" icon={ShieldAlert} onClick={onClose} isCollapsed={effectiveCollapsed} />
           )}
 
           {/* Help Support Card (exact match to reference image) */}
           {!effectiveCollapsed && (
-            <div className="mx-2 my-3 p-3 rounded-2xl bg-gradient-to-b from-white/[0.08] to-white/[0.03] backdrop-blur-md border border-white/[0.12] text-center relative overflow-hidden shadow-lg shadow-black/20">
+            <div className="mx-2 mt-4 mb-2 p-3 rounded-2xl bg-gradient-to-b from-white/[0.08] to-white/[0.03] backdrop-blur-md border border-white/[0.12] text-center relative overflow-hidden shadow-lg shadow-black/20">
               <div className="w-10 h-10 mx-auto rounded-full bg-blue-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(37,99,235,0.8)]">
                 <Headphones size={18} strokeWidth={2.2} />
               </div>
