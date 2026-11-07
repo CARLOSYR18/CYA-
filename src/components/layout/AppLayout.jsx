@@ -51,7 +51,7 @@ export default function AppLayout({ title, children, noTopbar = false }) {
         />
         <div
           className={`${
-            isCollapsed ? 'lg:pl-[72px]' : 'lg:pl-64'
+            isCollapsed ? 'lg:pl-[72px]' : 'lg:pl-72'
           } flex flex-col min-h-screen w-full transition-[padding] duration-300 ease-in-out`}
         >
           {!noTopbar && (
