@@ -2,23 +2,26 @@ import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Boxes, Tags, ArrowLeftRight, ShoppingCart,
-  Truck, Users, UserCog, Warehouse, X, Settings2, ShieldAlert,
-  ChevronsLeft, ChevronsRight, LogOut, ChevronRight, Headphones
+  Truck, Users, UserCog, Warehouse, X, Settings2, Sparkles, ShieldAlert,
+  ChevronsLeft, ChevronsRight, Activity, LogOut, ChevronRight, Headphones, UserCircle
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { companySettingsService } from '../../services/companySettingsService'
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/', label: 'Panel', icon: LayoutDashboard, end: true },
   { to: '/ventas', label: 'Ventas', icon: ShoppingCart },
   { to: '/compras', label: 'Compras', icon: Truck },
-  { to: '/productos', label: 'Inventario', icon: Boxes },
+  { to: '/productos', label: 'Productos', icon: Boxes },
   { to: '/clientes', label: 'Clientes', icon: Users },
   { to: '/movimientos', label: 'Movimientos', icon: ArrowLeftRight },
   { to: '/categorias', label: 'Categorías', icon: Tags },
   { to: '/proveedores', label: 'Proveedores', icon: Warehouse },
-  { to: '/usuarios', label: 'Usuarios', icon: UserCog, adminOnly: true },
+  { to: '/actividad-empleados', label: 'Movimientos Empleados', icon: Activity, adminOnly: true },
+  { to: '/usuarios', label: 'Usuarios y Roles', icon: UserCog, adminOnly: true },
+  { to: '/planes', label: 'Tu Plan', icon: Sparkles, adminOnly: true },
   { to: '/configuracion', label: 'Configuración', icon: Settings2, adminOnly: true },
+  { to: '/perfil', label: 'Mi Perfil', icon: UserCircle },
 ]
 
 function Item({ to, label, icon: Icon, end, onClick, isCollapsed }) {
@@ -31,11 +34,11 @@ function Item({ to, label, icon: Icon, end, onClick, isCollapsed }) {
       className={({ isActive }) =>
         `group relative flex items-center transition-all duration-150 ${
           isCollapsed
-            ? 'justify-center mx-1.5 px-0 py-2.5 rounded-2xl'
-            : 'gap-3 mx-2 px-3.5 py-2.5 rounded-2xl text-[13.5px]'
+            ? 'justify-center mx-1.5 px-0 py-2.5 rounded-xl'
+            : 'gap-3 mx-2 px-3.5 py-2.5 rounded-xl text-[13px]'
         } font-medium ${
           isActive
-            ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-500/40'
+            ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-500/35'
             : 'text-slate-200/90 hover:text-white hover:bg-white/[0.08] active:scale-[0.98]'
         }`
       }
@@ -115,7 +118,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 lg:hidden animate-fade-in" onClick={onClose} />
       )}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col h-screen shrink-0 bg-gradient-to-b from-[#061838] via-[#08214D] to-[#05142E] border-r border-[#0E2C60] text-white shadow-2xl transition-[width,transform] duration-300 ease-in-out overflow-hidden ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col h-screen shrink-0 bg-gradient-to-b from-[#061838] via-[#08214D] to-[#05142E] border-r border-[#0E2C60] text-white shadow-2xl transition-[width,transform] duration-300 ease-in-out ${
           isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
         } ${isCollapsed ? 'lg:w-[76px]' : 'lg:w-64'}`}
       >
@@ -123,12 +126,12 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         {/* Ambient background curve glow */}
         <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Floating Circular Toggle Button on the sidebar border — desktop only */}
+        {/* Floating Circular Toggle Button on the sidebar border — fully visible, not cut off */}
         {onToggleCollapse && (
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="hidden lg:flex absolute -right-3 top-5 z-50 w-6 h-6 rounded-full bg-[#08214D] border border-blue-400/40 shadow-lg items-center justify-center text-blue-200 hover:text-white hover:bg-blue-600 hover:border-blue-400 hover:scale-110 transition-all cursor-pointer"
+            className="hidden lg:flex absolute -right-3 top-5 z-[60] w-6 h-6 rounded-full bg-[#08214D] border border-blue-400/50 shadow-xl items-center justify-center text-blue-200 hover:text-white hover:bg-blue-600 hover:border-blue-400 hover:scale-110 transition-all cursor-pointer"
             title={isCollapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'}
             aria-label={isCollapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'}
           >
@@ -141,7 +144,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
           <div className="flex items-center gap-3 min-w-0">
             <div
               className={`h-10 ${effectiveCollapsed ? 'w-10' : 'min-w-[40px] max-w-[50px]'} rounded-xl overflow-hidden bg-white/95 shrink-0 flex items-center justify-center border border-white/20 shadow-md p-1`}
-              title={effectiveCollapsed ? (company?.name || 'MTA Software') : undefined}
+              title={effectiveCollapsed ? (company?.name || 'CLEANIG SERVICE') : undefined}
             >
               <img
                 src={company?.logo_url || '/logo.png'}
@@ -154,11 +157,11 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
             </div>
             {!effectiveCollapsed && (
               <div className="min-w-0">
-                <p className="font-display font-bold text-white text-[15px] leading-tight truncate">
-                  {company?.name || 'MTA Software'}
+                <p className="font-display font-bold text-white text-[14.5px] leading-tight truncate">
+                  {company?.name || 'CLEANIG SERVICE'}
                 </p>
-                <p className="text-[11px] text-blue-300 font-bold uppercase tracking-wider mt-0.5 truncate">
-                  ERP
+                <p className="text-[10.5px] text-blue-300 font-semibold uppercase tracking-wider mt-0.5 truncate">
+                  {company?.ruc ? `RUC: ${company.ruc}` : 'ERP'}
                 </p>
               </div>
             )}
@@ -170,7 +173,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         </div>
 
         {/* Navigation list with hidden native scrollbar */}
-        <nav className="flex-1 min-h-0 overflow-y-auto px-1.5 py-2.5 space-y-1 no-scrollbar overscroll-contain z-10">
+        <nav className="flex-1 min-h-0 overflow-y-auto px-1.5 py-2.5 space-y-0.5 no-scrollbar overscroll-contain z-10">
           {!isPlatformAdmin ? (
             NAV_ITEMS.map((item) => {
               if (item.adminOnly && !isAdmin) return null
@@ -186,7 +189,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
 
           {/* Help Support Card (exact match to reference image) */}
           {!effectiveCollapsed && (
-            <div className="mx-2 my-3 p-3.5 rounded-2xl bg-gradient-to-b from-white/[0.08] to-white/[0.03] backdrop-blur-md border border-white/[0.12] text-center relative overflow-hidden shadow-lg shadow-black/20">
+            <div className="mx-2 my-3 p-3 rounded-2xl bg-gradient-to-b from-white/[0.08] to-white/[0.03] backdrop-blur-md border border-white/[0.12] text-center relative overflow-hidden shadow-lg shadow-black/20">
               <div className="w-10 h-10 mx-auto rounded-full bg-blue-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(37,99,235,0.8)]">
                 <Headphones size={18} strokeWidth={2.2} />
               </div>
