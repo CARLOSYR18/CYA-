@@ -4,7 +4,7 @@ import {
   ArrowLeft, FolderTree, Layers, Tag, Sparkles, Check, AlertCircle, X,
   Boxes, DollarSign, CheckCircle2, Package, TrendingUp, Laptop,
   Briefcase, Network, Printer, Headphones, Smartphone, Shirt,
-  Coffee, Wrench, ShieldCheck, Eye, Palette
+  Coffee, Wrench, ShieldCheck, Eye, Palette, Home
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import { categoriesService } from '../services/categoriesService'
@@ -15,14 +15,14 @@ const fmt = (n) =>
 
 const fmtN = (n) => (Number(n) || 0).toLocaleString('es-PE')
 
-/* ─── 7 Finnova Color Themes (Dark & Light Native) ─── */
+/* ─── 7 Color Themes ─── */
 const COLOR_THEMES = [
   {
     id: 'blue',
     label: 'Azul Finnova',
     bg: 'bg-blue-50 dark:bg-blue-500/10',
     border: 'border-blue-200 dark:border-blue-500/20',
-    text: 'text-brand dark:text-blue-400',
+    text: 'text-blue-600 dark:text-blue-400',
     ring: 'ring-blue-600',
     dot: 'bg-blue-600',
     bar: 'from-blue-600 to-indigo-600',
@@ -98,18 +98,18 @@ const COLOR_THEMES = [
 
 /* ─── Available Visual Category Icons ─── */
 const AVAILABLE_ICONS = [
-  { id: 'layers', label: 'General / Familias', component: Layers },
-  { id: 'laptop', label: 'Cómputo & PCs', component: Laptop },
-  { id: 'smartphone', label: 'Móviles & Telefonía', component: Smartphone },
-  { id: 'headphones', label: 'Audio & Sonido', component: Headphones },
-  { id: 'briefcase', label: 'Oficina & Insumos', component: Briefcase },
-  { id: 'network', label: 'Redes & Conectividad', component: Network },
-  { id: 'printer', label: 'Impresión & Tintas', component: Printer },
-  { id: 'boxes', label: 'Almacén & Kits', component: Boxes },
-  { id: 'package', label: 'Paquetes & Stock', component: Package },
-  { id: 'wrench', label: 'Ferretería & Repuestos', component: Wrench },
-  { id: 'shirt', label: 'Ropa & Moda', component: Shirt },
-  { id: 'coffee', label: 'Alimentos & Bebidas', component: Coffee },
+  { id: 'layers', label: 'General', component: Layers },
+  { id: 'headphones', label: 'Audio', component: Headphones },
+  { id: 'laptop', label: 'Cómputo', component: Laptop },
+  { id: 'smartphone', label: 'Móviles', component: Smartphone },
+  { id: 'briefcase', label: 'Oficina', component: Briefcase },
+  { id: 'network', label: 'Redes', component: Network },
+  { id: 'printer', label: 'Impresión', component: Printer },
+  { id: 'boxes', label: 'Kits / Combos', component: Boxes },
+  { id: 'package', label: 'Paquetes', component: Package },
+  { id: 'wrench', label: 'Ferretería', component: Wrench },
+  { id: 'shirt', label: 'Ropa', component: Shirt },
+  { id: 'coffee', label: 'Alimentos', component: Coffee }
 ]
 
 export default function NewCategory() {
@@ -122,8 +122,10 @@ export default function NewCategory() {
   const [colorIndex, setColorIndex] = useState(0)
   const [iconId, setIconId] = useState('layers')
 
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  // UI & Loading States
+  const [loading, setLoading] = useState(isEditing)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingStep, setProcessingStep] = useState(0) // 1: 35%, 2: 75%, 3: 100%
   const [error, setError] = useState('')
 
   // Contextual stats for editing mode
@@ -132,6 +134,10 @@ export default function NewCategory() {
 
   useEffect(() => {
     async function loadData() {
+      if (!id) {
+        setLoading(false)
+        return
+      }
       setLoading(true)
       try {
         const [cats, prods] = await Promise.all([
@@ -139,37 +145,35 @@ export default function NewCategory() {
           productsService.list().catch(() => [])
         ])
 
-        if (isEditing) {
-          const current = (cats || []).find((c) => String(c.id) === String(id))
-          if (current) {
-            setOriginalCategory(current)
-            setName(current.name || '')
-            setDescription(current.description || '')
+        const current = (cats || []).find((c) => String(c.id) === String(id))
+        if (current) {
+          setOriginalCategory(current)
+          setName(current.name || '')
+          setDescription(current.description || '')
 
-            // Match color index
-            const catIndex = (cats || []).findIndex((c) => String(c.id) === String(id))
-            if (catIndex >= 0) {
-              setColorIndex(catIndex % COLOR_THEMES.length)
-            }
-
-            // Products assigned to this category
-            const assigned = (prods || []).filter((p) => String(p.category_id) === String(id))
-            setCategoryProducts(assigned)
-
-            // Auto select icon if name matches
-            const n = (current.name || '').toLowerCase()
-            if (n.includes('comp') || n.includes('laptop') || n.includes('pc')) setIconId('laptop')
-            else if (n.includes('smart') || n.includes('cel') || n.includes('tel')) setIconId('smartphone')
-            else if (n.includes('audio') || n.includes('sonido') || n.includes('auricular')) setIconId('headphones')
-            else if (n.includes('oficina') || n.includes('papel')) setIconId('briefcase')
-            else if (n.includes('red') || n.includes('cable') || n.includes('switch')) setIconId('network')
-            else if (n.includes('impres') || n.includes('toner') || n.includes('tinta')) setIconId('printer')
-            else if (n.includes('ropa') || n.includes('moda')) setIconId('shirt')
-            else if (n.includes('cafe') || n.includes('bebida')) setIconId('coffee')
-            else if (n.includes('ferr') || n.includes('herram')) setIconId('wrench')
-          } else {
-            setError('No se encontró la categoría solicitada.')
+          // Match color index
+          const catIndex = (cats || []).findIndex((c) => String(c.id) === String(id))
+          if (catIndex >= 0) {
+            setColorIndex(catIndex % COLOR_THEMES.length)
           }
+
+          // Products assigned to this category
+          const assigned = (prods || []).filter((p) => String(p.category_id) === String(id))
+          setCategoryProducts(assigned)
+
+          // Auto select icon if name matches
+          const n = (current.name || '').toLowerCase()
+          if (n.includes('comp') || n.includes('laptop') || n.includes('pc')) setIconId('laptop')
+          else if (n.includes('smart') || n.includes('cel') || n.includes('tel')) setIconId('smartphone')
+          else if (n.includes('audio') || n.includes('sonido') || n.includes('auricular') || n.includes('airpod')) setIconId('headphones')
+          else if (n.includes('oficina') || n.includes('papel')) setIconId('briefcase')
+          else if (n.includes('red') || n.includes('cable') || n.includes('switch')) setIconId('network')
+          else if (n.includes('impres') || n.includes('toner') || n.includes('tinta')) setIconId('printer')
+          else if (n.includes('ropa') || n.includes('moda')) setIconId('shirt')
+          else if (n.includes('cafe') || n.includes('bebida')) setIconId('coffee')
+          else if (n.includes('ferr') || n.includes('herram')) setIconId('wrench')
+        } else {
+          setError('No se encontró la categoría solicitada.')
         }
       } catch (err) {
         console.error('Error cargando datos de categoría:', err)
@@ -182,13 +186,13 @@ export default function NewCategory() {
     loadData()
   }, [id, isEditing])
 
-  // Smart auto-icon detection on name typing if user hasn't explicitly set a custom one
+  // Smart auto-icon detection on typing
   const handleNameChange = (val) => {
     setName(val)
     const n = val.toLowerCase()
     if (n.includes('comp') || n.includes('laptop') || n.includes('pc')) setIconId('laptop')
     else if (n.includes('smart') || n.includes('cel') || n.includes('tel')) setIconId('smartphone')
-    else if (n.includes('audio') || n.includes('sonido') || n.includes('auricular')) setIconId('headphones')
+    else if (n.includes('audio') || n.includes('sonido') || n.includes('auricular') || n.includes('airpod')) setIconId('headphones')
     else if (n.includes('oficina') || n.includes('papel')) setIconId('briefcase')
     else if (n.includes('red') || n.includes('cable') || n.includes('switch')) setIconId('network')
     else if (n.includes('impres') || n.includes('toner') || n.includes('tinta')) setIconId('printer')
@@ -216,8 +220,9 @@ export default function NewCategory() {
     return { skuCount, totalUnits, totalValuation }
   }, [categoryProducts])
 
+  // 3-step animated submit flow
   async function handleSubmit(e) {
-    e.preventDefault()
+    if (e && e.preventDefault) e.preventDefault()
     setError('')
 
     const cleanName = name.trim()
@@ -226,8 +231,13 @@ export default function NewCategory() {
       return
     }
 
-    setSaving(true)
+    setIsProcessing(true)
+    setProcessingStep(1) // 35%
+
     try {
+      await new Promise((r) => setTimeout(r, 380))
+      setProcessingStep(2) // 75%
+
       const payload = {
         name: cleanName,
         description: description.trim()
@@ -239,6 +249,10 @@ export default function NewCategory() {
         await categoriesService.create(payload)
       }
 
+      setProcessingStep(3) // 100%
+      await new Promise((r) => setTimeout(r, 450))
+
+      setIsProcessing(false)
       navigate('/categorias', {
         state: {
           created: !isEditing,
@@ -247,47 +261,48 @@ export default function NewCategory() {
         }
       })
     } catch (err) {
+      setIsProcessing(false)
+      setProcessingStep(0)
       console.error(err)
       setError(err.message || 'No se pudo guardar la categoría.')
-      setSaving(false)
     }
   }
 
   return (
     <AppLayout title={isEditing ? 'Modificar Categoría' : 'Nueva Categoría'}>
-      <div className="space-y-6 max-w-6xl mx-auto pb-16">
+      <div className="space-y-4 max-w-6xl mx-auto pb-8 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
-            0. EXECUTIVE BREADCRUMB & TOP HEADER BAR
+            0. COMPACT BREADCRUMB & TOP HEADER BAR
            ═════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#141417] p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-xs">
-          <div className="flex items-center gap-3.5">
+        <div className="bg-white dark:bg-[#141417] p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate('/categorias')}
-              className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all cursor-pointer shadow-xs active:scale-95"
+              className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95 shadow-xs"
               title="Regresar a Categorías"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={16} />
             </button>
             <div>
-              <div className="flex items-center gap-2">
-                <Link to="/categorias" className="text-xs font-semibold text-slate-400 hover:text-brand transition-colors">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+                <span className="hover:text-blue-600 cursor-pointer" onClick={() => navigate('/categorias')}>
                   Categorías
-                </Link>
-                <span className="text-xs text-slate-300 dark:text-zinc-600">/</span>
-                <span className="text-xs font-bold text-brand dark:text-blue-400">
+                </span>
+                <span>/</span>
+                <span className="text-blue-600 dark:text-blue-400 font-semibold">
                   {isEditing ? 'Modificar Familia' : 'Nueva Familia'}
                 </span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight mt-0.5 font-display">
+              <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
                 {isEditing ? `Editar: ${originalCategory?.name || name}` : 'Registrar Nueva Categoría'}
               </h1>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-blue-50 text-brand dark:bg-blue-500/15 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30">
               <FolderTree size={14} /> Clasificación de Catálogo
             </span>
           </div>
@@ -297,37 +312,37 @@ export default function NewCategory() {
             ERROR NOTIFICATION
            ═════════════════════════════════════════════════════════ */}
         {error && (
-          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2.5 shadow-xs animate-slide-up">
-            <AlertCircle size={18} className="shrink-0 text-rose-600 dark:text-rose-400" />
+          <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2.5 shadow-xs animate-slide-up">
+            <AlertCircle size={16} className="shrink-0 text-rose-600 dark:text-rose-400" />
             <span className="font-semibold">{error}</span>
           </div>
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            MAIN FORM: 2-COLUMN BALANCED DESKTOP LAYOUT
+            MAIN FORM: COMPACT 2-COLUMN SINGLE-SCREEN LAYOUT
            ═════════════════════════════════════════════════════════ */}
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
 
             {/* ─── LEFT COLUMN: CONFIGURATION & IDENTITY (7 COLS) ─── */}
-            <div className="lg:col-span-7 space-y-5">
+            <div className="lg:col-span-7 space-y-4">
 
               {/* CARD 1: GENERAL INFO */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <Tag size={16} className="text-brand dark:text-blue-400" />
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    <Tag size={15} className="text-blue-600 dark:text-blue-400" />
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
                       1. Identificación y Nomenclatura
                     </h3>
                   </div>
-                  <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium">Campos obligatorios *</span>
+                  <span className="text-[10px] sm:text-[11px] text-slate-400 dark:text-zinc-500 font-medium">Campos obligatorios *</span>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {/* Category Name */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1 uppercase tracking-wider">
                       Nombre de la Categoría *
                     </label>
                     <input
@@ -337,55 +352,55 @@ export default function NewCategory() {
                       placeholder="Ej: Cómputo, Laptops, Audio & Video, Accesorios…"
                       required
                       autoFocus
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 font-semibold outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 font-semibold outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                     />
-                    <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">
-                      Usa un término claro y reconocible para agrupar artículos similares en inventario y ventas.
+                    <p className="text-[10.5px] text-slate-400 dark:text-zinc-500 mt-1">
+                      Usa un término claro para agrupar artículos similares en inventario y ventas.
                     </p>
                   </div>
 
                   {/* Category Description */}
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
                         Descripción Detallada (Opcional)
                       </label>
-                      <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+                      <span className="text-[10px] text-slate-400 dark:text-zinc-500">
                         {description.length}/200 caracteres
                       </span>
                     </div>
                     <textarea
-                      rows={3}
+                      rows={2}
                       value={description}
                       maxLength={200}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Especifica los tipos de productos que pertenecen a esta categoría, materiales o líneas comerciales…"
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500 leading-relaxed"
+                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500 leading-relaxed resize-none"
                     />
                   </div>
                 </div>
               </div>
 
               {/* CARD 2: VISUAL BRANDING & ICON SELECTION */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-5">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs space-y-3.5">
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <Palette size={16} className="text-brand dark:text-blue-400" />
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    <Palette size={15} className="text-blue-600 dark:text-blue-400" />
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
                       2. Identidad Visual y Color
                     </h3>
                   </div>
-                  <span className="text-[11px] font-bold text-brand dark:text-blue-400">
+                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
                     {selectedTheme.label}
                   </span>
                 </div>
 
                 {/* Color Palette Selector */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
                     Paleta Cromática
                   </label>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     {COLOR_THEMES.map((th, idx) => {
                       const isSelected = colorIndex === idx
                       return (
@@ -393,13 +408,13 @@ export default function NewCategory() {
                           key={th.id}
                           type="button"
                           onClick={() => setColorIndex(idx)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer ${
                             isSelected
-                              ? `${th.bg} ${th.border} ${th.text} ring-2 ${th.ring} shadow-xs scale-105`
+                              ? `${th.bg} ${th.border} ${th.text} ring-2 ${th.ring} shadow-xs scale-102`
                               : 'bg-slate-50 dark:bg-zinc-800/60 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:border-slate-300'
                           }`}
                         >
-                          <span className={`w-3 h-3 rounded-full ${th.dot}`} />
+                          <span className={`w-2.5 h-2.5 rounded-full ${th.dot}`} />
                           <span>{th.label}</span>
                         </button>
                       )
@@ -409,10 +424,10 @@ export default function NewCategory() {
 
                 {/* Icon Selection Gallery */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
                     Icono Representativo
                   </label>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                     {AVAILABLE_ICONS.map((ic) => {
                       const IconComp = ic.component
                       const isSelected = iconId === ic.id
@@ -422,14 +437,15 @@ export default function NewCategory() {
                           key={ic.id}
                           type="button"
                           onClick={() => setIconId(ic.id)}
-                          className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                          title={ic.label}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
                             isSelected
-                              ? `${selectedTheme.bg} ${selectedTheme.border} ${selectedTheme.text} ring-2 ${selectedTheme.ring} shadow-xs`
+                              ? `${selectedTheme.bg} ${selectedTheme.border} ${selectedTheme.text} ring-2 ${selectedTheme.ring} shadow-xs scale-105`
                               : 'bg-slate-50 dark:bg-zinc-800/60 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
                           }`}
                         >
-                          <IconComp size={20} className="mb-1" />
-                          <span className="text-[10px] font-semibold leading-tight line-clamp-1">
+                          <IconComp size={18} className="mb-0.5" />
+                          <span className="text-[9.5px] font-semibold leading-tight line-clamp-1">
                             {ic.label}
                           </span>
                         </button>
@@ -440,29 +456,27 @@ export default function NewCategory() {
               </div>
 
               {/* CARD 3: BEST PRACTICES TIP */}
-              <div className="bg-slate-50 dark:bg-zinc-800/40 rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4.5 flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-brand dark:text-blue-400 shrink-0">
-                  <ShieldCheck size={18} />
+              <div className="bg-slate-50 dark:bg-zinc-800/40 rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3.5 flex items-center gap-3">
+                <div className="p-1.5 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
+                  <ShieldCheck size={16} />
                 </div>
-                <div className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
-                  <p className="font-bold text-slate-900 dark:text-zinc-100 mb-0.5">
-                    Consejo para el control de inventario
-                  </p>
-                  Mantener entre 4 y 15 categorías principales permite agrupar tus SKUs de manera eficiente en el Punto de Venta, filtros de catálogo y reportes tributarios sin saturar al equipo.
+                <div className="text-[11px] text-slate-600 dark:text-zinc-300 leading-normal">
+                  <span className="font-bold text-slate-900 dark:text-zinc-100">Consejo ERP: </span>
+                  Mantener entre 4 y 15 categorías principales agiliza las búsquedas en el Punto de Venta y el control de inventario.
                 </div>
               </div>
 
             </div>
 
             {/* ─── RIGHT COLUMN: LIVE PREVIEW & ACTIONS (5 COLS) ─── */}
-            <div className="lg:col-span-5 space-y-5">
+            <div className="lg:col-span-5 space-y-4">
 
               {/* CARD: LIVE FINNOVA CARD PREVIEW */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-3.5">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-5 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <Eye size={16} className="text-brand dark:text-blue-400" />
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    <Eye size={15} className="text-blue-600 dark:text-blue-400" />
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
                       Vista Previa en Tiempo Real
                     </h3>
                   </div>
@@ -471,31 +485,31 @@ export default function NewCategory() {
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-400 dark:text-zinc-500">
+                <p className="text-[11px] text-slate-400 dark:text-zinc-500">
                   Así se visualizará la tarjeta de esta categoría en tu catálogo:
                 </p>
 
                 {/* THE MOCK CARD */}
-                <div className="bg-white dark:bg-[#18181c] rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm space-y-4">
+                <div className="bg-white dark:bg-[#18181c] rounded-2xl border border-slate-200 dark:border-zinc-700 p-4.5 shadow-sm space-y-3.5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`w-12 h-12 rounded-2xl ${selectedTheme.bg} ${selectedTheme.border} ${selectedTheme.text} border flex items-center justify-center shrink-0 shadow-xs`}
+                        className={`w-11 h-11 rounded-2xl ${selectedTheme.bg} ${selectedTheme.border} ${selectedTheme.text} border flex items-center justify-center shrink-0 shadow-xs`}
                       >
-                        <CurrentIconComponent size={24} />
+                        <CurrentIconComponent size={22} />
                       </div>
                       <div className="min-w-0">
-                        <h4 className="font-bold text-slate-900 dark:text-zinc-100 text-base leading-snug truncate">
+                        <h4 className="font-bold text-slate-900 dark:text-zinc-100 text-sm sm:text-base leading-snug truncate">
                           {name.trim() || 'Nombre de la Categoría'}
                         </h4>
-                        <span className="text-[11px] font-semibold text-slate-400 dark:text-zinc-400">
+                        <span className="text-[10.5px] font-semibold text-slate-400 dark:text-zinc-400">
                           {isEditing ? `${editingStats.skuCount} SKUs registrados` : 'Familia nueva'}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 min-h-[32px] leading-relaxed">
+                  <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 min-h-[30px] leading-relaxed">
                     {description.trim() || (
                       <span className="text-slate-300 dark:text-zinc-600 italic">
                         Sin descripción registrada. Puedes detallar los productos asociados.
@@ -504,22 +518,22 @@ export default function NewCategory() {
                   </p>
 
                   {/* Micro stats mockup */}
-                  <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 grid grid-cols-3 gap-2 text-center">
+                  <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 grid grid-cols-3 gap-2 text-center">
                     <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-2 border border-slate-100 dark:border-zinc-800">
                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">SKUs</p>
-                      <p className="font-extrabold text-slate-900 dark:text-zinc-100 text-sm font-display">
+                      <p className="font-extrabold text-slate-900 dark:text-zinc-100 text-xs sm:text-sm font-display">
                         {isEditing ? editingStats.skuCount : 0}
                       </p>
                     </div>
                     <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-2 border border-slate-100 dark:border-zinc-800">
                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Stock</p>
-                      <p className="font-extrabold text-emerald-600 dark:text-emerald-400 text-sm font-display">
+                      <p className="font-extrabold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm font-display">
                         {isEditing ? `${fmtN(editingStats.totalUnits)}` : '0 uds.'}
                       </p>
                     </div>
                     <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-2 border border-slate-100 dark:border-zinc-800">
                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Valor</p>
-                      <p className="font-extrabold text-slate-900 dark:text-zinc-100 text-xs font-display truncate">
+                      <p className="font-extrabold text-slate-900 dark:text-zinc-100 text-[11px] font-display truncate">
                         {isEditing ? fmt(editingStats.totalValuation) : 'S/ 0.00'}
                       </p>
                     </div>
@@ -536,13 +550,13 @@ export default function NewCategory() {
 
               {/* CARD: CONTEXTUAL STATS (IF EDITING) */}
               {isEditing && (
-                <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs space-y-3">
-                  <div className="flex items-center gap-2 text-slate-900 dark:text-zinc-100 font-bold text-sm">
-                    <Package size={16} className="text-brand dark:text-blue-400" />
+                <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-xs space-y-2.5">
+                  <div className="flex items-center gap-2 text-slate-900 dark:text-zinc-100 font-bold text-xs sm:text-sm">
+                    <Package size={15} className="text-blue-600 dark:text-blue-400" />
                     <span>Productos Vinculados Actualmente</span>
                   </div>
 
-                  <div className="space-y-2 text-xs text-slate-600 dark:text-zinc-400">
+                  <div className="space-y-1.5 text-xs text-slate-600 dark:text-zinc-400">
                     <div className="flex justify-between py-1 border-b border-slate-100 dark:border-zinc-800">
                       <span>Total de SKUs asignados:</span>
                       <strong className="text-slate-900 dark:text-zinc-100">{editingStats.skuCount}</strong>
@@ -559,21 +573,18 @@ export default function NewCategory() {
                 </div>
               )}
 
-              {/* CARD: STICKY SUBMIT & CANCEL BUTTONS */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs space-y-3">
+              {/* CARD: ACTION BUTTONS */}
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-xs space-y-2.5">
                 <button
                   type="submit"
-                  disabled={saving || !name.trim()}
-                  className="w-full py-3 px-4 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow-card active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isProcessing || !name.trim()}
+                  className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {saving ? (
-                    <>
-                      <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                      <span>Guardando datos…</span>
-                    </>
+                  {isProcessing ? (
+                    <span>Guardando datos…</span>
                   ) : (
                     <>
-                      <Check size={16} />
+                      <Check size={16} strokeWidth={2.5} />
                       <span>{isEditing ? 'Guardar Modificaciones' : 'Crear y Publicar Categoría'}</span>
                     </>
                   )}
@@ -582,10 +593,15 @@ export default function NewCategory() {
                 <button
                   type="button"
                   onClick={() => navigate('/categorias')}
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-50 dark:bg-zinc-800/80 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer border border-slate-200 dark:border-zinc-700"
+                  className="w-full py-2 px-4 rounded-xl bg-slate-50 dark:bg-zinc-800/80 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer border border-slate-200 dark:border-zinc-700"
                 >
                   Cancelar y Regresar
                 </button>
+
+                <div className="pt-1 text-center text-[10.5px] text-slate-400 flex items-center justify-center gap-1">
+                  <ShieldCheck size={13} className="text-emerald-500" />
+                  <span>Sincronización instantánea con catálogo y kardex</span>
+                </div>
               </div>
 
             </div>
@@ -593,8 +609,40 @@ export default function NewCategory() {
           </div>
         </form>
 
+        {/* ═════════════════════════════════════════════════════════
+            OVERLAY: 3-STEP ANIMATED LOADING MODAL
+           ═════════════════════════════════════════════════════════ */}
+        {isProcessing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-fade-in">
+            <div className="bg-white dark:bg-[#18181b] rounded-2xl border border-slate-200 dark:border-zinc-700 p-6 max-w-sm w-full text-center shadow-2xl space-y-4 animate-slide-up">
+              <div className="w-14 h-14 rounded-full border-3 border-blue-600 border-t-transparent animate-spin mx-auto flex items-center justify-center">
+                <FolderTree size={22} className="text-blue-600 animate-pulse" />
+              </div>
+
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  {isEditing ? 'Actualizando Categoría' : 'Registrando Nueva Categoría'}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                  {processingStep === 1 && 'Validando nomenclatura y familias de catálogo…'}
+                  {processingStep === 2 && 'Registrando categoría en base de datos protegida…'}
+                  {processingStep === 3 && '¡Categoría guardada con éxito! Redirigiendo…'}
+                </p>
+              </div>
+
+              <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-blue-600 h-full transition-all duration-300"
+                  style={{
+                    width: processingStep === 1 ? '35%' : processingStep === 2 ? '75%' : '100%'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </AppLayout>
   )
 }
-
