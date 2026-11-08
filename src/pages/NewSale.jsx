@@ -298,11 +298,38 @@ export default function NewSale() {
       await new Promise((r) => setTimeout(r, 550))
 
       setIsProcessing(false)
-      setCreatedSale(created)
+      setCreatedSale({
+        ...created,
+        items: created?.items?.length ? created.items : saleItems,
+        serie: serie || 'B001',
+        client:
+          created?.client ||
+          clients.find((c) => c.name === clientName.trim()) || {
+            name: clientName.trim(),
+            phone: clientPhone.trim()
+          }
+      })
     } catch (err) {
       setIsProcessing(false)
       setError(err.message || 'No se pudo registrar la venta')
     }
+  }
+
+  const handleResetForm = () => {
+    setCreatedSale(null)
+    setClientName('')
+    setClientPhone('')
+    setSelectedClientId('')
+    setItems([{ product_id: '', quantity: 1, unit_price: '' }])
+    setPaymentStatus('pagado')
+    setPaymentMethod('efectivo')
+    setCashReceived('')
+    setNotes('')
+    setDiscount('')
+    setPurchaseOrder('')
+    setError('')
+    setProcessingStep(0)
+    setIsProcessing(false)
   }
 
   return (

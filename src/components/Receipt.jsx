@@ -8,18 +8,23 @@ const money = (n) =>
   `S/ ${(Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 const TicketBody = forwardRef(function TicketBody({ sale, client, products, company }, ref) {
-  const productName = (id) => products.find((p) => p.id === id)?.name || id
-  const productSku = (id) => products.find((p) => p.id === id)?.sku || ''
-  const subtotal = sale.items.reduce(
+  const productName = (id) => products?.find((p) => p.id === id)?.name || id
+  const productSku = (id) => products?.find((p) => p.id === id)?.sku || ''
+  const safeItems = Array.isArray(sale?.items)
+    ? sale.items
+    : typeof sale?.items === 'string'
+    ? (() => { try { return JSON.parse(sale.items) } catch { return [] } })()
+    : []
+  const subtotal = safeItems.reduce(
     (sum, it) => sum + (Number(it.quantity) || 1) * (Number(it.unit_price) || 0),
     0
   )
-  const discount = Number(sale.discount || 0)
+  const discount = Number(sale?.discount || 0)
   const total = Math.max(subtotal - discount, 0)
-  const ticketCode = `B001-${sale.id ? sale.id.toString().slice(-6).toUpperCase() : '000001'}`
+  const ticketCode = `B001-${sale?.id ? sale.id.toString().slice(-6).toUpperCase() : '000001'}`
 
-  const clientName = client?.name || sale.client_name || 'CLIENTE PARTICULAR'
-  const clientPhone = client?.phone || sale.client_phone || ''
+  const clientName = client?.name || sale?.client_name || 'CLIENTE PARTICULAR'
+  const clientPhone = client?.phone || sale?.client_phone || ''
   const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
 
   return (
@@ -76,10 +81,15 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
         <div className="flex justify-between">
           <span className="text-slate-400 font-medium">Fecha:</span>
           <span className="text-slate-700 font-medium font-mono">
-            {new Date(sale.created_at).toLocaleString('es-PE', {
-              dateStyle: 'short',
-              timeStyle: 'short'
-            })}
+            {sale?.created_at
+              ? new Date(sale.created_at).toLocaleString('es-PE', {
+                  dateStyle: 'short',
+                  timeStyle: 'short'
+                })
+              : new Date().toLocaleString('es-PE', {
+                  dateStyle: 'short',
+                  timeStyle: 'short'
+                })}
           </span>
         </div>
         <div className="flex justify-between">
@@ -111,7 +121,7 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
         </div>
 
         <div className="space-y-2">
-          {sale.items.map((it, i) => {
+          {safeItems.map((it, i) => {
             const itemTotal = (Number(it.quantity) || 1) * (Number(it.unit_price) || 0)
             const sku = productSku(it.product_id)
             return (
@@ -194,23 +204,28 @@ export default function Receipt({ sale, client, products, company: propCompany }
     }
   }, [propCompany])
 
-  const productName = (id) => products.find((p) => p.id === id)?.name || id
-  const subtotal = sale.items.reduce(
+  const productName = (id) => products?.find((p) => p.id === id)?.name || id
+  const safeItems = Array.isArray(sale?.items)
+    ? sale.items
+    : typeof sale?.items === 'string'
+    ? (() => { try { return JSON.parse(sale.items) } catch { return [] } })()
+    : []
+  const subtotal = safeItems.reduce(
     (sum, it) => sum + (Number(it.quantity) || 1) * (Number(it.unit_price) || 0),
     0
   )
-  const discount = Number(sale.discount || 0)
+  const discount = Number(sale?.discount || 0)
   const total = Math.max(subtotal - discount, 0)
-  const ticketCode = `B001-${sale.id ? sale.id.toString().slice(-6).toUpperCase() : '000001'}`
-  const clientName = client?.name || sale.client_name || 'Cliente'
+  const ticketCode = `B001-${sale?.id ? sale.id.toString().slice(-6).toUpperCase() : '000001'}`
+  const clientName = client?.name || sale?.client_name || 'Cliente'
   const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
 
   const shareText = `*${companyDisplayName}* 🧾
 *Comprobante:* ${ticketCode}
 *Cliente:* ${clientName}
-*Fecha:* ${new Date(sale.created_at).toLocaleDateString('es-PE')}
+*Fecha:* ${sale?.created_at ? new Date(sale.created_at).toLocaleDateString('es-PE') : new Date().toLocaleDateString('es-PE')}
 -----------------------------
-${sale.items.map((it) => `• ${it.quantity}x ${productName(it.product_id)} = ${money((it.quantity || 1) * (it.unit_price || 0))}`).join('\n')}
+${safeItems.map((it) => `• ${it.quantity}x ${productName(it.product_id)} = ${money((it.quantity || 1) * (it.unit_price || 0))}`).join('\n')}
 -----------------------------
 *TOTAL PAGADO: ${money(total)}*
 ¡Gracias por su compra!`
