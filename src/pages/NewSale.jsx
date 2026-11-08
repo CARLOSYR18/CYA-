@@ -324,7 +324,7 @@ export default function NewSale() {
 
   return (
     <AppLayout title="Nueva Venta">
-      <div className="max-w-[1400px] mx-auto space-y-3.5 pb-8 animate-fade-in">
+      <div className="max-w-[1400px] mx-auto space-y-2.5 sm:space-y-3 pb-3 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
             0. COMPACT HEADER BAR (ZERO VERTICAL WASTE)
