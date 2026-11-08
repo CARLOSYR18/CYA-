@@ -14,6 +14,7 @@ import NewProduct from './pages/NewProduct'
 import Categories from './pages/Categories'
 import NewCategory from './pages/NewCategory'
 import InventoryMovements from './pages/InventoryMovements'
+import NewMovement from './pages/NewMovement'
 import Sales from './pages/Sales'
 import NewSale from './pages/NewSale'
 import Purchases from './pages/Purchases'
@@ -60,6 +61,8 @@ export default function App() {
               <Route path="/categorias/nueva" element={<ProtectedRoute><NewCategory /></ProtectedRoute>} />
               <Route path="/categorias/editar/:id" element={<ProtectedRoute><NewCategory /></ProtectedRoute>} />
               <Route path="/movimientos" element={<ProtectedRoute><InventoryMovements /></ProtectedRoute>} />
+              <Route path="/movimientos/nuevo" element={<ProtectedRoute><NewMovement /></ProtectedRoute>} />
+              <Route path="/movimientos/editar/:id" element={<ProtectedRoute><NewMovement /></ProtectedRoute>} />
               <Route path="/ventas" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
               <Route path="/ventas/nueva" element={<ProtectedRoute><NewSale /></ProtectedRoute>} />
               <Route path="/compras" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />

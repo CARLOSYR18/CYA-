@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import {
   Plus, Pencil, ArrowDownLeft, ArrowUpRight, ArrowLeftRight,
   Trash2, Search, X, Filter, ArrowUpDown, Package,
@@ -65,6 +65,17 @@ function formatDateTime(dateStr) {
 
 export default function InventoryMovements() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [notification, setNotification] = useState(null)
+
+  useEffect(() => {
+    if (location.state?.successNotification) {
+      setNotification(location.state.successNotification)
+      window.history.replaceState({}, document.title)
+      const timer = setTimeout(() => setNotification(null), 5500)
+      return () => clearTimeout(timer)
+    }
+  }, [location.state])
 
   const [movements, setMovements] = useState(() => inventoryMovementsService.getCached?.() || [])
   const [products, setProducts] = useState(() => productsService.getCached?.() || [])
@@ -429,23 +440,11 @@ export default function InventoryMovements() {
   const hasActiveFilters = search || typeFilter !== 'ALL' || responsibleFilter !== 'ALL' || datePreset !== 'ALL' || dateFrom || dateTo || sortBy !== 'recent'
 
   function openCreate() {
-    setEditing(null)
-    setForm(emptyForm)
-    setError('')
-    setModalOpen(true)
+    navigate('/movimientos/nuevo')
   }
 
   function openEdit(m) {
-    setEditing(m)
-    setForm({
-      product_id: m.product_id,
-      type: m.type,
-      quantity: String(m.quantity),
-      reason: m.reason || '',
-      reference: m.reference || ''
-    })
-    setError('')
-    setModalOpen(true)
+    navigate(`/movimientos/editar/${m.id}`)
   }
 
   async function handleSubmit(e) {
@@ -506,6 +505,29 @@ export default function InventoryMovements() {
   return (
     <AppLayout title="Control de Movimientos de Inventario">
       <div className="space-y-6 max-w-[1440px] mx-auto pb-16">
+
+        {/* ═════════════════════════════════════════════════════════
+            SUCCESS TOAST NOTIFICATION FROM NEW/EDIT MOVEMENT
+           ═════════════════════════════════════════════════════════ */}
+        {notification && (
+          <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 shadow-sm flex items-start justify-between gap-3 animate-slide-down">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                <CheckCircle2 size={18} />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-extrabold">{notification.title}</p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-300/90 mt-0.5">{notification.description}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setNotification(null)}
+              className="p-1 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {/* ═════════════════════════════════════════════════════════
             0. BREADCRUMB & HEADER ROW (EXECUTIVE STANDARD)

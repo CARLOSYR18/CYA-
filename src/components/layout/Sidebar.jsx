@@ -96,7 +96,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
     return {
       ventas: saved?.ventas ?? (p.startsWith('/ventas') || p === '/clientes'),
       compras: saved?.compras ?? (p.startsWith('/compras') || p === '/proveedores'),
-      inventario: saved?.inventario ?? (p === '/productos' || p === '/categorias' || p === '/movimientos'),
+      inventario: saved?.inventario ?? (p.startsWith('/productos') || p.startsWith('/categorias') || p.startsWith('/movimientos')),
       administracion: saved?.administracion ?? (p === '/actividad-empleados' || p === '/usuarios' || p === '/planes' || p === '/configuracion'),
     }
   })
@@ -109,7 +109,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         ...prev,
         ventas: prev.ventas || p.startsWith('/ventas') || p === '/clientes',
         compras: prev.compras || p.startsWith('/compras') || p === '/proveedores',
-        inventario: prev.inventario || p === '/productos' || p === '/categorias' || p === '/movimientos',
+        inventario: prev.inventario || p.startsWith('/productos') || p.startsWith('/categorias') || p.startsWith('/movimientos'),
         administracion: prev.administracion || p === '/actividad-empleados' || p === '/usuarios' || p === '/planes' || p === '/configuracion',
       }
       saveModules(next)
