@@ -1,3 +1,4 @@
+// Version: 2.0.1 - Executive Single-Screen Redesign
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
