@@ -1,50 +1,107 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Search, Bell, Calendar, Sun, Moon, ShoppingCart, Package,
-  Warehouse, Coins, BarChart2, PieChart, Zap, Clock, Boxes,
-  CheckCircle2, ArrowRight, UserPlus, FileText, Settings, Users,
-  BarChart3, RefreshCw, ChevronDown
+  ArrowLeft, SlidersHorizontal, Plus, AlertTriangle, Calendar, Clock,
+  Wallet, ArrowUpRight, ArrowDownRight, Search, ChevronDown, MoreVertical,
+  LayoutGrid, Paperclip, CheckCircle2, Eye, RefreshCw, FileText,
+  Receipt, ShoppingBag, Bell, Settings, DollarSign, X, Check, ExternalLink,
+  ChevronRight, Sun, Moon, LogOut, Menu, User, Boxes, TrendingUp, QrCode
 } from 'lucide-react'
 import AppLayout, { useLayout } from '../components/layout/AppLayout'
+import ReceiptModal from '../components/Receipt'
+import PaymentQrModal from '../components/PaymentQrModal'
+import { DashboardKpiSkeleton, DashboardSalesMasterSkeleton, DashboardAnalyticsSkeleton, Skeleton } from '../components/ui/Skeleton'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { salesService } from '../services/salesService'
 import { productsService } from '../services/productsService'
-import { purchasesService } from '../services/purchasesService'
-import { clientsService } from '../services/clientsService'
+import { salesService } from '../services/salesService'
 import { categoriesService } from '../services/categoriesService'
+import { clientsService } from '../services/clientsService'
+import { purchasesService } from '../services/purchasesService'
 import { companySettingsService } from '../services/companySettingsService'
-import { inventoryMovementsService } from '../services/inventoryMovementsService'
 import { paymentMethodsService } from '../services/paymentMethodsService'
-import PaymentQrModal from '../components/PaymentQrModal'
+import { inventoryMovementsService } from '../services/inventoryMovementsService'
+import { getNotifications } from '../lib/notifications'
+import DashboardAnalytics from '../components/DashboardAnalytics'
 
+/* ═════════════════════════════════════════════════════════════
+   CYA STORE ERP — DASHBOARD CON DATOS Y LÓGICA 100% REALES
+   ═════════════════════════════════════════════════════════════ */
+
+// ─── Wrapper: renderiza AppLayout → luego DashboardContent ya DENTRO del Provider ───
 export default function Dashboard() {
   return (
-    <AppLayout title="Dashboard ERP" noTopbar={true}>
+    <AppLayout title="Control de Ventas & Facturación" noTopbar={true}>
       <DashboardContent />
     </AppLayout>
   )
 }
 
+// ─── Contenido real del Dashboard (usa useLayout() YA dentro del LayoutContext.Provider) ───
 function DashboardContent() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, logout, requestLogout, isPlatformAdmin } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   const { openSidebar } = useLayout()
 
-  // Real ERP states
-  const [sales, setSales] = useState(() => salesService.getCached?.() || [])
+  // ERP Backend States
   const [products, setProducts] = useState(() => productsService.getCached?.() || [])
-  const [purchases, setPurchases] = useState([])
-  const [clients, setClients] = useState(() => clientsService.getCached?.() || [])
+  const [sales, setSales] = useState(() => salesService.getCached?.() || [])
   const [categories, setCategories] = useState(() => categoriesService.getCached?.() || [])
+  const [clients, setClients] = useState(() => clientsService.getCached?.() || [])
   const [movements, setMovements] = useState(() => inventoryMovementsService.getCached?.() || [])
   const [company, setCompany] = useState(() => companySettingsService.getCached?.())
-  const [loading, setLoading] = useState(false)
-  const [timeRange, setTimeRange] = useState('6m')
+  const [loading, setLoading] = useState(() => !salesService.hasCache?.() && !productsService.hasCache?.())
 
-  // QR Modal States for Yape, Plin & BCP
+  useEffect(() => {
+    const handleCompanyUpdate = (e) => {
+      if (e.detail) setCompany(e.detail)
+    }
+    window.addEventListener('cya_company_updated', handleCompanyUpdate)
+    return () => window.removeEventListener('cya_company_updated', handleCompanyUpdate)
+  }, [])
+
+  // Interactive UI States (Default: Sol Peruano 'S/')
+  const [currency, setCurrency] = useState(() => {
+    try {
+      return localStorage.getItem('dashboard_currency') || 'S/'
+    } catch {
+      return 'S/'
+    }
+  })
+
+  const toggleCurrency = () => {
+    setCurrency(prev => {
+      const next = prev === 'S/' ? '$' : 'S/'
+      try {
+        localStorage.setItem('dashboard_currency', next)
+      } catch {}
+      return next
+    })
+  }
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState('1003')
+  const [activeTab, setActiveTab] = useState('unpaid') // 'all' | 'draft' | 'unpaid'
+  const [activePaymentMethod, setActivePaymentMethod] = useState('stripe') // 'visa' | 'stripe' | 'paypal'
+  const [searchInvoice, setSearchInvoice] = useState('')
+  const [selectedCustomerFilter, setSelectedCustomerFilter] = useState('ALL')
+  const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false)
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL')
+
+  // Topbar Dropdowns
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const userMenuRef = useRef(null)
+  const notifMenuRef = useRef(null)
+
+  // Modals & Action States
+  const [receiptOpen, setReceiptOpen] = useState(false)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [addItemModalOpen, setAddItemModalOpen] = useState(false)
+  const [payoutSuccess, setPayoutSuccess] = useState(false)
+
+  // QR Modal States
   const [qrModalMethod, setQrModalMethod] = useState(null)
   const [qrModalAmount, setQrModalAmount] = useState(0)
   const [paymentConfig, setPaymentConfig] = useState(() => paymentMethodsService.get())
@@ -55,26 +112,128 @@ function DashboardContent() {
     return () => window.removeEventListener('cya-payment-methods-updated', handlePayUpdate)
   }, [])
 
-  // Load real data from Supabase
-  const loadData = async () => {
-    setLoading(true)
+  // New Item Input State
+  const [newItemName, setNewItemName] = useState('')
+  const [newItemPrice, setNewItemPrice] = useState('')
+
+  // New Invoice State
+  const [newInvClient, setNewInvClient] = useState('')
+  const [newInvAmount, setNewInvAmount] = useState('')
+  const [newInvService, setNewInvService] = useState('')
+
+  // Local state copy of invoices — solo ventas reales del ERP
+  const [invoiceList, setInvoiceList] = useState([])
+
+  // Fetch notifications
+  useEffect(() => {
+    getNotifications().then(list => setNotifications(list || [])).catch(() => {})
+  }, [])
+
+  // Close menus on outside click or touch
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserDropdownOpen(false)
+      }
+      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target)) {
+        setNotifDropdownOpen(false)
+      }
+    }
+    document.addEventListener('click', handleOutside)
+    return () => {
+      document.removeEventListener('click', handleOutside)
+    }
+  }, [])
+
+  // Fetch real ERP data
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
     try {
-      const [s, p, pu, cl, ca, co, m] = await Promise.all([
-        salesService.list().catch(() => []),
-        productsService.list().catch(() => []),
-        purchasesService.list().catch(() => []),
-        clientsService.list().catch(() => []),
-        categoriesService.list().catch(() => []),
-        companySettingsService.get().catch(() => null),
-        inventoryMovementsService.list().catch(() => [])
+      await loadData(true)
+      const notifs = await getNotifications().catch(() => [])
+      setNotifications(notifs || [])
+    } finally {
+      setTimeout(() => setRefreshing(false), 550)
+    }
+  }
+
+  const loadData = async (force = false) => {
+    if (force || (!salesService.hasCache?.() && !productsService.hasCache?.())) {
+      setLoading(true)
+    }
+    try {
+      const opts = force ? { forceRefresh: true } : {}
+      const [p, s, c, cl, co, m] = await Promise.all([
+        productsService.list(opts).catch(() => []),
+        salesService.list(opts).catch(() => []),
+        categoriesService.list(opts).catch(() => []),
+        clientsService.list(opts).catch(() => []),
+        companySettingsService.get(opts).catch(() => null),
+        inventoryMovementsService.list(opts).catch(() => [])
       ])
-      if (s?.length) setSales(s)
-      if (p?.length) setProducts(p)
-      if (pu?.length) setPurchases(pu)
-      if (cl?.length) setClients(cl)
-      if (ca?.length) setCategories(ca)
-      if (co) setCompany(co)
-      if (m?.length) setMovements(m)
+      setProducts(p || [])
+      setSales(s || [])
+      setCategories(c || [])
+      setClients(cl || [])
+      setCompany(co || null)
+      setMovements(m || [])
+
+      // Mapear ventas 100% REALES del proyecto
+      if (s && s.length > 0) {
+        const mapped = s.map((sale, idx) => {
+          const clientObj = cl?.find(client => client.id === sale.client_id)
+          const clientName = clientObj?.name || sale.client_name || `Cliente #${idx + 1}`
+          const total = salesService.saleTotal(sale)
+          const items = sale.items && sale.items.length > 0
+            ? sale.items.map(it => {
+                const prod = p?.find(pr => pr.id === it.product_id)
+                const price = (Number(it.unit_price) || 0) * (Number(it.quantity) || 1)
+                return {
+                  name: prod?.name || 'Producto del Catálogo',
+                  price,
+                  unit_price: Number(it.unit_price) || 0,
+                  qty: Number(it.quantity) || 1
+                }
+              })
+            : [
+                { name: 'Venta de Productos / Catálogo', price: total, unit_price: total, qty: 1 }
+              ]
+
+          const avatars = ['/avatar-1.jpg', '/avatar-2.jpg', '/avatar-3.jpg', '/avatar-4.jpg', '/avatar-5.jpg']
+          const codeFormatted = sale.series && sale.correlative 
+            ? `${sale.series}-${sale.correlative}` 
+            : `VTA-${String(sale.id).slice(-4).toUpperCase()}`
+
+          const isPaid = sale.status === 'pagado'
+
+          return {
+            id: String(sale.id),
+            code: codeFormatted,
+            client_name: clientName,
+            client_role: clientObj?.phone || clientObj?.email || 'Cliente Registrado',
+            due_text: isPaid ? 'Cobrado / Pagado' : (sale.due_date ? `Vence: ${sale.due_date}` : 'Pendiente de cobro'),
+            status: isPaid ? 'Pagada' : 'Pendiente',
+            amount: total,
+            avatar: avatars[idx % avatars.length],
+            company: co?.name || 'CYA Store',
+            items,
+            subtotal: total,
+            total,
+            balance: isPaid ? 0 : total,
+            isReal: true,
+            rawSale: sale
+          }
+        })
+
+        setInvoiceList(mapped)
+        setSelectedInvoiceId(prev => mapped.some(m => m.id === prev) ? prev : mapped[0].id)
+      } else {
+        setInvoiceList([])
+      }
+    } catch (e) {
+      console.error('Error cargando datos del dashboard:', e)
     } finally {
       setLoading(false)
     }
@@ -84,808 +243,1995 @@ function DashboardContent() {
     loadData()
   }, [])
 
-  // User display name
-  const userFirstName = user?.full_name?.split(' ')?.[0] || 'Carlos'
+  // Currency Formatter
+  const formatMoney = (val) => {
+    const num = Number(val) || 0
+    const str = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return `${currency} ${str}`
+  }
 
-  // Current dynamic Date & Time
-  const now = new Date()
-  const currentDateStr = now.toLocaleDateString('es-PE', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  }).replace('.', '')
-  const currentTimeStr = now.toLocaleTimeString('es-PE', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  })
+  /* ═══════════════════════════════════════════════════════════
+     CÁLCULO DE MÉTRICAS REALES SEGÚN CAPTURA 3 DEL PROYECTO
+     ═══════════════════════════════════════════════════════════ */
 
-  // Calculated Real or Reference KPIs
-  const kpiData = useMemo(() => {
-    const totalSalesReal = sales.reduce((acc, s) => acc + (salesService.saleTotal?.(s) || Number(s.total) || 0), 0)
-    const totalPurchasesReal = purchases.reduce((acc, p) => acc + (Number(p.total) || 0), 0)
-    const totalStockUnits = products.reduce((acc, p) => acc + (Number(p.stock) || 0), 0)
+  // 1. Métricas del Mes y Capital en Inventario (100% reales)
+  const currentMonthMetrics = useMemo(() => {
+    const now = new Date()
+    const currentMonthStr = now.toISOString().slice(0, 7) // 'YYYY-MM'
 
-    // Unpaid / accounts receivable
-    const pendingReceivable = sales
-      .filter(s => s.status === 'pendiente' || s.payment_status === 'pendiente')
-      .reduce((acc, s) => acc + (salesService.saleTotal?.(s) || Number(s.total) || 0), 0)
+    // Ventas del mes
+    const monthSales = sales.filter(s => s.created_at && s.created_at.startsWith(currentMonthStr))
+    const facturacionMes = monthSales.reduce((acc, s) => acc + salesService.saleTotal(s), 0)
+    const ventasMesCount = monthSales.length
+    const ticketPromedio = ventasMesCount > 0 ? facturacionMes / ventasMesCount : 0
+
+    // Capital en Inventario = sum(cost_price || sale_price * stock)
+    const capitalInventario = products.reduce((acc, p) => {
+      if (p.is_kit) return acc
+      const cost = Number(p.cost_price) || Number(p.sale_price) || 0
+      const stock = Number(p.stock) || 0
+      return acc + (cost * stock)
+    }, 0)
+
+    const totalFisicoUds = products.reduce((acc, p) => {
+      if (p.is_kit) return acc
+      return acc + (Number(p.stock) || 0)
+    }, 0)
+
+    // Control de almacén
+    const agotados = products.filter(p => !p.is_kit && (Number(p.stock) || 0) <= 0).length
+    const criticos = products.filter(p => !p.is_kit && (Number(p.stock) || 0) > 0 && (Number(p.stock) || 0) <= (Number(p.min_stock) || 5)).length
+    const enAlerta = agotados + criticos
+    const totalNoKit = products.filter(p => !p.is_kit).length
+    const disponibilidadPct = totalNoKit > 0 ? Math.round(((totalNoKit - agotados) / totalNoKit) * 100) : 100
 
     return {
-      ventasMes: totalSalesReal > 0 ? totalSalesReal : 25430,
-      comprasMes: totalPurchasesReal > 0 ? totalPurchasesReal : 18760,
-      stockTotal: totalStockUnits > 0 ? totalStockUnits : 12580,
-      cuentasCobrar: pendingReceivable > 0 ? pendingReceivable : 7320,
-      totalSemestre: totalSalesReal > 0 ? totalSalesReal * 6 : 152240
+      facturacionMes,
+      ventasMesCount,
+      ticketPromedio,
+      capitalInventario,
+      totalFisicoUds,
+      totalSkus: products.length,
+      totalCategories: categories.length,
+      totalClients: clients.length,
+      criticos,
+      agotados,
+      enAlerta,
+      disponibilidadPct
     }
-  }, [sales, purchases, products])
+  }, [sales, products, categories, clients])
+
+  // 2. Ventas reales de los últimos 7 días (para las barras y curvas)
+  const last7DaysSales = useMemo(() => {
+    const days = []
+    const today = new Date()
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today)
+      d.setDate(today.getDate() - i)
+      const dateStr = d.toISOString().slice(0, 10)
+      const dayName = d.toLocaleDateString('es-PE', { weekday: 'short' })
+      const dayCapitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1, 3)
+      const dayNum = d.getDate()
+
+      const daySales = sales.filter(s => s.created_at && s.created_at.slice(0, 10) === dateStr)
+      const total = daySales.reduce((acc, s) => acc + salesService.saleTotal(s), 0)
+
+      days.push({
+        dateStr,
+        label: `${dayCapitalized} ${dayNum}`,
+        month: dayCapitalized,
+        total,
+        count: daySales.length
+      })
+    }
+
+    // Calcular porcentaje de altura relativa para las 7 barras (máx 100%, mín 12%)
+    const maxTotal = Math.max(...days.map(d => d.total), 1)
+    return days.map(d => ({
+      ...d,
+      val: Math.max(Math.round((d.total / maxTotal) * 90), d.total > 0 ? 20 : 8)
+    }))
+  }, [sales])
+
+  // Filtered invoices according to tab & search
+  const filteredInvoices = useMemo(() => {
+    let list = [...invoiceList]
+    if (activeTab === 'unpaid') {
+      list = list.filter(inv => inv.status === 'Pendiente' || (inv.status !== 'Paid' && inv.status !== 'Pagado' && inv.status !== 'Pagada'))
+    } else if (activeTab === 'paid') {
+      list = list.filter(inv => inv.status === 'Pagada' || inv.status === 'Paid' || inv.status === 'Pagado')
+    }
+    if (selectedCustomerFilter !== 'ALL') {
+      list = list.filter(inv => inv.client_name === selectedCustomerFilter)
+    }
+    if (selectedStatusFilter !== 'ALL') {
+      list = list.filter(inv => {
+        const s = (inv.status || '').toLowerCase()
+        const f = selectedStatusFilter.toLowerCase()
+        if (f === 'pendiente') return s === 'pendiente' || s === 'unsent'
+        if (f === 'pagada') return s === 'pagada' || s === 'paid' || s === 'pagado'
+        return s === f
+      })
+    }
+    if (searchInvoice.trim()) {
+      const q = searchInvoice.toLowerCase().trim()
+      list = list.filter(inv =>
+        (inv.code && inv.code.toLowerCase().includes(q)) ||
+        (inv.client_name && inv.client_name.toLowerCase().includes(q)) ||
+        inv.amount.toString().includes(q)
+      )
+    }
+    return list
+  }, [invoiceList, activeTab, selectedCustomerFilter, selectedStatusFilter, searchInvoice])
+
+  // Active selected invoice (always synchronized with the filtered list so the active row glows!)
+  const currentInvoice = useMemo(() => {
+    const foundInFiltered = filteredInvoices.find(inv => String(inv.id) === String(selectedInvoiceId))
+    if (foundInFiltered) return foundInFiltered
+    return filteredInvoices[0] || invoiceList[0] || null
+  }, [selectedInvoiceId, filteredInvoices, invoiceList])
+
+  // 1. Alertas de Stock Reales
+  const stockAlerts = useMemo(() => {
+    return products
+      .filter(p => !p.is_kit)
+      .map(p => {
+        const stock = Number(p.stock) || 0
+        const min = Number(p.min_stock) || 5
+        const isOut = stock <= 0
+        const isLow = stock <= min
+        const cat = categories.find(c => c.id === p.category_id)?.name || 'General'
+        const pct = Math.min(Math.round((stock / Math.max(min, 1)) * 100), 100)
+        return { ...p, stock, min, isOut, isLow, cat, pct }
+      })
+      .filter(p => p.isLow)
+      .sort((a, b) => a.stock - b.stock)
+  }, [products, categories])
+
+  // 2. Top Productos Vendidos Reales
+  const topProducts = useMemo(() => {
+    const map = {}
+    sales.forEach(s => {
+      s.items?.forEach(it => {
+        const pid = it.product_id
+        const q = Number(it.quantity) || 1
+        const p = Number(it.unit_price) || 0
+        if (!map[pid]) map[pid] = { qty: 0, rev: 0 }
+        map[pid].qty += q
+        map[pid].rev += q * p
+      })
+    })
+
+    const list = Object.entries(map).map(([pid, data]) => {
+      const prod = products.find(pr => pr.id === pid)
+      const cat = categories.find(c => c.id === prod?.category_id)?.name || 'General'
+      return {
+        id: pid,
+        name: prod?.name || `Producto #${pid}`,
+        category: cat,
+        qty: data.qty,
+        revenue: data.rev
+      }
+    }).sort((a, b) => b.qty - a.qty)
+
+    return list.slice(0, 5)
+  }, [sales, products, categories])
+
+  // 3. Distribución de Stock por Categoría Real
+  const categoryDistribution = useMemo(() => {
+    const catMap = {}
+    let totalUnits = 0
+
+    categories.forEach(c => {
+      catMap[c.id] = { id: c.id, name: c.name, units: 0, skuCount: 0 }
+    })
+
+    products.forEach(p => {
+      const u = Number(p.stock) || 0
+      totalUnits += u
+      const cid = p.category_id || 'other'
+      if (!catMap[cid]) {
+        catMap[cid] = { id: cid, name: 'Otros', units: 0, skuCount: 0 }
+      }
+      catMap[cid].units += u
+      catMap[cid].skuCount += 1
+    })
+
+    const colors = ['#5550F2', '#818CF8', '#A855F7', '#3B82F6', '#10B981', '#F59E0B']
+
+    return Object.values(catMap)
+      .filter(c => c.units > 0 || c.skuCount > 0)
+      .sort((a, b) => b.units - a.units)
+      .map((c, i) => ({
+        ...c,
+        color: colors[i % colors.length],
+        pct: totalUnits > 0 ? Math.round((c.units / totalUnits) * 100) : 0
+      }))
+  }, [categories, products])
+
+  const totalInventoryUnits = useMemo(() => {
+    return products.reduce((acc, p) => acc + (Number(p.stock) || 0), 0)
+  }, [products])
+
+  // Helper para generar gradientes vibrantes estilo Finnova para avatares
+  const getClientAvatarGradient = (name = '') => {
+    const gradients = [
+      'from-indigo-500 to-purple-600',
+      'from-blue-600 to-cyan-500',
+      'from-violet-600 to-fuchsia-500',
+      'from-rose-500 to-pink-600',
+      'from-amber-500 to-orange-600',
+      'from-emerald-500 to-teal-600',
+    ]
+    let sum = 0
+    for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i)
+    return gradients[sum % gradients.length]
+  }
+
+  // Action: Marcar como pagada una venta real en la base de datos
+  const handleMarkAsPaid = async () => {
+    if (!currentInvoice) return
+    try {
+      if (currentInvoice.rawSale?.id) {
+        await salesService.update(currentInvoice.rawSale.id, { status: 'pagado' })
+      }
+      setPayoutSuccess(true)
+      setInvoiceList(prev => prev.map(inv => {
+        if (inv.id === currentInvoice.id) {
+          return {
+            ...inv,
+            status: 'Pagada',
+            balance: 0,
+            due_text: 'Cobrado / Pagado',
+            rawSale: { ...(inv.rawSale || {}), status: 'pagado' }
+          }
+        }
+        return inv
+      }))
+      await loadData()
+      setTimeout(() => {
+        setPayoutSuccess(false)
+      }, 1500)
+    } catch (err) {
+      console.error('Error al actualizar venta:', err)
+    }
+  }
+
+  // Action: Add Item to Current Invoice
+  const handleAddItem = (e) => {
+    e.preventDefault()
+    if (!newItemName || !newItemPrice) return
+    const price = parseFloat(newItemPrice) || 0
+    const newItem = { name: newItemName, price, qty: 1 }
+
+    setInvoiceList(prev => prev.map(inv => {
+      if (inv.id === currentInvoice.id) {
+        const items = [...(inv.items || []), newItem]
+        const subtotal = items.reduce((s, it) => s + (it.price * (it.qty || 1)), 0)
+        return {
+          ...inv,
+          items,
+          subtotal,
+          total: subtotal,
+          balance: inv.status === 'Paid' ? 0 : subtotal,
+          amount: subtotal
+        }
+      }
+      return inv
+    }))
+
+    setNewItemName('')
+    setNewItemPrice('')
+    setAddItemModalOpen(false)
+  }
+
+  // Action: Create New Invoice
+  const handleCreateInvoice = (e) => {
+    e.preventDefault()
+    if (!newInvClient || !newInvAmount) return
+    const num = Math.floor(1000 + Math.random() * 9000)
+    const amount = parseFloat(newInvAmount) || 0
+    const newInv = {
+      id: String(num),
+      code: `INV-${num}`,
+      client_name: newInvClient,
+      client_role: 'Cliente Directo',
+      due_text: 'En 7 días',
+      status: 'Pendiente',
+      amount,
+      avatar: '/avatar-1.jpg',
+      company: company?.name || 'CYA Store',
+      items: [
+        { name: newInvService || 'Venta de Productos / Catálogo', price: amount, qty: 1 }
+      ],
+      subtotal: amount,
+      total: amount,
+      balance: amount,
+    }
+    setInvoiceList(prev => [newInv, ...prev])
+    setSelectedInvoiceId(newInv.id)
+    setNewInvClient('')
+    setNewInvAmount('')
+    setNewInvService('')
+    setCreateModalOpen(false)
+  }
 
   return (
-    <div className="space-y-6 pb-12 font-sans text-slate-800 dark:text-slate-100">
+    <>
+      <div className="finnova-root space-y-4 sm:space-y-6 max-w-[1400px] mx-auto pb-24 sm:pb-16">
+        {/* ─── Custom CSS for FINNOVA Design System (Robust Light & Dark Mode) ─── */}
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
 
-      {/* ═══════════════════════════════════════════════════════════
-          1. TOP BAR — Search bar, Bell, Date/Time Capsule, Theme
-         ═══════════════════════════════════════════════════════════ */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {/* Search Input */}
-        <div className="relative flex-1 max-w-xl">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Buscar módulos, documentos o reportes... (Ctrl + K)"
-            className="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-white/10 text-xs sm:text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 shadow-xs transition-all"
-          />
-        </div>
+          .finnova-root {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+          }
 
-        {/* Right Actions */}
-        <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-auto">
-          {/* Notification Bell */}
-          <button
-            type="button"
-            className="relative w-10 h-10 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 shadow-xs transition-all cursor-pointer"
-            title="Notificaciones"
-          >
-            <Bell size={18} />
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-[#111827]">
-              3
-            </span>
-          </button>
+          /* Metric Cards (Responsive for mobile, tablet, and desktop) */
+          .fn-card {
+            background: #ffffff;
+            border-radius: 18px;
+            border: 1px solid #ECEEF3;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+            padding: 16px;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s, background 0.2s, border-color 0.2s;
+          }
+          @media (min-width: 640px) {
+            .fn-card {
+              border-radius: 22px;
+              padding: 18px 16px;
+              min-height: 195px;
+            }
+          }
+          @media (min-width: 1440px) {
+            .fn-card {
+              padding: 22px;
+            }
+          }
+          .fn-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.05);
+          }
+          html.dark .fn-card,
+          .dark .fn-card {
+            background: #131627 !important;
+            border: 1px solid rgba(255, 255, 255, 0.35) !important;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+          }
+          html.dark .fn-card:hover,
+          .dark .fn-card:hover {
+            border-color: rgba(255, 255, 255, 0.65) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.20) !important;
+          }
 
-          {/* Date & Time Capsule */}
-          <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-white/10 shadow-xs text-xs font-semibold text-slate-700 dark:text-slate-200">
-            <Calendar size={15} className="text-blue-600 shrink-0" />
-            <span className="capitalize">{currentDateStr}</span>
-            <span className="text-slate-300 dark:text-white/20">|</span>
-            <span className="text-slate-500 dark:text-slate-400 font-normal">{currentTimeStr}</span>
-          </div>
+          /* Filter Pills */
+          .fn-filter-pill {
+            background: #ffffff;
+            border: 1px solid #E2E8F0;
+            border-radius: 999px;
+            padding: 6px 13px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #475569;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+          }
+          @media (min-width: 640px) {
+            .fn-filter-pill {
+              padding: 7px 16px;
+              font-size: 13px;
+              gap: 8px;
+            }
+          }
+          .fn-filter-pill:hover {
+            border-color: #CBD5E1;
+            color: #1E293B;
+            background: #F8FAFC;
+          }
+          html.dark .fn-filter-pill,
+          .dark .fn-filter-pill {
+            background: #131627 !important;
+            border: 1px solid rgba(255, 255, 255, 0.32) !important;
+            color: #CBD5E1 !important;
+          }
+          html.dark .fn-filter-pill:hover,
+          .dark .fn-filter-pill:hover {
+            border-color: rgba(255, 255, 255, 0.60) !important;
+            color: #ffffff !important;
+            background: #1A1E36 !important;
+          }
+          .fn-filter-pill input {
+            background: transparent !important;
+          }
 
-          {/* Theme Toggle Button */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="w-10 h-10 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 shadow-xs transition-all cursor-pointer"
-            title="Cambiar tema claro / oscuro"
-          >
-            {isDark ? <Sun size={18} className="text-amber-400" /> : <Sun size={18} />}
-          </button>
-        </div>
-      </div>
+          /* The Master Sales & Billing Container (Always Dark Luxury Finnova Pro) */
+          .fn-dark-container {
+            background: #111424 !important;
+            border-radius: 22px;
+            padding: 18px 14px;
+            box-shadow: 0 24px 60px -15px rgba(8, 10, 24, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.12) !important;
+            border: 1px solid rgba(255, 255, 255, 0.22) !important;
+            transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+            color: #ffffff;
+          }
+          @media (min-width: 640px) {
+            .fn-dark-container {
+              border-radius: 30px;
+              padding: 26px 28px;
+            }
+          }
 
-      {/* ═══════════════════════════════════════════════════════════
-          2. WELCOME HERO BANNER (MTA Software Corporate Backdrop)
-         ═══════════════════════════════════════════════════════════ */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#DBEAFE] via-[#EBF3FE] to-[#DBEAFE] dark:from-[#1E3A8A]/40 dark:via-[#172554]/50 dark:to-[#1E3A8A]/40 border border-blue-200/80 dark:border-blue-500/20 p-6 sm:p-8 shadow-xs flex items-center justify-between">
-        {/* Left Welcome Text */}
-        <div className="relative z-10 max-w-xl">
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <span>¡Hola, {userFirstName}!</span>
-            <span className="animate-bounce">👋</span>
-          </h1>
-          <p className="text-sm sm:text-[15px] font-medium text-slate-600 dark:text-blue-200/80 mt-1.5">
-            Bienvenido al sistema ERP de {company?.name || 'MTA Software'}
-          </p>
-        </div>
+          /* Left Invoices List */
+          .fn-invoice-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 11px 12px;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            color: #ffffff !important;
+            background: rgba(255, 255, 255, 0.04) !important;
+            gap: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.16) !important;
+          }
+          @media (min-width: 640px) {
+            .fn-invoice-row {
+              padding: 12px 16px;
+              border-radius: 18px;
+              gap: 12px;
+            }
+          }
+          .fn-invoice-row:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.08) !important;
+            border-color: rgba(255, 255, 255, 0.40) !important;
+          }
+          .fn-invoice-row.active {
+            background: linear-gradient(90deg, #4F46E5 0%, #6366F1 100%) !important;
+            box-shadow: 0 10px 25px -4px rgba(79, 70, 229, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
+            border: 1px solid rgba(255, 255, 255, 0.6) !important;
+            color: #ffffff !important;
+          }
 
-        {/* Right Skyscraper Architecture Backdrop with Diagonal Light Streaks */}
-        <div className="absolute right-0 top-0 bottom-0 w-3/5 sm:w-2/5 pointer-events-none overflow-hidden flex items-center justify-end select-none">
-          <div className="relative w-full h-full">
-            <img
-              src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80"
-              alt="MTA Glass Towers"
-              className="w-full h-full object-cover object-center mix-blend-multiply dark:mix-blend-luminosity opacity-85 dark:opacity-40"
-            />
-            {/* Smooth gradient blend masks */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#EBF3FE] dark:from-[#172554] via-[#EBF3FE]/60 dark:via-transparent to-transparent" />
-            {/* Diagonal luminous stripes */}
-            <div className="absolute -inset-x-20 -top-20 bottom-0 rotate-12 bg-white/25 dark:bg-blue-400/10 blur-sm pointer-events-none" />
-          </div>
-        </div>
-      </div>
+          /* Right Detail Card (Deep Navy / Violet Luxury Card) */
+          .fn-detail-card {
+            background: linear-gradient(145deg, #2A2561 0%, #352F7A 45%, #201C4E 100%) !important;
+            border-radius: 22px;
+            padding: 20px 18px;
+            border: 1px solid rgba(165, 180, 252, 0.28) !important;
+            box-shadow: 0 20px 50px -10px rgba(10, 8, 30, 0.6), inset 0 1px 1.5px rgba(255, 255, 255, 0.35) !important;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 380px;
+            position: relative;
+            overflow: hidden;
+            max-width: 100%;
+            transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+            color: #ffffff !important;
+          }
+          @media (min-width: 640px) {
+            .fn-detail-card {
+              border-radius: 26px;
+              padding: 24px 26px;
+              min-height: 410px;
+            }
+          }
 
-      {/* ═══════════════════════════════════════════════════════════
-          3. ROW OF 4 KPI METRIC CARDS (con mini sparklines y cobro Yape/Plin)
-         ═══════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          /* Detail Service Cards */
+          .fn-service-card {
+            background: rgba(255, 255, 255, 0.09) !important;
+            border: 1px solid rgba(255, 255, 255, 0.22) !important;
+            border-radius: 16px;
+            padding: 13px 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 84px;
+            box-shadow: none !important;
+            backdrop-filter: blur(10px);
+            color: #ffffff !important;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          }
+          @media (min-width: 640px) {
+            .fn-service-card {
+              padding: 14px 16px;
+              min-height: 88px;
+            }
+          }
+          .fn-service-card:hover {
+            background: rgba(255, 255, 255, 0.16) !important;
+            border-color: rgba(255, 255, 255, 0.55) !important;
+            transform: translateY(-2px);
+          }
+            backdrop-filter: blur(10px);
+          }
+          html.dark .fn-service-card:hover,
+          .dark .fn-service-card:hover {
+            background: rgba(255, 255, 255, 0.15) !important;
+            border-color: rgba(255, 255, 255, 0.28) !important;
+          }
 
-        {/* Card 1: Ventas del Mes (Blue) */}
-        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30 shrink-0">
-                <ShoppingCart size={22} strokeWidth={2.2} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Ventas del Mes</p>
-                <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
-                  S/ {kpiData.ventasMes.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <div className="flex items-center gap-1 text-[11.5px] font-bold text-emerald-500 mt-1">
-                  <span>↑ +12.5%</span>
-                </div>
-              </div>
-            </div>
-            {/* Sparkline curve */}
-            <div className="w-16 h-9 shrink-0 self-start opacity-90">
-              <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="sparkBlue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path d="M 0,45 Q 25,40 45,28 T 80,18 T 100,8 L 100,50 L 0,50 Z" fill="url(#sparkBlue)" />
-                <path d="M 0,45 Q 25,40 45,28 T 80,18 T 100,8" fill="none" stroke="#2563EB" strokeWidth="2.5" />
-                <circle cx="100" cy="8" r="3" fill="#2563EB" />
-              </svg>
-            </div>
-          </div>
+          /* Custom Scrollbar */
+          .fn-scroll::-webkit-scrollbar {
+            width: 5px;
+          }
+          .fn-scroll::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+          }
+          .fn-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 999px;
+          }
+        `}</style>
 
-          <div className="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-            <span>{sales.length || 1} ventas este mes</span>
+        {/* ═══════════════════════════════════════════════════════════
+            1. THE UNIFIED FINNOVA TOP NAVIGATION BAR (En Español)
+           ═══════════════════════════════════════════════════════════ */}
+        <div className="flex items-center justify-between bg-white dark:bg-[#131627] rounded-2xl sm:rounded-3xl px-3 sm:px-6 py-2.5 sm:py-3 border border-slate-200/80 dark:border-white/10 shadow-xs transition-all">
+          {/* Left: Hamburger (mobile/tablet) + FINNOVA Brand */}
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             <button
               type="button"
-              onClick={() => navigate('/ventas')}
-              className="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+              onClick={openSidebar}
+              className="lg:hidden p-1.5 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+              title="Abrir menú lateral"
+              aria-label="Abrir menú lateral"
             >
-              Ver ventas →
+              <Menu size={19} />
             </button>
-          </div>
-        </div>
 
-        {/* Card 2: Compras del Mes (Green) */}
-        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30 shrink-0">
-                <Package size={22} strokeWidth={2.2} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Compras del Mes</p>
-                <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
-                  S/ {kpiData.comprasMes.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <div className="flex items-center gap-1 text-[11.5px] font-bold text-emerald-500 mt-1">
-                  <span>↑ +8.3%</span>
+            <div className="h-10 min-w-[40px] max-w-[64px] rounded-2xl overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-2xs shrink-0 p-1">
+              {company?.logo_url ? (
+                <img
+                  src={company.logo_url}
+                  alt={company.name || 'Logo'}
+                  className="max-h-full max-w-full w-auto h-auto object-contain"
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-tr from-[#5550F2] to-[#7974FF] flex items-center justify-center rounded-xl">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 6C4 4.89543 4.89543 4 6 4H10C11.1046 4 12 4.89543 12 6V18C12 19.1046 11.1046 20 10 20H6C4.89543 20 4 19.1046 4 18V6Z" fill="white" fillOpacity="0.95"/>
+                    <path d="M14 10C14 8.89543 14.8954 8 16 8H18C19.1046 8 20 8.89543 20 10V18C20 19.1046 19.1046 20 18 20H16C14.8954 20 14 19.1046 14 18V10Z" fill="white" fillOpacity="0.65"/>
+                  </svg>
                 </div>
-              </div>
+              )}
             </div>
-            {/* Sparkline curve */}
-            <div className="w-16 h-9 shrink-0 self-start opacity-90">
-              <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="sparkGreen" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10B981" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path d="M 0,42 Q 25,35 50,30 T 80,15 T 100,10 L 100,50 L 0,50 Z" fill="url(#sparkGreen)" />
-                <path d="M 0,42 Q 25,35 50,30 T 80,15 T 100,10" fill="none" stroke="#10B981" strokeWidth="2.5" />
-                <circle cx="100" cy="10" r="3" fill="#10B981" />
-              </svg>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="font-black text-sm sm:text-[16px] text-slate-900 dark:text-white tracking-tight truncate max-w-[140px] sm:max-w-none">
+                  {company?.name || 'CYA STORE'}
+                </span>
+                <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-white/10 dark:text-slate-200 border border-indigo-200/50 dark:border-white/10 shrink-0">ERP</span>
+              </div>
+              <p className="hidden sm:block text-[10.5px] text-slate-400 font-medium leading-none mt-0.5">Control de Inventario & Ventas</p>
             </div>
           </div>
 
-          <div className="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-            <span>{purchases.length || 0} compras este mes</span>
+          {/* Center: Segmented Navigation Capsule (Light & Dark Responsive) */}
+          <div className="hidden xl:flex items-center gap-1 bg-slate-100/90 dark:bg-[#0A0C16] p-1.5 rounded-full border border-slate-200/80 dark:border-white/5 shadow-inner">
             <button
-              type="button"
+              onClick={() => navigate('/')}
+              className="px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer"
+            >
+              + Resumen
+            </button>
+            <button
+              onClick={() => navigate('/productos')}
+              className="px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer"
+            >
+              Catálogo
+            </button>
+            <button
+              onClick={() => navigate('/ventas')}
+              className="px-4 py-1.5 rounded-full text-xs font-bold text-white bg-[#5550F2] shadow-md shadow-indigo-600/35 transition-all cursor-pointer"
+            >
+              + Ventas & POS
+            </button>
+            <button
+              onClick={() => navigate('/movimientos')}
+              className="px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer"
+            >
+              Movimientos
+            </button>
+            <button
               onClick={() => navigate('/compras')}
-              className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
+              className="px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer"
             >
-              Ver compras →
+              Compras
             </button>
-          </div>
-        </div>
-
-        {/* Card 3: Stock Total (Purple) */}
-        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/30 shrink-0">
-                <Warehouse size={22} strokeWidth={2.2} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Stock Total</p>
-                <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
-                  {kpiData.stockTotal.toLocaleString('en-US')}
-                </p>
-                <div className="flex items-center gap-1 text-[11.5px] font-bold text-emerald-500 mt-1">
-                  <span>↑ +2.1%</span>
-                </div>
-              </div>
-            </div>
-            {/* Sparkline curve */}
-            <div className="w-16 h-9 shrink-0 self-start opacity-90">
-              <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="sparkPurple" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6366F1" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="#6366F1" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path d="M 0,38 Q 30,35 55,25 T 85,18 T 100,14 L 100,50 L 0,50 Z" fill="url(#sparkPurple)" />
-                <path d="M 0,38 Q 30,35 55,25 T 85,18 T 100,14" fill="none" stroke="#6366F1" strokeWidth="2.5" />
-                <circle cx="100" cy="14" r="3" fill="#6366F1" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-            <span>{products.length || 0} productos registrados</span>
             <button
-              type="button"
-              onClick={() => navigate('/productos')}
-              className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer"
-            >
-              Ver almacén →
-            </button>
-          </div>
-        </div>
-
-        {/* Card 4: Cuentas por Cobrar (Orange) con Yape, Plin y BCP */}
-        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-12 h-12 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
-                <Coins size={22} strokeWidth={2.2} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Cuentas por Cobrar</p>
-                <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
-                  S/ {kpiData.cuentasCobrar.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <div className="flex items-center gap-1 text-[11.5px] font-bold text-rose-500 mt-1">
-                  <span>↓ -3.2%</span>
-                </div>
-              </div>
-            </div>
-            {/* Sparkline curve */}
-            <div className="w-16 h-9 shrink-0 self-start opacity-90">
-              <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="sparkAmber" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path d="M 0,20 Q 30,35 60,32 T 85,40 T 100,36 L 100,50 L 0,50 Z" fill="url(#sparkAmber)" />
-                <path d="M 0,20 Q 30,35 60,32 T 85,40 T 100,36" fill="none" stroke="#F59E0B" strokeWidth="2.5" />
-                <circle cx="100" cy="36" r="3" fill="#F59E0B" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Quick Payment QR Pills: Yape, Plin & BCP */}
-          <div className="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between gap-1.5">
-            <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
-              Cobrar con:
-            </span>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setQrModalMethod('yape')
-                  setQrModalAmount(kpiData.cuentasCobrar || 175)
-                }}
-                className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[#742284]/10 hover:bg-[#742284] text-[#742284] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95"
-                title="Mostrar QR de Yape para cobrar"
-              >
-                <img src="/yape-logo.png" alt="Yape" className="w-3.5 h-3.5 rounded-sm object-cover" />
-                <span>Yape</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setQrModalMethod('plin')
-                  setQrModalAmount(kpiData.cuentasCobrar || 175)
-                }}
-                className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[#00b49f]/10 hover:bg-[#00b49f] text-[#00b49f] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95"
-                title="Mostrar QR de Plin para cobrar"
-              >
-                <img src="/plin-logo.png" alt="Plin" className="w-3.5 h-3.5 rounded-full object-cover" />
-                <span>Plin</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setQrModalMethod('transfer')
-                  setQrModalAmount(kpiData.cuentasCobrar || 175)
-                }}
-                className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white dark:bg-white/10 dark:hover:bg-blue-600 dark:text-slate-200 transition-all cursor-pointer hover:scale-105 active:scale-95"
-                title="Ver cuentas bancarias (BCP, BBVA, Interbank)"
-              >
-                <span>BCP</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════
-          4. MIDDLE ROW (Resumen de Ventas, Distribución, Acciones)
-         ═══════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-
-        {/* 4.1 Resumen de Ventas (Area Chart) — 5 cols */}
-        <div className="lg:col-span-5 rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BarChart2 size={18} className="text-blue-600 shrink-0" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Resumen de Ventas</h3>
-              </div>
-              <div className="relative">
-                <select
-                  value={timeRange}
-                  onChange={(e) => setTimeRange(e.target.value)}
-                  className="text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 focus:outline-none cursor-pointer"
-                >
-                  <option value="6m">Últimos 6 meses</option>
-                  <option value="1y">Último año</option>
-                  <option value="30d">Últimos 30 días</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                S/ {kpiData.totalSemestre.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-xs font-bold text-emerald-500 mt-0.5">
-                ↑ +14.8% <span className="text-slate-400 font-normal">vs. periodo anterior</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Area spline chart */}
-          <div className="mt-6 relative h-48 sm:h-52 w-full select-none">
-            {/* Tooltip on active point */}
-            <div className="absolute right-6 top-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-[11px] font-bold py-1 px-2.5 rounded-lg border border-slate-200/80 dark:border-white/10 shadow-md flex items-center gap-1 z-20">
-              S/ 25,430.00
-            </div>
-
-            <svg viewBox="0 0 500 200" className="w-full h-full" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#2563EB" stopOpacity="0.35" />
-                  <stop offset="100%" stopColor="#2563EB" stopOpacity="0.02" />
-                </linearGradient>
-              </defs>
-
-              {/* Grid lines */}
-              <line x1="40" y1="30" x2="490" y2="30" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3 3" />
-              <line x1="40" y1="75" x2="490" y2="75" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3 3" />
-              <line x1="40" y1="120" x2="490" y2="120" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3 3" />
-              <line x1="40" y1="165" x2="490" y2="165" stroke="#E2E8F0" strokeWidth="1" />
-
-              {/* Y Axis labels */}
-              <text x="10" y="34" className="text-[10px] fill-slate-400 font-medium">75k</text>
-              <text x="10" y="79" className="text-[10px] fill-slate-400 font-medium">50k</text>
-              <text x="10" y="124" className="text-[10px] fill-slate-400 font-medium">25k</text>
-              <text x="20" y="169" className="text-[10px] fill-slate-400 font-medium">0</text>
-
-              {/* Area path */}
-              <path
-                d="M 60,150 C 110,145 125,135 150,130 C 190,120 220,110 240,100 C 270,85 295,95 330,85 C 365,75 390,95 420,90 C 445,85 465,55 475,55 L 475,165 L 60,165 Z"
-                fill="url(#areaGrad)"
-              />
-
-              {/* Line path */}
-              <path
-                d="M 60,150 C 110,145 125,135 150,130 C 190,120 220,110 240,100 C 270,85 295,95 330,85 C 365,75 390,95 420,90 C 445,85 465,55 475,55"
-                fill="none"
-                stroke="#2563EB"
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
-
-              {/* Dots on points */}
-              <circle cx="60" cy="150" r="4.5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
-              <circle cx="150" cy="130" r="4.5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
-              <circle cx="240" cy="100" r="4.5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
-              <circle cx="330" cy="85" r="4.5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
-              <circle cx="420" cy="90" r="4.5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
-              <circle cx="475" cy="55" r="5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2.5" />
-            </svg>
-
-            {/* X Axis labels */}
-            <div className="flex justify-between pl-8 pr-2 mt-1 text-[11px] font-medium text-slate-400">
-              <span>Jun</span>
-              <span>Jul</span>
-              <span>Ago</span>
-              <span>Set</span>
-              <span>Oct</span>
-              <span>Nov</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 4.2 Distribución por Categoría (Donut Chart) — 4 cols */}
-        <div className="lg:col-span-4 rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-6 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center gap-2">
-            <PieChart size={18} className="text-blue-600 shrink-0" />
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Distribución por Categoría</h3>
-          </div>
-
-          <div className="my-auto py-4 flex flex-col sm:flex-row items-center justify-center gap-6">
-            {/* Donut SVG */}
-            <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
-              <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                {/* Background ring */}
-                <circle cx="50" cy="50" r="38" fill="none" stroke="#F1F5F9" strokeWidth="18" />
-                {/* Segment 3: Otros 10% */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="38"
-                  fill="none"
-                  stroke="#E2E8F0"
-                  strokeWidth="18"
-                  strokeDasharray="238.76"
-                  strokeDashoffset="214.88"
-                />
-                {/* Segment 2: Accesorios 12% */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="38"
-                  fill="none"
-                  stroke="#38BDF8"
-                  strokeWidth="18"
-                  strokeDasharray="238.76"
-                  strokeDashoffset="210.1"
-                  strokeDashoffset-anim="186.2"
-                />
-                {/* Segment 1: Electrónica 78% */}
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="38"
-                  fill="none"
-                  stroke="#2563EB"
-                  strokeWidth="18"
-                  strokeDasharray="238.76"
-                  strokeDashoffset="52.5"
-                />
-              </svg>
-              {/* Donut center label */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-2xl font-black text-slate-900 dark:text-white leading-tight">78%</span>
-                <span className="text-[11px] font-medium text-slate-400">Ventas</span>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2.5 text-xs font-semibold">
-                <span className="w-3 h-3 rounded-full bg-blue-600 shrink-0" />
-                <span className="text-slate-700 dark:text-slate-300">Electrónica</span>
-                <span className="text-slate-900 dark:text-white font-bold ml-auto pl-3">78%</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-xs font-semibold">
-                <span className="w-3 h-3 rounded-full bg-sky-400 shrink-0" />
-                <span className="text-slate-700 dark:text-slate-300">Accesorios</span>
-                <span className="text-slate-900 dark:text-white font-bold ml-auto pl-3">12%</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-xs font-semibold">
-                <span className="w-3 h-3 rounded-full bg-slate-300 shrink-0" />
-                <span className="text-slate-700 dark:text-slate-300">Otros</span>
-                <span className="text-slate-900 dark:text-white font-bold ml-auto pl-3">10%</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-100 dark:border-white/5 text-[11.5px] text-slate-400 text-center">
-            Mayor rotación registrada en categorías principales
-          </div>
-        </div>
-
-        {/* 4.3 Acciones Rápidas (6 Tiles) — 3 cols */}
-        <div className="lg:col-span-3 rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-6 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center gap-2 mb-4">
-            <Zap size={18} className="text-blue-600 shrink-0" />
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Acciones Rápidas</h3>
-          </div>
-
-          {/* Grid 3 cols x 2 rows */}
-          <div className="grid grid-cols-3 gap-2.5 sm:gap-3 my-auto">
-            {/* Action 1: Nueva Venta */}
-            <button
-              type="button"
               onClick={() => navigate('/ventas/nueva')}
-              className="flex flex-col items-center justify-center p-3 rounded-2xl bg-blue-50/70 hover:bg-blue-100/70 dark:bg-white/5 dark:hover:bg-white/10 border border-blue-100/60 dark:border-white/5 transition-all text-center group cursor-pointer"
+              className="px-4 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5 transition-all cursor-pointer"
             >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                <ShoppingCart size={19} strokeWidth={2.2} />
-              </div>
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 mt-1 leading-tight">Nueva Venta</span>
-            </button>
-
-            {/* Action 2: Registrar Compra */}
-            <button
-              type="button"
-              onClick={() => navigate('/compras/nueva')}
-              className="flex flex-col items-center justify-center p-3 rounded-2xl bg-blue-50/70 hover:bg-blue-100/70 dark:bg-white/5 dark:hover:bg-white/10 border border-blue-100/60 dark:border-white/5 transition-all text-center group cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                <Package size={19} strokeWidth={2.2} />
-              </div>
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 mt-1 leading-tight">Registrar Compra</span>
-            </button>
-
-            {/* Action 3: Control Inventario */}
-            <button
-              type="button"
-              onClick={() => navigate('/productos')}
-              className="flex flex-col items-center justify-center p-3 rounded-2xl bg-blue-50/70 hover:bg-blue-100/70 dark:bg-white/5 dark:hover:bg-white/10 border border-blue-100/60 dark:border-white/5 transition-all text-center group cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                <Warehouse size={19} strokeWidth={2.2} />
-              </div>
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 mt-1 leading-tight">Control de Inventario</span>
-            </button>
-
-            {/* Action 4: Generar Reporte */}
-            <button
-              type="button"
-              onClick={() => navigate('/ventas')}
-              className="flex flex-col items-center justify-center p-3 rounded-2xl bg-blue-50/70 hover:bg-blue-100/70 dark:bg-white/5 dark:hover:bg-white/10 border border-blue-100/60 dark:border-white/5 transition-all text-center group cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                <BarChart3 size={19} strokeWidth={2.2} />
-              </div>
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 mt-1 leading-tight">Generar Reporte</span>
-            </button>
-
-            {/* Action 5: Gestionar Clientes */}
-            <button
-              type="button"
-              onClick={() => navigate('/clientes')}
-              className="flex flex-col items-center justify-center p-3 rounded-2xl bg-blue-50/70 hover:bg-blue-100/70 dark:bg-white/5 dark:hover:bg-white/10 border border-blue-100/60 dark:border-white/5 transition-all text-center group cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                <Users size={19} strokeWidth={2.2} />
-              </div>
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 mt-1 leading-tight">Gestionar Clientes</span>
-            </button>
-
-            {/* Action 6: Configuración */}
-            <button
-              type="button"
-              onClick={() => navigate('/configuracion')}
-              className="flex flex-col items-center justify-center p-3 rounded-2xl bg-blue-50/70 hover:bg-blue-100/70 dark:bg-white/5 dark:hover:bg-white/10 border border-blue-100/60 dark:border-white/5 transition-all text-center group cursor-pointer"
-            >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                <Settings size={19} strokeWidth={2.2} />
-              </div>
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 mt-1 leading-tight">Configuración</span>
+              Punto de Venta
             </button>
           </div>
 
-          <div className="pt-2 text-center">
-            <span className="text-[11px] text-blue-600 font-semibold hover:underline cursor-pointer" onClick={() => navigate('/ventas')}>
-              Ver todos los accesos directos →
+          {/* Right: Currency Toggle, Theme, Reload, Notifications & User Dropdown */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Currency Selector Pill */}
+            <button
+              onClick={toggleCurrency}
+              className="hidden sm:flex px-3 py-1.5 text-xs font-bold rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/10 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/15 transition-all cursor-pointer shadow-2xs"
+              title="Cambiar Moneda (S/ / $)"
+            >
+              {currency === 'S/' ? 'PEN (S/)' : 'USD ($)'}
+            </button>
+
+            {/* Theme Toggle Button (Circular Pill) */}
+            <button
+              onClick={toggleTheme}
+              className="hidden sm:flex w-8 h-8 rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/10 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/15 transition-all cursor-pointer shadow-2xs"
+              title="Cambiar Modo Claro / Oscuro"
+            >
+              {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} />}
+            </button>
+
+            {/* Reload Button (Circular Pill) */}
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex w-8 h-8 rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/10 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/15 transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-60"
+              title="Actualizar Datos del ERP"
+              aria-label="Actualizar Datos"
+            >
+              <RefreshCw size={13} className={refreshing ? 'animate-spin text-blue-600 dark:text-blue-400' : ''} />
+            </button>
+
+            {/* Notification Bell with Badge (Circular Pill) */}
+            <div className="relative" ref={notifMenuRef}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setUserDropdownOpen(false)
+                  setNotifDropdownOpen(o => !o)
+                }}
+                className="w-8 h-8 rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/10 flex items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/15 relative transition-all cursor-pointer shadow-2xs"
+                title="Notificaciones y alertas"
+                aria-label="Notificaciones"
+              >
+                <Bell size={14} className="shrink-0 pointer-events-none" />
+                {notifications.length > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center absolute -top-1 -right-1 ring-2 ring-white dark:ring-[#131627] pointer-events-none">
+                    {notifications.length > 9 ? '9+' : notifications.length}
+                  </span>
+                )}
+              </button>
+              {notifDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-[calc(100vw-24px)] max-w-sm sm:w-84 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-3 z-50 animate-scale-in">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-white/10">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">Notificaciones</p>
+                      {notifications.length > 0 && (
+                        <span className="text-[10px] font-extrabold px-1.5 py-0.2 bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300 rounded-full font-mono">
+                          {notifications.length}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-medium">Alertas del sistema</span>
+                  </div>
+
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center">
+                      <CheckCircle2 size={24} className="text-emerald-500 mx-auto mb-1.5 opacity-80" />
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">No hay alertas pendientes</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Inventario y cobros al día</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                      {notifications.slice(0, 8).map((n, i) => {
+                        const isDanger = n.type === 'danger'
+                        return (
+                          <button
+                            key={n.id || i}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setNotifDropdownOpen(false)
+                              if (n.link) navigate(n.link)
+                            }}
+                            className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-blue-50 dark:hover:bg-blue-900/20 active:scale-[0.98] transition-all cursor-pointer group flex items-start gap-2.5 border border-transparent hover:border-blue-200 dark:hover:border-blue-500/30"
+                          >
+                            <span
+                              className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
+                                isDanger ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'
+                              }`}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-1">
+                                <p className={`text-xs font-bold truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors ${
+                                  isDanger ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200'
+                                }`}>
+                                  {n.title}
+                                </p>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded shrink-0 ${
+                                  isDanger
+                                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
+                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
+                                }`}>
+                                  {isDanger ? 'Crítico' : 'Atención'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-2 leading-tight">
+                                {n.message}
+                              </p>
+                              <span className="text-[10px] text-blue-500 font-medium inline-flex items-center gap-0.5 mt-1 group-hover:underline">
+                                Ir al producto / detalle →
+                              </span>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {notifications.length > 0 && (
+                    <div className="pt-2 mt-2 border-t border-slate-100 dark:border-white/10">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setNotifDropdownOpen(false)
+                          navigate('/productos')
+                        }}
+                        className="w-full text-center py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Ver todos los productos en Catálogo →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* User Profile Dropdown */}
+            <div className="relative ml-1" ref={userMenuRef}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setNotifDropdownOpen(false)
+                  setUserDropdownOpen(o => !o)
+                }}
+                className="flex items-center cursor-pointer focus:outline-none"
+              >
+                <div className="h-9 min-w-[36px] max-w-[50px] px-1 rounded-xl overflow-hidden ring-2 ring-indigo-500/25 hover:ring-indigo-500 transition-all shadow-2xs bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 flex items-center justify-center">
+                  {(company?.logo_url || user?.avatar_url) ? (
+                    <img
+                      src={company?.logo_url || user?.avatar_url}
+                      alt={company?.name || 'Usuario'}
+                      className="max-h-full max-w-full w-auto h-auto object-contain"
+                      onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    />
+                  ) : (
+                    <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase font-display">
+                      {user?.full_name ? user.full_name.charAt(0) : (user?.email?.charAt(0).toUpperCase() || 'C')}
+                    </span>
+                  )}
+                </div>
+              </button>
+              {userDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-2 z-40">
+                  <div className="px-3 py-2 border-b border-slate-100 dark:border-white/10 flex items-center gap-2.5">
+                    {(company?.logo_url || user?.avatar_url) && (
+                      <div className="h-8 min-w-[32px] max-w-[48px] rounded-lg overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 shrink-0 flex items-center justify-center p-0.5">
+                        <img src={company?.logo_url || user?.avatar_url} alt="Logo" className="max-h-full max-w-full w-auto h-auto object-contain" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {user?.full_name || company?.name || 'Administrador'}
+                      </p>
+                      <p className="text-[11px] text-slate-400 truncate">{user?.email || 'cya@gmail.com'}</p>
+                    </div>
+                  </div>
+                  <div className="pt-1 space-y-0.5">
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false)
+                        navigate('/perfil')
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg flex items-center gap-2 font-medium cursor-pointer"
+                    >
+                      <User size={13} /> Mi Perfil y Cuenta
+                    </button>
+                    {user?.role === 'admin' && (
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false)
+                          navigate('/configuracion')
+                        }}
+                        className="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg flex items-center gap-2 cursor-pointer"
+                      >
+                        <Settings size={13} /> Configuración de Empresa
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false)
+                        if (requestLogout) requestLogout()
+                        else logout()
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg flex items-center gap-2 font-semibold cursor-pointer"
+                    >
+                      <LogOut size={13} /> Cerrar Sesión
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════
+            2. PAGE TITLE BAR — Invoices & Action Button (En Español)
+           ═══════════════════════════════════════════════════════════ */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white dark:bg-[#131627] border border-slate-200 dark:border-white/10 shadow-xs flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer shrink-0"
+              title="Regresar"
+            >
+              <ArrowLeft size={17} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-[26px] font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight truncate">
+                Control de Ventas & Facturación
+              </h1>
+              <p className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 line-clamp-1 sm:line-clamp-none">
+                Monitorea pedidos emitidos, cobros a clientes y rotación comercial de tu inventario.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+            <button
+              onClick={toggleCurrency}
+              className="px-3 py-2 rounded-xl bg-white dark:bg-[#131627] border border-slate-200 dark:border-white/10 shadow-xs flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+              title="Cambiar Moneda"
+            >
+              <span>{currency === 'S/' ? 'S/ (PEN)' : '$ (USD)'}</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/ventas/nueva')}
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-[#5550F2] text-white text-xs sm:text-sm font-bold shadow-lg shadow-indigo-600/30 hover:bg-[#4742E8] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              <span>Nueva Venta</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════
+            3. 4 METRIC CARDS — MÉTRICAS REALES CYA STORE (Estilo Finnova Pro)
+           ═══════════════════════════════════════════════════════════ */}
+        {loading ? (
+          <DashboardKpiSkeleton />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+
+          {/* Card 1: Facturación del Mes (con Banner Visual Estilo Finnova) */}
+          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/35">
+            <div>
+              <div className="flex items-start justify-between">
+                <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">Facturación del Mes</span>
+                <div className="w-7 h-7 rounded-full bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <TrendingUp size={14} />
+                </div>
+              </div>
+              <div className="text-[25px] font-black text-slate-900 dark:text-white tracking-tight mt-1">
+                {formatMoney(currentMonthMetrics.facturacionMes)}
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                <ArrowUpRight size={13} />
+                <span>{currentMonthMetrics.ventasMesCount} venta{currentMonthMetrics.ventasMesCount !== 1 ? 's' : ''} este mes</span>
+              </div>
+            </div>
+
+            {/* Visual Photo / Gradient Banner from Finnova */}
+            <div className="mt-3.5 h-[62px] rounded-xl overflow-hidden relative shadow-xs border border-slate-100 dark:border-white/20 bg-slate-900 group">
+              <img
+                src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80"
+                alt="Finnova Desk"
+                className="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-500"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/30 to-transparent flex items-end p-2.5">
+                <div className="flex items-center justify-between w-full text-white text-[11px]">
+                  <span className="font-semibold text-white/90">Ticket Promedio</span>
+                  <span className="font-black font-mono tracking-tight">{formatMoney(currentMonthMetrics.ticketPromedio)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Capital en Inventario con las 7 Barras Estilo Finnova */}
+          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/35">
+            <div>
+              <div className="flex items-start justify-between">
+                <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">Capital en Inventario</span>
+                <div className="w-7 h-7 rounded-full bg-indigo-50 dark:bg-indigo-500/15 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <Wallet size={14} />
+                </div>
+              </div>
+              <div className="text-[25px] font-black text-slate-900 dark:text-white tracking-tight mt-1">
+                {formatMoney(currentMonthMetrics.capitalInventario)}
+              </div>
+              <div className="flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5">
+                <ArrowUpRight size={13} />
+                <span>Total físico: {currentMonthMetrics.totalFisicoUds} uds.</span>
+              </div>
+            </div>
+
+            {/* 7 Vertical Gradient Bars with Track Background (Finnova Style) */}
+            <div className="mt-3 pt-1 flex items-end justify-between gap-1.5 h-[64px]">
+              {last7DaysSales.map((bar, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer" title={`${bar.label}: ${formatMoney(bar.total)} (${bar.count} ventas)`}>
+                  <div className="w-full max-w-[20px] h-[46px] bg-slate-100 dark:bg-white/10 rounded-t-md flex items-end overflow-hidden p-0.5 border border-transparent dark:border-white/35">
+                    <div
+                      style={{ height: `${bar.val}%` }}
+                      className="w-full rounded-t-sm bg-gradient-to-t from-[#4F46E5] to-[#818CF8] group-hover:to-[#A5B4FC] transition-all shadow-xs border-t border-x border-transparent dark:border-white/50"
+                    />
+                  </div>
+                  <span className="text-[8.5px] font-bold text-slate-400 dark:text-slate-300 mt-1 uppercase">
+                    {bar.month}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Card 3: Tiempo de Rotación con Sparkline SVG Curve (Finnova Exact Match) */}
+          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/35">
+            <div>
+              <div className="flex items-start justify-between">
+                <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">Rotación & Catálogo</span>
+                <div className="w-7 h-7 rounded-full bg-cyan-50 dark:bg-cyan-500/15 border border-cyan-200 dark:border-cyan-500/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
+                  <Clock size={14} />
+                </div>
+              </div>
+              <div className="text-[25px] font-black text-slate-900 dark:text-white tracking-tight mt-1">
+                {currentMonthMetrics.totalSkus} SKUs
+              </div>
+              <div className="flex items-center gap-1 text-[11px] font-semibold text-cyan-600 dark:text-cyan-400 mt-0.5">
+                <span>{currentMonthMetrics.totalCategories} Categorías · {currentMonthMetrics.disponibilidadPct}% disponible</span>
+              </div>
+            </div>
+
+            {/* Finnova Signature Smooth Sparkline SVG Curve */}
+            <div className="mt-2.5 h-[50px] flex items-center px-1">
+              <svg className="w-full h-full overflow-visible" viewBox="0 0 220 50">
+                <defs>
+                  <linearGradient id="fnSparkCurve" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#818CF8" />
+                    <stop offset="50%" stopColor="#6366F1" />
+                    <stop offset="100%" stopColor="#4F46E5" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M 5 38 Q 45 32, 75 25 T 130 20 T 175 14 T 215 8"
+                  fill="none"
+                  stroke="url(#fnSparkCurve)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+                <circle cx="5" cy="38" r="3.5" className="fill-[#818CF8] stroke-white stroke-2" />
+                <circle cx="75" cy="25" r="3.5" className="fill-[#6366F1] stroke-white stroke-2" />
+                <circle cx="130" cy="20" r="3.5" className="fill-[#6366F1] stroke-white stroke-2" />
+                <circle cx="175" cy="14" r="3.5" className="fill-[#4F46E5] stroke-white stroke-2" />
+                <circle cx="215" cy="8" r="4.5" className="fill-[#4338CA] stroke-white stroke-2" />
+              </svg>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 dark:border-white/10 mt-auto flex items-center justify-between">
+              <span className="text-[11px] font-medium text-slate-400">{currentMonthMetrics.totalClients} clientes</span>
+              <button
+                onClick={() => navigate('/productos')}
+                className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>Explorar</span>
+                <ChevronRight size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Card 4: Disponible para Cobro Inmediato (Finnova Exact Layout) */}
+          <div className="fn-card bg-white dark:bg-[#131627] border border-slate-200/90 dark:border-white/35">
+            <div>
+              <div className="flex items-start justify-between">
+                <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">Disponible para Cobro</span>
+                <div className="w-7 h-7 rounded-full bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                  <ArrowUpRight size={14} />
+                </div>
+              </div>
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="text-[25px] font-black text-slate-900 dark:text-white tracking-tight">
+                  {formatMoney(currentMonthMetrics.facturacionMes)}
+                </span>
+                <span className="text-[11px] font-medium text-slate-400">Estimado</span>
+              </div>
+              <div className="text-[11px] font-semibold text-slate-400 mt-0.5 truncate">
+                {currentMonthMetrics.criticos === 0 ? 'Sin alertas críticas' : `${currentMonthMetrics.criticos} productos críticos`}
+              </div>
+            </div>
+
+            {/* Finnova Payment Methods Pills & Cobrar ahora Action */}
+            <div className="mt-3 pt-2 border-t border-slate-100 dark:border-white/10 flex items-center justify-between gap-1 overflow-hidden">
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQrModalMethod('yape')
+                    setQrModalAmount(currentMonthMetrics.facturacionMes || 150)
+                  }}
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#742284]/10 hover:bg-[#742284] text-[#742284] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                  title="Ver QR de Yape"
+                >
+                  <img src="/yape-logo.png" alt="Yape" className="w-3.5 h-3.5 rounded-sm object-cover" />
+                  <span>Yape</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQrModalMethod('plin')
+                    setQrModalAmount(currentMonthMetrics.facturacionMes || 150)
+                  }}
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#00b49f]/10 hover:bg-[#00b49f] text-[#00b49f] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                  title="Ver QR de Plin"
+                >
+                  <img src="/plin-logo.png" alt="Plin" className="w-3.5 h-3.5 rounded-full object-cover" />
+                  <span>Plin</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQrModalMethod('transfer')
+                    setQrModalAmount(currentMonthMetrics.facturacionMes || 150)
+                  }}
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white dark:bg-white/10 dark:hover:bg-blue-600 dark:text-slate-200 transition-all cursor-pointer"
+                  title="Ver Cuentas Bancarias"
+                >
+                  BCP
+                </button>
+              </div>
+
+              <button
+                onClick={() => navigate('/ventas/nueva')}
+                className="px-2.5 py-1 rounded-full bg-slate-900 hover:bg-black text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 text-[10px] font-extrabold shadow-md transition-all cursor-pointer whitespace-nowrap shrink-0"
+              >
+                Cobrar ahora
+              </button>
+            </div>
+          </div>
+
+        </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════
+            3.5. MASTER ANALYTICS CONTAINER (Movimientos & Categorías)
+           ═══════════════════════════════════════════════════════════ */}
+        {loading ? (
+          <DashboardAnalyticsSkeleton />
+        ) : (
+          <DashboardAnalytics
+            products={products}
+            categories={categories}
+            movements={movements}
+            sales={sales}
+            currency={currency}
+          />
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════
+            4. FILTER BAR (Row 2, En Español y Modo Oscuro)
+           ═══════════════════════════════════════════════════════════ */}
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          {/* Active filters badge */}
+          <div className="fn-filter-pill bg-white dark:bg-[#131627] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 font-bold">
+            <span>Filtros activos</span>
+            <span className="w-5 h-5 rounded-full bg-[#111827] dark:bg-[#5550F2] text-white text-[11px] font-bold flex items-center justify-center">
+              {filteredInvoices.length}
             </span>
           </div>
+
+          {/* All customers dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setCustomerDropdownOpen(o => !o)}
+              className="fn-filter-pill bg-white dark:bg-[#131627] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200"
+            >
+              <span>{selectedCustomerFilter === 'ALL' ? 'Todos los clientes' : selectedCustomerFilter}</span>
+              <ChevronDown size={14} className="text-slate-400" />
+            </button>
+            {customerDropdownOpen && (
+              <div className="absolute top-full left-0 mt-2 w-56 max-h-60 overflow-y-auto bg-white dark:bg-[#1A1D30] rounded-xl shadow-xl border border-slate-200 dark:border-white/10 py-1.5 z-30">
+                <button
+                  onClick={() => { setSelectedCustomerFilter('ALL'); setCustomerDropdownOpen(false) }}
+                  className="w-full text-left px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
+                >
+                  Todos los clientes
+                </button>
+                {clients.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => { setSelectedCustomerFilter(c.name); setCustomerDropdownOpen(false) }}
+                    className="w-full text-left px-3.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 truncate cursor-pointer"
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* All statuses dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setStatusDropdownOpen(o => !o)}
+              className="fn-filter-pill bg-white dark:bg-[#131627] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200"
+            >
+              <span>
+                {selectedStatusFilter === 'ALL'
+                  ? 'Todos los estados'
+                  : selectedStatusFilter === 'Pendiente'
+                  ? 'Pendientes'
+                  : 'Pagadas'}
+              </span>
+              <ChevronDown size={14} className="text-slate-400" />
+            </button>
+            {statusDropdownOpen && (
+              <div className="absolute top-full left-0 mt-2 w-44 bg-white dark:bg-[#1A1D30] rounded-xl shadow-xl border border-slate-200 dark:border-white/10 py-1.5 z-30">
+                {[
+                  { key: 'ALL', label: 'Todos los estados' },
+                  { key: 'Pendiente', label: 'Pendientes' },
+                  { key: 'Pagada', label: 'Pagadas' },
+                ].map(st => (
+                  <button
+                    key={st.key}
+                    onClick={() => { setSelectedStatusFilter(st.key); setStatusDropdownOpen(false) }}
+                    className="w-full text-left px-3.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer"
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Date pill from Finnova */}
+          <div className="hidden md:inline-flex fn-filter-pill bg-white dark:bg-[#131627] border border-slate-200 dark:border-white/35 text-slate-700 dark:text-slate-200">
+            <span>Octubre 2026</span>
+            <Calendar size={13} className="text-slate-400" />
+          </div>
+
+          {/* Search Bar on Right */}
+          <div className="fn-filter-pill bg-white dark:bg-[#131627] border border-slate-200 dark:border-white/35 ml-auto w-full sm:w-auto min-w-[260px] px-3.5 py-1.5">
+            <input
+              type="text"
+              placeholder="Buscar por cliente, comprobante o producto..."
+              value={searchInvoice}
+              onChange={(e) => setSearchInvoice(e.target.value)}
+              className="w-full bg-transparent border-none outline-none text-xs text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
+            />
+            {searchInvoice ? (
+              <button onClick={() => setSearchInvoice('')} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">
+                <X size={14} />
+              </button>
+            ) : (
+              <Search size={14} className="text-slate-400 shrink-0" />
+            )}
+          </div>
         </div>
 
+        {/* ═══════════════════════════════════════════════════════════
+            5. THE MASTER CONTAINER: DARK LUXURY FINNOVA PRO
+           ═══════════════════════════════════════════════════════════ */}
+        {loading ? (
+          <DashboardSalesMasterSkeleton />
+        ) : (
+          <div className="fn-dark-container">
+
+          {/* Top Header inside Container */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-[19px] font-black text-white tracking-tight flex items-center gap-2">
+                <span>{activeTab === 'unpaid' ? 'Ventas Pendientes de Cobro' : activeTab === 'paid' ? 'Ventas Pagadas / Cobradas' : 'Registro de Ventas & Comprobantes'}</span>
+                <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+              </h2>
+              <p className="text-[11.5px] text-slate-300 mt-0.5">Operaciones comerciales y comprobantes registrados en tu ERP</p>
+            </div>
+
+            {/* Segmented Floating Pill Tabs + Table shortcut */}
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center gap-1 bg-[#0A0C16] p-1 rounded-full border border-white/10 shadow-inner">
+                <button
+                  onClick={() => setActiveTab('all')}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'all'
+                      ? 'bg-white/20 text-white shadow-xs font-bold'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Todas ({invoiceList.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('unpaid')}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeTab === 'unpaid'
+                      ? 'bg-[#5550F2] text-white shadow-md shadow-indigo-600/40'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>Pendientes</span>
+                  <span className="w-4 h-4 rounded-full bg-amber-400 text-[#1E1B4B] text-[9.5px] font-black flex items-center justify-center">
+                    {invoiceList.filter(i => i.status === 'Pendiente').length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('paid')}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeTab === 'paid'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/40'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span>Pagadas</span>
+                  <span className="w-4 h-4 rounded-full bg-white text-emerald-900 text-[9.5px] font-black flex items-center justify-center">
+                    {invoiceList.filter(i => i.status === 'Pagada').length}
+                  </span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => navigate('/ventas')}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
+                title="Ver todas las ventas en tabla"
+              >
+                <LayoutGrid size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* ═══════════════════════════════════════════════════════════
+              SPLIT CONTENT: LEFT INVOICES LIST + RIGHT GLOWING CARD
+             ═══════════════════════════════════════════════════════════ */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+
+            {/* LEFT COLUMN: Invoices List */}
+            <div className="lg:col-span-5 flex flex-col gap-2 max-h-[460px] overflow-y-auto fn-scroll pr-1.5">
+              {filteredInvoices.length === 0 ? (
+                <div className="py-16 text-center text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-white/[0.02] rounded-2xl border border-slate-200/80 dark:border-white/5">
+                  <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-white/5 text-slate-600 dark:text-slate-400 flex items-center justify-center mx-auto mb-2">
+                    <Receipt size={18} />
+                  </div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">No hay ventas en esta sección</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Ajusta los filtros o registra una nueva venta en el POS.</p>
+                  <button
+                    onClick={() => navigate('/ventas/nueva')}
+                    className="mt-3.5 px-4 py-2 rounded-xl bg-[#5550F2] text-white text-xs font-bold hover:bg-[#4742E8] shadow-md shadow-indigo-600/30 cursor-pointer"
+                  >
+                    + Registrar nueva venta
+                  </button>
+                </div>
+              ) : (
+                filteredInvoices.map((inv) => {
+                  const isSelected = String(inv.id) === String(currentInvoice?.id)
+                  const isPaid = inv.status === 'Pagada'
+                  return (
+                    <div
+                      key={inv.id}
+                      onClick={() => setSelectedInvoiceId(inv.id)}
+                      className={`fn-invoice-row ${isSelected ? 'active' : ''}`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {/* Vibrant Avatar with initials */}
+                        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full shrink-0 flex items-center justify-center text-white font-extrabold text-xs shadow-sm bg-gradient-to-tr ${getClientAvatarGradient(inv.client_name)} ${isSelected ? 'ring-2 ring-white/70' : 'ring-1 ring-white/20'}`}>
+                          {inv.client_name ? inv.client_name.charAt(0).toUpperCase() : 'C'}
+                        </div>
+
+                        {/* Client & Code info */}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs sm:text-[13px] font-extrabold truncate leading-tight text-white">
+                            {inv.client_name}
+                          </p>
+                          <p className={`text-[10px] sm:text-[11px] mt-0.5 truncate font-medium ${isSelected ? 'text-indigo-100' : 'text-slate-300'}`}>
+                            #{inv.code} · {inv.due_text}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Status Pill & Amount */}
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2.5 shrink-0 ml-2">
+                        <span className="text-xs sm:text-[14px] font-black tracking-tight font-mono whitespace-nowrap text-white">
+                          {formatMoney(inv.amount)}
+                        </span>
+
+                        <span
+                          className={`text-[9.5px] sm:text-[10.5px] font-black px-2.5 py-0.5 rounded-full transition-all whitespace-nowrap ${
+                            isSelected
+                              ? 'bg-white/25 text-white border border-white/40 backdrop-blur-md shadow-xs'
+                              : isPaid
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/35'
+                              : 'bg-amber-400/20 text-amber-300 border border-amber-400/35'
+                          }`}
+                        >
+                          {inv.status}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* RIGHT COLUMN: The Glowing Detail Card (Light & Dark responsive) */}
+            <div className="lg:col-span-7 flex flex-col">
+              {currentInvoice ? (
+                <div className="fn-detail-card flex-1">
+
+                  {/* Header Row: Detalle de Venta | Emisor | Cliente */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Detalle de Comprobante */}
+                    <div>
+                      <p className="text-[11px] font-bold text-indigo-200/90 uppercase tracking-wider">Comprobante</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[21px] font-black text-white tracking-tight">
+                          #{currentInvoice.code}
+                        </span>
+                        <span className={`text-[10.5px] font-black px-2.5 py-0.5 rounded-full border ${
+                          currentInvoice.status === 'Pagada'
+                            ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/40'
+                            : 'bg-amber-400/25 text-amber-200 border-amber-400/40'
+                        }`}>
+                          {currentInvoice.status}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-indigo-200/70 mt-0.5 font-medium">
+                        Fecha: {currentInvoice.due_text || 'Comprobante registrado'}
+                      </p>
+                    </div>
+
+                    {/* Emisor Comercial */}
+                    <div>
+                      <p className="text-[11px] font-bold text-indigo-200/90 uppercase tracking-wider">Empresa Emisora</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[18px] font-black text-white tracking-tight truncate">
+                          {currentInvoice.company || 'CYA Store'}
+                        </span>
+                        <span className="text-indigo-300 text-sm font-bold">~</span>
+                      </div>
+                      <p className="text-[10px] text-indigo-200/70 mt-0.5 font-medium">Sede Principal · Sistema ERP</p>
+                    </div>
+
+                    {/* Cliente */}
+                    <div>
+                      <p className="text-[11px] font-bold text-indigo-200/90 uppercase tracking-wider">Cliente</p>
+                      <div className="flex items-center gap-2.5 mt-1">
+                        <div className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white font-extrabold text-xs shadow-sm bg-gradient-to-tr ${getClientAvatarGradient(currentInvoice.client_name)} ring-2 ring-white/30`}>
+                          {currentInvoice.client_name ? currentInvoice.client_name.charAt(0).toUpperCase() : 'C'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-extrabold text-white truncate leading-tight">
+                            {currentInvoice.client_name}
+                          </p>
+                          <p className="text-[10.5px] text-indigo-200/75 truncate mt-0.5 font-medium">
+                            {currentInvoice.client_role || 'Cliente Registrado'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Middle Row: Ítems reales vendidos estilo Finnova */}
+                  <div className="my-5">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <p className="text-xs font-bold text-indigo-200 uppercase tracking-wider">
+                        Productos del Comprobante ({currentInvoice.items?.length || 0})
+                      </p>
+                      <span className="text-[11px] text-indigo-200/70 font-medium">Líneas de producto facturadas</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[170px] overflow-y-auto fn-scroll pr-1.5">
+                      {currentInvoice.items?.map((item, idx) => (
+                        <div key={idx} className="fn-service-card group">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[15px] font-black text-white font-mono tracking-tight">
+                              {formatMoney(item.price)}
+                            </span>
+                            <span className="text-[10.5px] font-extrabold text-indigo-200 bg-white/10 group-hover:bg-white/20 px-2 py-0.5 rounded-full transition-colors">
+                              x{item.qty || 1}
+                            </span>
+                          </div>
+                          <div className="mt-2">
+                            <p className="text-xs font-bold text-white/95 line-clamp-1 group-hover:text-indigo-200 transition-colors" title={item.name}>
+                              {item.name}
+                            </p>
+                            <div className="flex items-center justify-between text-[10px] text-indigo-200/75 mt-1 font-medium">
+                              <span>P. Unit: {formatMoney(item.price / (item.qty || 1))}</span>
+                              <ArrowUpRight size={12} className="text-white opacity-70 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Quick Action Card: Nueva Venta en POS */}
+                      <div
+                        onClick={() => navigate('/ventas/nueva')}
+                        className="border-2 border-dashed border-white/25 hover:border-white/50 bg-white/10 hover:bg-white/15 rounded-2xl p-3 flex flex-col items-center justify-center text-center cursor-pointer transition-all min-h-[84px] group"
+                        title="Registrar una nueva venta en el sistema"
+                      >
+                        <div className="w-6 h-6 rounded-full bg-white/10 group-hover:bg-white/20 flex items-center justify-center text-white mb-1 transition-colors">
+                          <Plus size={13} strokeWidth={2.5} />
+                        </div>
+                        <span className="text-[11.5px] font-bold text-white group-hover:text-indigo-100 transition-colors">+ Nueva Venta</span>
+                        <span className="text-[9.5px] text-indigo-200/70">Abrir punto de venta</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Row: Totals & Luxury Action Buttons */}
+                  <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4 pt-4 border-t border-white/15 mt-auto">
+                    {/* Totals */}
+                    <div className="grid grid-cols-3 gap-3 sm:flex sm:items-center sm:gap-6 w-full 2xl:w-auto">
+                      <div>
+                        <p className="text-[10px] sm:text-[11px] font-semibold text-indigo-200/80 uppercase tracking-wider">Sub Total</p>
+                        <p className="text-xs sm:text-[16px] font-black text-white font-mono mt-0.5 truncate">
+                          {formatMoney(currentInvoice.subtotal)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] sm:text-[11px] font-semibold text-indigo-200/80 uppercase tracking-wider">Total Venta</p>
+                        <p className="text-xs sm:text-[16px] font-black text-white font-mono mt-0.5 truncate">
+                          {formatMoney(currentInvoice.total)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] sm:text-[11px] font-semibold text-indigo-200/80 uppercase tracking-wider">Saldo Pendiente</p>
+                        <p className={`text-xs sm:text-[16px] font-black font-mono mt-0.5 truncate ${
+                          currentInvoice.balance > 0 ? 'text-amber-300' : 'text-emerald-300'
+                        }`}>
+                          {formatMoney(currentInvoice.balance)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions on right */}
+                    <div className="flex items-center gap-2 flex-wrap w-full 2xl:w-auto justify-start sm:justify-end">
+                      <button
+                        onClick={() => setReceiptOpen(true)}
+                        className="px-3.5 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 flex items-center gap-1.5 text-white transition-all cursor-pointer text-xs font-bold shadow-xs shrink-0 backdrop-blur-md"
+                        title="Ver e imprimir boleta de venta"
+                      >
+                        <Receipt size={14} />
+                        <span>Ver Boleta</span>
+                      </button>
+
+                      <button
+                        onClick={() => navigate('/ventas')}
+                        className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 border border-white/25 flex items-center justify-center text-white transition-all cursor-pointer shrink-0 shadow-xs backdrop-blur-md"
+                        title="Ir al módulo de ventas"
+                      >
+                        <ExternalLink size={14} />
+                      </button>
+
+                      {currentInvoice.status === 'Pendiente' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQrModalMethod('yape')
+                            setQrModalAmount(currentInvoice.balance || 0)
+                          }}
+                          className="px-3 py-2 rounded-full bg-purple-500/20 hover:bg-purple-500/35 text-purple-200 border border-purple-400/35 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs shrink-0 whitespace-nowrap backdrop-blur-md"
+                          title="Mostrar QR de Yape al cliente para cobrar"
+                        >
+                          <QrCode size={13} />
+                          <span>QR</span>
+                        </button>
+                      )}
+
+                      {currentInvoice.status === 'Pendiente' ? (
+                        <button
+                          onClick={handleMarkAsPaid}
+                          disabled={payoutSuccess}
+                          className="px-4 sm:px-5 py-2 rounded-full bg-white hover:bg-slate-100 text-slate-900 text-xs sm:text-sm font-black shadow-xl shadow-black/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-75 flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+                        >
+                          {payoutSuccess ? (
+                            <>
+                              <Check size={16} strokeWidth={3} className="text-emerald-600" />
+                              <span>¡Cobrado!</span>
+                            </>
+                          ) : (
+                            <>
+                              <DollarSign size={16} strokeWidth={2.5} className="text-indigo-600" />
+                              <span>Cobrar venta</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="px-4 py-2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs sm:text-sm font-black flex items-center gap-1.5 backdrop-blur-md shadow-xs shrink-0">
+                          <CheckCircle2 size={16} />
+                          <span>Pagada</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              ) : (
+                <div className="fn-detail-card items-center justify-center text-center py-20">
+                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-indigo-200 mx-auto mb-3">
+                    <Receipt size={22} />
+                  </div>
+                  <p className="text-white font-bold text-sm">Selecciona una venta de la lista</p>
+                  <p className="text-indigo-200/70 text-xs mt-1">Podrás ver los productos facturados, boletas y registrar cobros.</p>
+                </div>
+              )}
+            </div>
+
+          </div>
+
+        </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════
+            6. LOWER ERP METRICS: STOCK ALERTS | TOP PRODUCTS | CATEGORIES
+           ═══════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-2">
+
+          {/* ── CARD 1: ALERTAS DE STOCK ── */}
+          <div className="bg-white dark:bg-[#131627] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 dark:border-white/10 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 flex items-center justify-center text-amber-500">
+                    <AlertTriangle size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-[16px] text-slate-900 dark:text-white tracking-tight leading-tight">
+                      Alertas de Stock
+                    </h3>
+                    <p className="text-[11.5px] text-slate-400 font-medium">Bajo mínimo sugerido</p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400 border border-red-200/60 dark:border-red-500/30">
+                  {stockAlerts.length} críticas
+                </span>
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-3 my-4">
+                {stockAlerts.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto mb-2">
+                      <CheckCircle2 size={20} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">¡Almacén saludable!</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">No hay productos por debajo del stock mínimo.</p>
+                  </div>
+                ) : (
+                  stockAlerts.slice(0, 4).map((p, idx) => (
+                    <div key={idx} className="p-3 rounded-2xl bg-slate-50/70 dark:bg-white/5 border border-slate-100 dark:border-white/5 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate leading-tight">
+                            {p.name}
+                          </p>
+                          <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                            {p.cat} · <span className="font-mono">{p.sku || `SKU-${idx + 1}`}</span>
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className={`text-[12px] font-extrabold font-mono ${p.stock <= 0 ? 'text-red-500' : 'text-amber-600 dark:text-amber-400'}`}>
+                            {p.stock} / {p.min} uds.
+                          </span>
+                          <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                            {p.stock <= 0 ? 'Agotado' : 'Crítico'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
+                        <div
+                          style={{ width: `${Math.max(p.pct, 4)}%` }}
+                          className={`h-full rounded-full transition-all ${
+                            p.stock <= 0 ? 'bg-red-500' : 'bg-gradient-to-r from-red-500 to-amber-500'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Footer Link */}
+            <div className="pt-3 border-t border-slate-100 dark:border-white/10 mt-auto">
+              <Link
+                to="/compras"
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-between text-decoration-none"
+              >
+                <span>Reabastecer almacén</span>
+                <ChevronRight size={14} />
+              </Link>
+            </div>
+          </div>
+
+          {/* ── CARD 2: TOP PRODUCTOS ── */}
+          <div className="bg-white dark:bg-[#131627] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 dark:border-white/10 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 flex items-center justify-center text-violet-600">
+                    <TrendingUp size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-[16px] text-slate-900 dark:text-white tracking-tight leading-tight">
+                      Top Productos
+                    </h3>
+                    <p className="text-[11.5px] text-slate-400 font-medium">Mayor rotación y volumen</p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300 border border-violet-200/60 dark:border-violet-500/30">
+                  Más vendidos
+                </span>
+              </div>
+
+              {/* Ranking List */}
+              <div className="space-y-2 my-4">
+                {topProducts.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Sin ventas aún</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">El ranking se calculará automáticamente al registrar ventas.</p>
+                  </div>
+                ) : (
+                  topProducts.slice(0, 5).map((tp, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Rank Badge */}
+                        <span className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-extrabold shrink-0 shadow-xs ${
+                          idx === 0
+                            ? 'bg-gradient-to-tr from-[#5550F2] to-[#818CF8] text-white shadow-indigo-500/20'
+                            : idx === 1
+                            ? 'bg-slate-800 text-white dark:bg-white/20'
+                            : idx === 2
+                            ? 'bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-slate-300'
+                            : 'bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400'
+                        }`}>
+                          #{idx + 1}
+                        </span>
+
+                        {/* Name & Cat */}
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate leading-tight">
+                            {tp.name}
+                          </p>
+                          <p className="text-[11px] text-slate-400 font-medium mt-0.5 truncate">
+                            {tp.category} · <span className="font-semibold text-indigo-600 dark:text-indigo-400">{tp.qty} ventas</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Revenue */}
+                      <div className="text-right shrink-0 pl-2">
+                        <span className="text-[13px] font-extrabold font-mono text-slate-900 dark:text-white">
+                          {formatMoney(tp.revenue)}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Footer Link */}
+            <div className="pt-3 border-t border-slate-100 dark:border-white/10 mt-auto">
+              <Link
+                to="/productos"
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-between text-decoration-none"
+              >
+                <span>Ver catálogo completo</span>
+                <ChevronRight size={14} />
+              </Link>
+            </div>
+          </div>
+
+          {/* ── CARD 3: DISTRIBUCIÓN POR CATEGORÍA ── */}
+          <div className="bg-white dark:bg-[#131627] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 dark:border-white/10 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600">
+                    <Boxes size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-[16px] text-slate-900 dark:text-white tracking-tight leading-tight">
+                      Stock por Categoría
+                    </h3>
+                    <p className="text-[11.5px] text-slate-400 font-medium">Proporción de inventario</p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-500/30 font-mono">
+                  {totalInventoryUnits} uds.
+                </span>
+              </div>
+
+              {/* Stacked Multi-Color Progress Bar */}
+              <div className="my-4">
+                <div className="h-3 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden flex gap-0.5 p-0.5">
+                  {categoryDistribution.map((cat, i) => (
+                    <div
+                      key={i}
+                      style={{ width: `${Math.max(cat.pct, 4)}%`, backgroundColor: cat.color }}
+                      className="h-full rounded-full transition-all"
+                      title={`${cat.name}: ${cat.units} uds. (${cat.pct}%)`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Category Breakdown List */}
+              <div className="space-y-2.5 my-3">
+                {categoryDistribution.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Sin datos de inventario</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Crea productos para ver la distribución de existencias.</p>
+                  </div>
+                ) : (
+                  categoryDistribution.slice(0, 5).map((cat, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: cat.color }}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-[12.5px] font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">
+                            {cat.name}
+                          </p>
+                          <p className="text-[10.5px] text-slate-400 mt-0.5">
+                            {cat.skuCount} SKU{cat.skuCount !== 1 ? 's' : ''} registrados
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[12.5px] font-bold font-mono text-slate-900 dark:text-white">
+                          {cat.units} uds.
+                        </span>
+                        <span
+                          className="text-[10px] font-extrabold px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
+                        >
+                          {cat.pct}%
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Footer Link */}
+            <div className="pt-3 border-t border-slate-100 dark:border-white/10 mt-auto">
+              <Link
+                to="/categorias"
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-between text-decoration-none"
+              >
+                <span>Administrar categorías</span>
+                <ChevronRight size={14} />
+              </Link>
+            </div>
+          </div>
+
+        </div>
+
+      {/* ─── Cierre de contenedor principal finnova-root ─── */}
       </div>
 
       {/* ═══════════════════════════════════════════════════════════
-          5. BOTTOM ROW (Movimientos Recientes, Stock, Estado)
+          MODAL: AGREGAR CONCEPTO A LA FACTURA (En Español)
          ═══════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-
-        {/* 5.1 Movimientos Recientes — 4 cols */}
-        <div className="lg:col-span-5 rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5">
-              <div className="flex items-center gap-2">
-                <Clock size={17} className="text-blue-600 shrink-0" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Movimientos Recientes</h3>
-              </div>
-              <Link to="/movimientos" className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                <span>Ver todos</span>
-                <span className="text-sm">→</span>
-              </Link>
+      {addItemModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1E2038] rounded-2xl w-full max-w-md p-6 shadow-2xl border border-slate-200 dark:border-white/10">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/10">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+                + Agregar producto a #{currentInvoice?.code}
+              </h3>
+              <button
+                onClick={() => setAddItemModalOpen(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            <div className="mt-3.5 space-y-3">
-              {/* Item 1 */}
-              <div className="flex items-center justify-between gap-2.5">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                    <ShoppingCart size={15} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Venta #0001245 - Cliente: TechPerú</p>
-                    <p className="text-[11px] text-slate-400">Hace 5 min</p>
-                  </div>
-                </div>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 shrink-0">
-                  S/ 1,250.00
-                </span>
+            <form onSubmit={handleAddItem} className="space-y-4 mt-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Nombre del producto o ítem
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. AirPods 3 Pro, Cargador Rápido GaN 65W..."
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  required
+                  className="w-full mt-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-sm bg-slate-50 dark:bg-white/5 outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                />
               </div>
 
-              {/* Item 2 */}
-              <div className="flex items-center justify-between gap-2.5">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                    <Package size={15} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Compra #0000876 - Proveedor: Global Tech</p>
-                    <p className="text-[11px] text-slate-400">Hace 12 min</p>
-                  </div>
-                </div>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-500/10 shrink-0">
-                  S/ 850.00
-                </span>
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Precio ({currency})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ej. 520.00"
+                  value={newItemPrice}
+                  onChange={(e) => setNewItemPrice(e.target.value)}
+                  required
+                  className="w-full mt-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-sm bg-slate-50 dark:bg-white/5 outline-none focus:border-indigo-500 text-slate-800 dark:text-white font-mono"
+                />
               </div>
 
-              {/* Item 3 */}
-              <div className="flex items-center justify-between gap-2.5">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                    <FileText size={15} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Factura emitida - F001-2456</p>
-                    <p className="text-[11px] text-slate-400">Hace 20 min</p>
-                  </div>
-                </div>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 shrink-0">
-                  S/ 2,300.00
-                </span>
+              <div className="flex items-center justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setAddItemModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#5550F2] text-white shadow-md shadow-indigo-600/30 hover:bg-[#4742E8] cursor-pointer"
+                >
+                  Agregar al comprobante
+                </button>
               </div>
-
-              {/* Item 4 */}
-              <div className="flex items-center justify-between gap-2.5">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                    <UserPlus size={15} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Nuevo cliente: Distribuidora S.A.C.</p>
-                    <p className="text-[11px] text-slate-400">Hace 1 h</p>
-                  </div>
-                </div>
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 dark:bg-white/5 shrink-0">
-                  -
-                </span>
-              </div>
-            </div>
+            </form>
           </div>
         </div>
-
-        {/* 5.2 Stock por Producto — 4 cols */}
-        <div className="lg:col-span-4 rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5">
-              <div className="flex items-center gap-2">
-                <Boxes size={17} className="text-blue-600 shrink-0" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Stock por Producto</h3>
-              </div>
-              <Link to="/productos" className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                <span>Ver detalle</span>
-                <span className="text-sm">→</span>
-              </Link>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              {/* Product 1: iPhone 16 */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 flex items-center justify-center overflow-hidden shrink-0 border border-slate-200/50">
-                  <img
-                    src="https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?auto=format&fit=crop&w=100&q=80"
-                    alt="iPhone"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center text-xs font-bold mb-1.5">
-                    <span className="text-slate-800 dark:text-slate-200 truncate">iPhone 16</span>
-                    <span className="text-slate-900 dark:text-white shrink-0">120 und.</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
-                    <div className="h-full bg-blue-600 rounded-full" style={{ width: '75%' }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Product 2: AirPods Pro */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 flex items-center justify-center overflow-hidden shrink-0 border border-slate-200/50">
-                  <img
-                    src="https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=100&q=80"
-                    alt="AirPods"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center text-xs font-bold mb-1.5">
-                    <span className="text-slate-800 dark:text-slate-200 truncate">AirPods Pro</span>
-                    <span className="text-slate-900 dark:text-white shrink-0">85 und.</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
-                    <div className="h-full bg-blue-600 rounded-full" style={{ width: '55%' }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Product 3: Cargador USB-C */}
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 flex items-center justify-center overflow-hidden shrink-0 border border-slate-200/50">
-                  <img
-                    src="https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=100&q=80"
-                    alt="Cargador"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center text-xs font-bold mb-1.5">
-                    <span className="text-slate-800 dark:text-slate-200 truncate">Cargador USB-C</span>
-                    <span className="text-slate-900 dark:text-white shrink-0">320 und.</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
-                    <div className="h-full bg-blue-600 rounded-full" style={{ width: '90%' }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 5.3 Estado del Sistema — 3 cols */}
-        <div className="lg:col-span-3 rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-6 shadow-xs flex flex-col justify-between text-center">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-white/5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Estado del Sistema</h3>
-          </div>
-
-          <div className="my-auto py-3 flex flex-col items-center">
-            <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 mb-3 ring-8 ring-emerald-50 dark:ring-emerald-500/10">
-              <CheckCircle2 size={32} strokeWidth={2.5} />
-            </div>
-            <p className="text-base font-extrabold text-slate-900 dark:text-white">Sistema Operativo</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[200px]">
-              Todos los servicios funcionan correctamente.
-            </p>
-          </div>
-
-          {/* Timestamp capsule */}
-          <div className="mt-2 py-2 px-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-500/10 border border-emerald-200/50 dark:border-emerald-500/20 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 flex items-center justify-center gap-1.5">
-            <Clock size={13} />
-            <span>Última actualización: {currentDateStr} - {currentTimeStr}</span>
-          </div>
-        </div>
-
-      </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════
-          PAYMENT QR MODAL (Yape, Plin & BCP / Banks)
+          MODAL: REGISTRAR NUEVA VENTA (En Español)
+         ═══════════════════════════════════════════════════════════ */}
+      {createModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1E2038] rounded-2xl w-full max-w-md p-6 shadow-2xl border border-slate-200 dark:border-white/10">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/10">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+                + Registrar nueva venta / pedido
+              </h3>
+              <button
+                onClick={() => setCreateModalOpen(false)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateInvoice} className="space-y-4 mt-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Nombre del Cliente o Razón Social
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. Importaciones Lima SAC, Juan Pérez..."
+                  value={newInvClient}
+                  onChange={(e) => setNewInvClient(e.target.value)}
+                  required
+                  className="w-full mt-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-sm bg-slate-50 dark:bg-white/5 outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Producto o Detalle de Venta
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. Lote AirPods 3 Pro / Pedido Mayorista"
+                  value={newInvService}
+                  onChange={(e) => setNewInvService(e.target.value)}
+                  required
+                  className="w-full mt-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-sm bg-slate-50 dark:bg-white/5 outline-none focus:border-indigo-500 text-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Monto Total ({currency})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ej. 14500.00"
+                  value={newInvAmount}
+                  onChange={(e) => setNewInvAmount(e.target.value)}
+                  required
+                  className="w-full mt-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-white/10 text-sm bg-slate-50 dark:bg-white/5 outline-none focus:border-indigo-500 text-slate-800 dark:text-white font-mono"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setCreateModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#5550F2] text-white shadow-md shadow-indigo-600/30 hover:bg-[#4742E8] cursor-pointer"
+                >
+                  Registrar venta
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          RECEIPT MODAL (When Payout now or Paperclip is clicked)
+         ═══════════════════════════════════════════════════════════ */}
+      {receiptOpen && (
+        <ReceiptModal
+          isOpen={receiptOpen}
+          onClose={() => setReceiptOpen(false)}
+          sale={currentInvoice?.rawSale || {
+            id: currentInvoice?.id,
+            created_at: new Date().toISOString(),
+            client_name: currentInvoice?.client_name,
+            discount: 0,
+            items: currentInvoice?.items?.map((it, i) => ({
+              id: i,
+              product_id: i,
+              quantity: it.qty || 1,
+              unit_price: it.price
+            })) || []
+          }}
+          client={{
+            name: currentInvoice?.client_name,
+            phone: '+51 987 654 321'
+          }}
+          products={products}
+          company={company}
+        />
+      )}
+      {/* ═══════════════════════════════════════════════════════════
+          PAYMENT QR MODAL (Yape, Plin & Banks)
          ═══════════════════════════════════════════════════════════ */}
       <PaymentQrModal
         isOpen={Boolean(qrModalMethod)}
@@ -893,9 +2239,8 @@ function DashboardContent() {
         method={qrModalMethod}
         paymentConfig={paymentConfig}
         amount={qrModalAmount}
-        currency="S/"
+        currency={currency}
       />
-
-    </div>
+    </>
   )
 }
