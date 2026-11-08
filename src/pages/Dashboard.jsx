@@ -16,6 +16,8 @@ import { clientsService } from '../services/clientsService'
 import { categoriesService } from '../services/categoriesService'
 import { companySettingsService } from '../services/companySettingsService'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
+import { paymentMethodsService } from '../services/paymentMethodsService'
+import PaymentQrModal from '../components/PaymentQrModal'
 
 export default function Dashboard() {
   return (
@@ -41,6 +43,17 @@ function DashboardContent() {
   const [company, setCompany] = useState(() => companySettingsService.getCached?.())
   const [loading, setLoading] = useState(false)
   const [timeRange, setTimeRange] = useState('6m')
+
+  // QR Modal States for Yape, Plin & BCP
+  const [qrModalMethod, setQrModalMethod] = useState(null)
+  const [qrModalAmount, setQrModalAmount] = useState(0)
+  const [paymentConfig, setPaymentConfig] = useState(() => paymentMethodsService.get())
+
+  useEffect(() => {
+    const handlePayUpdate = (e) => setPaymentConfig(e.detail)
+    window.addEventListener('cya-payment-methods-updated', handlePayUpdate)
+    return () => window.removeEventListener('cya-payment-methods-updated', handlePayUpdate)
+  }, [])
 
   // Load real data from Supabase
   const loadData = async () => {
@@ -191,135 +204,220 @@ function DashboardContent() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════
-          3. ROW OF 4 KPI METRIC CARDS (con mini sparkline gráficos)
+          3. ROW OF 4 KPI METRIC CARDS (con mini sparklines y cobro Yape/Plin)
          ═══════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
 
         {/* Card 1: Ventas del Mes (Blue) */}
-        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex items-center justify-between">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30 shrink-0">
-              <ShoppingCart size={22} strokeWidth={2.2} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Ventas del Mes</p>
-              <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
-                S/ {kpiData.ventasMes.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <div className="flex items-center gap-1 text-[11.5px] font-bold text-emerald-500 mt-1">
-                <span>↑ +12.5%</span>
+        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30 shrink-0">
+                <ShoppingCart size={22} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Ventas del Mes</p>
+                <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
+                  S/ {kpiData.ventasMes.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <div className="flex items-center gap-1 text-[11.5px] font-bold text-emerald-500 mt-1">
+                  <span>↑ +12.5%</span>
+                </div>
               </div>
             </div>
+            {/* Sparkline curve */}
+            <div className="w-16 h-9 shrink-0 self-start opacity-90">
+              <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="sparkBlue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path d="M 0,45 Q 25,40 45,28 T 80,18 T 100,8 L 100,50 L 0,50 Z" fill="url(#sparkBlue)" />
+                <path d="M 0,45 Q 25,40 45,28 T 80,18 T 100,8" fill="none" stroke="#2563EB" strokeWidth="2.5" />
+                <circle cx="100" cy="8" r="3" fill="#2563EB" />
+              </svg>
+            </div>
           </div>
-          {/* Sparkline curve */}
-          <div className="w-20 h-10 shrink-0 self-end opacity-90">
-            <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="sparkBlue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d="M 0,45 Q 25,40 45,28 T 80,18 T 100,8 L 100,50 L 0,50 Z" fill="url(#sparkBlue)" />
-              <path d="M 0,45 Q 25,40 45,28 T 80,18 T 100,8" fill="none" stroke="#2563EB" strokeWidth="2.5" />
-              <circle cx="100" cy="8" r="3" fill="#2563EB" />
-            </svg>
+
+          <div className="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+            <span>{sales.length || 1} ventas este mes</span>
+            <button
+              type="button"
+              onClick={() => navigate('/ventas')}
+              className="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+            >
+              Ver ventas →
+            </button>
           </div>
         </div>
 
         {/* Card 2: Compras del Mes (Green) */}
-        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex items-center justify-between">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30 shrink-0">
-              <Package size={22} strokeWidth={2.2} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Compras del Mes</p>
-              <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
-                S/ {kpiData.comprasMes.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <div className="flex items-center gap-1 text-[11.5px] font-bold text-emerald-500 mt-1">
-                <span>↑ +8.3%</span>
+        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30 shrink-0">
+                <Package size={22} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Compras del Mes</p>
+                <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
+                  S/ {kpiData.comprasMes.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <div className="flex items-center gap-1 text-[11.5px] font-bold text-emerald-500 mt-1">
+                  <span>↑ +8.3%</span>
+                </div>
               </div>
             </div>
+            {/* Sparkline curve */}
+            <div className="w-16 h-9 shrink-0 self-start opacity-90">
+              <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="sparkGreen" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10B981" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path d="M 0,42 Q 25,35 50,30 T 80,15 T 100,10 L 100,50 L 0,50 Z" fill="url(#sparkGreen)" />
+                <path d="M 0,42 Q 25,35 50,30 T 80,15 T 100,10" fill="none" stroke="#10B981" strokeWidth="2.5" />
+                <circle cx="100" cy="10" r="3" fill="#10B981" />
+              </svg>
+            </div>
           </div>
-          {/* Sparkline curve */}
-          <div className="w-20 h-10 shrink-0 self-end opacity-90">
-            <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="sparkGreen" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10B981" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d="M 0,42 Q 25,35 50,30 T 80,15 T 100,10 L 100,50 L 0,50 Z" fill="url(#sparkGreen)" />
-              <path d="M 0,42 Q 25,35 50,30 T 80,15 T 100,10" fill="none" stroke="#10B981" strokeWidth="2.5" />
-              <circle cx="100" cy="10" r="3" fill="#10B981" />
-            </svg>
+
+          <div className="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+            <span>{purchases.length || 0} compras este mes</span>
+            <button
+              type="button"
+              onClick={() => navigate('/compras')}
+              className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
+            >
+              Ver compras →
+            </button>
           </div>
         </div>
 
         {/* Card 3: Stock Total (Purple) */}
-        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex items-center justify-between">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/30 shrink-0">
-              <Warehouse size={22} strokeWidth={2.2} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Stock Total</p>
-              <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
-                {kpiData.stockTotal.toLocaleString('en-US')}
-              </p>
-              <div className="flex items-center gap-1 text-[11.5px] font-bold text-emerald-500 mt-1">
-                <span>↑ +2.1%</span>
+        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/30 shrink-0">
+                <Warehouse size={22} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Stock Total</p>
+                <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
+                  {kpiData.stockTotal.toLocaleString('en-US')}
+                </p>
+                <div className="flex items-center gap-1 text-[11.5px] font-bold text-emerald-500 mt-1">
+                  <span>↑ +2.1%</span>
+                </div>
               </div>
             </div>
+            {/* Sparkline curve */}
+            <div className="w-16 h-9 shrink-0 self-start opacity-90">
+              <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="sparkPurple" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6366F1" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="#6366F1" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path d="M 0,38 Q 30,35 55,25 T 85,18 T 100,14 L 100,50 L 0,50 Z" fill="url(#sparkPurple)" />
+                <path d="M 0,38 Q 30,35 55,25 T 85,18 T 100,14" fill="none" stroke="#6366F1" strokeWidth="2.5" />
+                <circle cx="100" cy="14" r="3" fill="#6366F1" />
+              </svg>
+            </div>
           </div>
-          {/* Sparkline curve */}
-          <div className="w-20 h-10 shrink-0 self-end opacity-90">
-            <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="sparkPurple" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366F1" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#6366F1" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d="M 0,38 Q 30,35 55,25 T 85,18 T 100,14 L 100,50 L 0,50 Z" fill="url(#sparkPurple)" />
-              <path d="M 0,38 Q 30,35 55,25 T 85,18 T 100,14" fill="none" stroke="#6366F1" strokeWidth="2.5" />
-              <circle cx="100" cy="14" r="3" fill="#6366F1" />
-            </svg>
+
+          <div className="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+            <span>{products.length || 0} productos registrados</span>
+            <button
+              type="button"
+              onClick={() => navigate('/productos')}
+              className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline cursor-pointer"
+            >
+              Ver almacén →
+            </button>
           </div>
         </div>
 
-        {/* Card 4: Cuentas por Cobrar (Orange) */}
-        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex items-center justify-between">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-12 h-12 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
-              <Coins size={22} strokeWidth={2.2} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Cuentas por Cobrar</p>
-              <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
-                S/ {kpiData.cuentasCobrar.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <div className="flex items-center gap-1 text-[11.5px] font-bold text-rose-500 mt-1">
-                <span>↓ -3.2%</span>
+        {/* Card 4: Cuentas por Cobrar (Orange) con Yape, Plin y BCP */}
+        <div className="rounded-3xl bg-white dark:bg-[#111827] border border-slate-200/80 dark:border-white/10 p-5 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-12 h-12 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
+                <Coins size={22} strokeWidth={2.2} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">Cuentas por Cobrar</p>
+                <p className="text-xl sm:text-[22px] font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
+                  S/ {kpiData.cuentasCobrar.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <div className="flex items-center gap-1 text-[11.5px] font-bold text-rose-500 mt-1">
+                  <span>↓ -3.2%</span>
+                </div>
               </div>
             </div>
+            {/* Sparkline curve */}
+            <div className="w-16 h-9 shrink-0 self-start opacity-90">
+              <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="sparkAmber" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path d="M 0,20 Q 30,35 60,32 T 85,40 T 100,36 L 100,50 L 0,50 Z" fill="url(#sparkAmber)" />
+                <path d="M 0,20 Q 30,35 60,32 T 85,40 T 100,36" fill="none" stroke="#F59E0B" strokeWidth="2.5" />
+                <circle cx="100" cy="36" r="3" fill="#F59E0B" />
+              </svg>
+            </div>
           </div>
-          {/* Sparkline curve */}
-          <div className="w-20 h-10 shrink-0 self-end opacity-90">
-            <svg viewBox="0 0 100 50" className="w-full h-full" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="sparkAmber" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d="M 0,20 Q 30,35 60,32 T 85,40 T 100,36 L 100,50 L 0,50 Z" fill="url(#sparkAmber)" />
-              <path d="M 0,20 Q 30,35 60,32 T 85,40 T 100,36" fill="none" stroke="#F59E0B" strokeWidth="2.5" />
-              <circle cx="100" cy="36" r="3" fill="#F59E0B" />
-            </svg>
+
+          {/* Quick Payment QR Pills: Yape, Plin & BCP */}
+          <div className="mt-3.5 pt-2.5 border-t border-slate-100 dark:border-white/10 flex items-center justify-between gap-1.5">
+            <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
+              Cobrar con:
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setQrModalMethod('yape')
+                  setQrModalAmount(kpiData.cuentasCobrar || 175)
+                }}
+                className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[#742284]/10 hover:bg-[#742284] text-[#742284] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95"
+                title="Mostrar QR de Yape para cobrar"
+              >
+                <img src="/yape-logo.png" alt="Yape" className="w-3.5 h-3.5 rounded-sm object-cover" />
+                <span>Yape</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setQrModalMethod('plin')
+                  setQrModalAmount(kpiData.cuentasCobrar || 175)
+                }}
+                className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[#00b49f]/10 hover:bg-[#00b49f] text-[#00b49f] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs hover:scale-105 active:scale-95"
+                title="Mostrar QR de Plin para cobrar"
+              >
+                <img src="/plin-logo.png" alt="Plin" className="w-3.5 h-3.5 rounded-full object-cover" />
+                <span>Plin</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setQrModalMethod('transfer')
+                  setQrModalAmount(kpiData.cuentasCobrar || 175)
+                }}
+                className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white dark:bg-white/10 dark:hover:bg-blue-600 dark:text-slate-200 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                title="Ver cuentas bancarias (BCP, BBVA, Interbank)"
+              >
+                <span>BCP</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -785,6 +883,18 @@ function DashboardContent() {
         </div>
 
       </div>
+
+      {/* ═══════════════════════════════════════════════════════════
+          PAYMENT QR MODAL (Yape, Plin & BCP / Banks)
+         ═══════════════════════════════════════════════════════════ */}
+      <PaymentQrModal
+        isOpen={Boolean(qrModalMethod)}
+        onClose={() => setQrModalMethod(null)}
+        method={qrModalMethod}
+        paymentConfig={paymentConfig}
+        amount={qrModalAmount}
+        currency="S/"
+      />
 
     </div>
   )
