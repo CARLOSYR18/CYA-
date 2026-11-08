@@ -1741,16 +1741,23 @@ export default function Sales() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            MODAL 2: TICKET / RECIBO MODAL
+            MODAL 2: TICKET / RECIBO MODAL (CENTERED MODAL)
            ═════════════════════════════════════════════════════════ */}
         {viewingReceipt && (
-          <ReceiptModal
-            sale={viewingReceipt}
-            client={clients.find((c) => c.name === viewingReceipt.client_name)}
-            products={products}
-            company={company}
+          <Modal
+            open={!!viewingReceipt}
             onClose={() => setViewingReceipt(null)}
-          />
+            title={`Comprobante — ${formatVoucherCode(viewingReceipt)}`}
+            width="max-w-md"
+          >
+            <ReceiptModal
+              sale={viewingReceipt}
+              client={clients.find((c) => c.name === viewingReceipt.client_name)}
+              products={products}
+              company={company}
+              onClose={() => setViewingReceipt(null)}
+            />
+          </Modal>
         )}
 
         {/* ═════════════════════════════════════════════════════════

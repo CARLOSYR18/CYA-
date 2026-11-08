@@ -951,19 +951,74 @@ export default function NewSale() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            MODAL: BOLETA / FACTURA EMITIDA (INSTANT RECEIPT DISPLAY)
+            MODAL: BOLETA / FACTURA EMITIDA (CENTERED DIALOG OVERLAY)
            ═════════════════════════════════════════════════════════ */}
         {createdSale && (
-          <ReceiptModal
-            sale={createdSale}
-            client={createdSale.client || clients.find((c) => c.name === createdSale.client_name)}
-            products={products}
-            company={company}
-            onClose={() => {
-              setCreatedSale(null)
-              navigate('/ventas', { state: { created: true, clientName } })
-            }}
-          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
+            <div className="relative w-full max-w-md bg-white dark:bg-[#141417] rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden flex flex-col max-h-[92vh] animate-scale-in">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-800/50">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <Check size={16} strokeWidth={3} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                      ¡Comprobante Emitido con Éxito!
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
+                      {createdSale.serie || serie || 'B001'}-{String(createdSale.id).slice(-6).toUpperCase()}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatedSale(null)
+                    navigate('/ventas', { state: { created: true, clientName } })
+                  }}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                  title="Cerrar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Ticket Body (Scrollable in the middle) */}
+              <div className="overflow-y-auto p-4 flex-1">
+                <ReceiptModal
+                  sale={createdSale}
+                  client={createdSale.client || clients.find((c) => c.name === createdSale.client_name)}
+                  products={products}
+                  company={company}
+                />
+              </div>
+
+              {/* Footer Actions: Ir a Ventas o Emitir Otra Venta */}
+              <div className="p-3.5 bg-slate-50 dark:bg-zinc-800/60 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatedSale(null)
+                    navigate('/ventas', { state: { created: true, clientName } })
+                  }}
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-semibold hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                >
+                  Ir a Lista de Ventas
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResetForm}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                >
+                  <Plus size={14} strokeWidth={2.5} />
+                  <span>Emitir Otra Venta</span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* FULLSCREEN QR CODE MODAL FOR CUSTOMER SCANNING */}
