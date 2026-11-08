@@ -1256,12 +1256,12 @@ export default function InventoryMovements() {
                       {/* Top: Product thumbnail + Title + Operation badge */}
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 p-1 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                          <div className="w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-2xl bg-slate-50 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 p-1 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
                             {prod?.image_url ? (
                               <img
                                 src={prod.image_url}
                                 alt={prod.name}
-                                className="w-full h-full object-contain"
+                                className="w-full h-full max-w-full max-h-full object-contain"
                                 onError={(e) => { e.currentTarget.style.display = 'none' }}
                               />
                             ) : (
@@ -1428,16 +1428,16 @@ export default function InventoryMovements() {
                         {/* 1. Producto + SKU + Concepto integrado (Espacioso y limpio) */}
                         <td className="py-4 px-5">
                           <div className="flex items-center gap-3.5 min-w-[260px]">
-                            <div className="w-13 h-13 rounded-2xl bg-slate-50 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 p-1.5 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                            <div className="w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-2xl bg-slate-50 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 p-1 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
                               {prod?.image_url ? (
                                 <img
                                   src={prod.image_url}
                                   alt={prod.name}
-                                  className="w-full h-full object-contain"
+                                  className="w-full h-full max-w-full max-h-full object-contain"
                                   onError={(e) => { e.currentTarget.style.display = 'none' }}
                                 />
                               ) : (
-                                <Package size={22} className="text-slate-400 dark:text-zinc-500" />
+                                <Package size={20} className="text-slate-400 dark:text-zinc-500" />
                               )}
                             </div>
 
