@@ -8,6 +8,7 @@ import {
   Home, Pencil, Trash2
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
+import { useFormLeaveGuard } from '../hooks/useFormLeaveGuard'
 import { productsService } from '../services/productsService'
 import { categoriesService } from '../services/categoriesService'
 import { suppliersService } from '../services/suppliersService'
@@ -57,6 +58,39 @@ export default function NewProduct() {
   // Plan limits
   const [limitReached, setLimitReached] = useState(false)
   const [limitMsg, setLimitMsg] = useState('')
+
+  // Detección de cambios sin guardar en el producto
+  const isDirty = useMemo(() => {
+    if (isProcessing) return false
+    if (!isEditing) {
+      return Boolean(
+        form.name.trim() ||
+        form.sku.trim() ||
+        form.cost_price ||
+        form.sale_price ||
+        (form.stock !== '0' && form.stock !== '') ||
+        form.category_id ||
+        imagePreview
+      )
+    }
+    if (!originalProduct) return false
+    return (
+      form.name !== (originalProduct.name || '') ||
+      form.sku !== (originalProduct.sku || '') ||
+      String(form.sale_price) !== String(originalProduct.sale_price || '') ||
+      String(form.cost_price) !== String(originalProduct.cost_price || '') ||
+      String(form.stock) !== String(originalProduct.stock || '') ||
+      form.category_id !== (originalProduct.category_id || '') ||
+      Boolean(imageFile)
+    )
+  }, [isProcessing, isEditing, form, originalProduct, imagePreview, imageFile])
+
+  const { requestLeave, DiscardModalComponent } = useFormLeaveGuard({
+    isDirty,
+    defaultRedirectUrl: '/productos',
+    modalTitle: isEditing ? '¿Descartar cambios del producto?' : '¿Descartar nuevo producto?',
+    modalDescription: 'Tienes información ingresada en la ficha de este producto. Si sales ahora o recargas la página, los cambios se perderán definitivamente.'
+  })
 
   useEffect(() => {
     async function initData() {
@@ -274,7 +308,7 @@ export default function NewProduct() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/productos')}
+              onClick={() => requestLeave('/productos')}
               className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
               title="Volver a Catálogo de Productos"
             >
@@ -282,7 +316,7 @@ export default function NewProduct() {
             </button>
             <div>
               <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <span className="hover:text-blue-600 cursor-pointer" onClick={() => navigate('/productos')}>
+                <span className="hover:text-blue-600 cursor-pointer" onClick={() => requestLeave('/productos')}>
                   Catálogo
                 </span>
                 <span>/</span>
@@ -299,7 +333,7 @@ export default function NewProduct() {
           <div className="flex items-center gap-2 self-start sm:self-auto">
             <button
               type="button"
-              onClick={() => navigate('/productos')}
+              onClick={() => requestLeave('/productos')}
               className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
             >
               Cancelar
@@ -857,7 +891,7 @@ export default function NewProduct() {
 
                 <button
                   type="button"
-                  onClick={() => navigate('/productos')}
+                  onClick={() => requestLeave('/productos')}
                   className="w-full py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer text-center"
                 >
                   Cancelar y Regresar
@@ -906,6 +940,9 @@ export default function NewProduct() {
             </div>
           </div>
         )}
+
+        {/* Modal de confirmación para descartar cambios */}
+        {DiscardModalComponent}
 
       </div>
     </AppLayout>

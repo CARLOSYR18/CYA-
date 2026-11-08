@@ -7,6 +7,7 @@ import {
   Zap, X, Printer, FileText, CheckCircle, ExternalLink, HelpCircle
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
+import { useFormLeaveGuard } from '../hooks/useFormLeaveGuard'
 import { purchasesService } from '../services/purchasesService'
 import { suppliersService } from '../services/suppliersService'
 import { productsService } from '../services/productsService'
@@ -44,6 +45,24 @@ export default function NewPurchase() {
   const [processingStep, setProcessingStep] = useState(0) // 1: 35%, 2: 75%, 3: 100%
   const [createdPurchase, setCreatedPurchase] = useState(null)
   const [error, setError] = useState('')
+
+  // Detección de cambios sin guardar en la orden de compra
+  const isDirty = useMemo(() => {
+    if (isProcessing || createdPurchase) return false
+    const hasSupplier = Boolean(supplierId)
+    const hasItems = items.some(
+      (it) => it.product_id || (it.unit_cost !== '' && Number(it.unit_cost) > 0) || Number(it.quantity) > 1
+    )
+    const hasExtra = Boolean(invoiceRef.trim() || notes.trim())
+    return hasSupplier || hasItems || hasExtra
+  }, [isProcessing, createdPurchase, supplierId, items, invoiceRef, notes])
+
+  const { requestLeave, DiscardModalComponent } = useFormLeaveGuard({
+    isDirty,
+    defaultRedirectUrl: '/compras',
+    modalTitle: '¿Descartar orden de compra?',
+    modalDescription: 'Tienes productos o detalles agregados a esta orden de compra. Si sales ahora o recargas la pantalla, la compra no se registrará en el almacén.'
+  })
 
   // Quick Supplier Modal State
   const [showQuickSupplierModal, setShowQuickSupplierModal] = useState(false)
@@ -264,7 +283,7 @@ export default function NewPurchase() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/compras')}
+              onClick={() => requestLeave('/compras')}
               className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
               title="Volver al listado de compras"
             >
@@ -272,7 +291,7 @@ export default function NewPurchase() {
             </button>
             <div>
               <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <span className="hover:text-blue-600 cursor-pointer" onClick={() => navigate('/compras')}>Compras</span>
+                <span className="hover:text-blue-600 cursor-pointer" onClick={() => requestLeave('/compras')}>Compras</span>
                 <span>/</span>
                 <span className="text-blue-600 dark:text-blue-400 font-semibold">Nueva Orden</span>
               </div>
@@ -706,7 +725,7 @@ export default function NewPurchase() {
 
               <button
                 type="button"
-                onClick={() => navigate('/compras')}
+                onClick={() => requestLeave('/compras')}
                 className="w-full py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer"
               >
                 Cancelar y Volver
@@ -1012,6 +1031,9 @@ export default function NewPurchase() {
             </div>
           </div>
         )}
+
+        {/* Modal de confirmación para descartar cambios */}
+        {DiscardModalComponent}
 
       </div>
     </AppLayout>

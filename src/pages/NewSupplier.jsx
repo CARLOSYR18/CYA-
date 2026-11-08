@@ -7,6 +7,7 @@ import {
   CreditCard, Truck, Clock, CheckCircle2, Home, X
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
+import { useFormLeaveGuard } from '../hooks/useFormLeaveGuard'
 import { suppliersService } from '../services/suppliersService'
 import { purchasesService } from '../services/purchasesService'
 import { productsService } from '../services/productsService'
@@ -52,6 +53,27 @@ export default function NewSupplier() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingStep, setProcessingStep] = useState(0) // 1: 35%, 2: 75%, 3: 100%
   const [error, setError] = useState('')
+
+  // Detección de cambios sin guardar en el proveedor
+  const isDirty = useMemo(() => {
+    if (isProcessing) return false
+    return Boolean(
+      name.trim() ||
+      ruc.trim() ||
+      contactName.trim() ||
+      email.trim() ||
+      phone.trim() ||
+      address.trim() ||
+      notes.trim()
+    )
+  }, [isProcessing, name, ruc, contactName, email, phone, address, notes])
+
+  const { requestLeave, DiscardModalComponent } = useFormLeaveGuard({
+    isDirty,
+    defaultRedirectUrl: '/proveedores',
+    modalTitle: isEditing ? '¿Descartar cambios del proveedor?' : '¿Descartar nuevo proveedor?',
+    modalDescription: 'Tienes información ingresada en la ficha de este proveedor. Si sales ahora o recargas la pantalla, los datos ingresados se perderán.'
+  })
 
   // Historical data when editing
   const [supplierPurchases, setSupplierPurchases] = useState([])
@@ -187,7 +209,7 @@ export default function NewSupplier() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/proveedores')}
+              onClick={() => requestLeave('/proveedores')}
               className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
               title="Volver a Directorio de Proveedores"
             >
@@ -195,7 +217,7 @@ export default function NewSupplier() {
             </button>
             <div>
               <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <span className="hover:text-blue-600 cursor-pointer" onClick={() => navigate('/proveedores')}>
+                <span className="hover:text-blue-600 cursor-pointer" onClick={() => requestLeave('/proveedores')}>
                   Proveedores
                 </span>
                 <span>/</span>
@@ -212,7 +234,7 @@ export default function NewSupplier() {
           <div className="flex items-center gap-2 self-start sm:self-auto">
             <button
               type="button"
-              onClick={() => navigate('/proveedores')}
+              onClick={() => requestLeave('/proveedores')}
               className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
             >
               Cancelar
@@ -535,7 +557,7 @@ export default function NewSupplier() {
 
                   <button
                     type="button"
-                    onClick={() => navigate('/proveedores')}
+                    onClick={() => requestLeave('/proveedores')}
                     className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer text-center"
                   >
                     Cancelar y Regresar
@@ -585,6 +607,9 @@ export default function NewSupplier() {
             </div>
           </div>
         )}
+
+        {/* Modal de confirmación para descartar cambios */}
+        {DiscardModalComponent}
 
       </div>
     </AppLayout>

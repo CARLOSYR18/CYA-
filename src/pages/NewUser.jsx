@@ -7,6 +7,7 @@ import {
   Shield, CheckCircle, RefreshCw, Smartphone, Layers
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
+import { useFormLeaveGuard } from '../hooks/useFormLeaveGuard'
 import { usersService } from '../services/usersService'
 import { companySettingsService } from '../services/companySettingsService'
 import { getLimits } from '../lib/planLimits'
@@ -54,6 +55,28 @@ export default function NewUser() {
   const [limitMsg, setLimitMsg] = useState('')
   const [companyInfo, setCompanyInfo] = useState(null)
   const [allUsersCount, setAllUsersCount] = useState(0)
+
+  // Detección de cambios sin guardar en el usuario
+  const isDirty = useMemo(() => {
+    if (isProcessing) return false
+    if (!isEditing) {
+      return Boolean(form.full_name.trim() || form.email.trim() || form.password.trim())
+    }
+    if (!originalUser) return false
+    return (
+      form.full_name !== (originalUser.full_name || '') ||
+      form.email !== (originalUser.email || '') ||
+      form.role !== (originalUser.role || 'empleado') ||
+      Boolean(form.password.trim())
+    )
+  }, [isProcessing, isEditing, form, originalUser])
+
+  const { requestLeave, DiscardModalComponent } = useFormLeaveGuard({
+    isDirty,
+    defaultRedirectUrl: '/usuarios',
+    modalTitle: isEditing ? '¿Descartar cambios del usuario?' : '¿Descartar nuevo usuario?',
+    modalDescription: 'Tienes datos ingresados para este colaborador. Si sales ahora o recargas la pantalla, la cuenta o cambios no se guardarán.'
+  })
 
   useEffect(() => {
     async function initData() {
@@ -198,7 +221,7 @@ export default function NewUser() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/usuarios')}
+              onClick={() => requestLeave('/usuarios')}
               className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95 shadow-xs"
               title="Regresar a Usuarios"
             >
@@ -206,7 +229,7 @@ export default function NewUser() {
             </button>
             <div>
               <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <span className="hover:text-blue-600 cursor-pointer" onClick={() => navigate('/usuarios')}>
+                <span className="hover:text-blue-600 cursor-pointer" onClick={() => requestLeave('/usuarios')}>
                   Usuarios y Roles
                 </span>
                 <span>/</span>
@@ -590,7 +613,7 @@ export default function NewUser() {
                 {/* SECONDARY CANCEL BUTTON */}
                 <button
                   type="button"
-                  onClick={() => navigate('/usuarios')}
+                  onClick={() => requestLeave('/usuarios')}
                   className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-bold flex items-center justify-center transition-colors cursor-pointer"
                 >
                   Cancelar y Regresar
@@ -642,6 +665,9 @@ export default function NewUser() {
           </div>
         </div>
       )}
+
+      {/* Modal de confirmación para descartar cambios */}
+      {DiscardModalComponent}
 
     </AppLayout>
   )

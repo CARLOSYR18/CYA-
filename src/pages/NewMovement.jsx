@@ -7,6 +7,7 @@ import {
   Search, Plus, Minus, Info, ChevronDown, CheckCircle, Tag, ShoppingCart, Truck
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
+import { useFormLeaveGuard } from '../hooks/useFormLeaveGuard'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
 import { productsService } from '../services/productsService'
 import { useAuth } from '../context/AuthContext'
@@ -73,6 +74,29 @@ export default function NewMovement() {
   const [processingStep, setProcessingStep] = useState(0) // 1: 35%, 2: 75%, 3: 100%
 
   const searchBoxRef = useRef(null)
+
+  // Detección de cambios sin guardar en el movimiento
+  const isDirty = useMemo(() => {
+    if (isProcessing) return false
+    if (!isEditing) {
+      return Boolean(productId || notes.trim() || Number(quantity) > 1 || reason !== 'Compra a proveedor')
+    }
+    if (!originalMovement) return false
+    return (
+      productId !== originalMovement.product_id ||
+      Number(quantity) !== Number(originalMovement.quantity) ||
+      type !== originalMovement.type ||
+      reason !== originalMovement.reason ||
+      notes !== (originalMovement.notes || '')
+    )
+  }, [isProcessing, isEditing, productId, notes, quantity, reason, type, originalMovement])
+
+  const { requestLeave, DiscardModalComponent } = useFormLeaveGuard({
+    isDirty,
+    defaultRedirectUrl: '/movimientos',
+    modalTitle: isEditing ? '¿Descartar cambios de la operación?' : '¿Descartar nuevo movimiento?',
+    modalDescription: 'Tienes datos ingresados para este movimiento de inventario. Si sales ahora o recargas la pantalla, la operación no se registrará en el kardex.'
+  })
 
   // Cargar productos
   useEffect(() => {
@@ -267,7 +291,7 @@ export default function NewMovement() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/movimientos')}
+              onClick={() => requestLeave('/movimientos')}
               className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95 shadow-xs"
               title="Regresar a Movimientos"
             >
@@ -275,7 +299,7 @@ export default function NewMovement() {
             </button>
             <div>
               <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <span className="hover:text-blue-600 cursor-pointer" onClick={() => navigate('/movimientos')}>
+                <span className="hover:text-blue-600 cursor-pointer" onClick={() => requestLeave('/movimientos')}>
                   Inventario
                 </span>
                 <span>/</span>
@@ -886,7 +910,7 @@ export default function NewMovement() {
                 {/* BOTÓN SECUNDARIO CANCELAR */}
                 <button
                   type="button"
-                  onClick={() => navigate('/movimientos')}
+                  onClick={() => requestLeave('/movimientos')}
                   className="w-full py-2.5 px-4 rounded-xl font-bold text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors text-center cursor-pointer"
                 >
                   Cancelar y Regresar
@@ -937,6 +961,8 @@ export default function NewMovement() {
           </div>
         </div>
       )}
+      {/* Modal de confirmación para descartar cambios */}
+      {DiscardModalComponent}
     </AppLayout>
   )
 }

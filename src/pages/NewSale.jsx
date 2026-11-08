@@ -11,6 +11,7 @@ import {
 import AppLayout from '../components/layout/AppLayout'
 import PaymentQrModal from '../components/PaymentQrModal'
 import ReceiptModal from '../components/Receipt'
+import { useFormLeaveGuard } from '../hooks/useFormLeaveGuard'
 import { salesService } from '../services/salesService'
 import { productsService } from '../services/productsService'
 import { clientsService } from '../services/clientsService'
@@ -67,6 +68,24 @@ export default function NewSale() {
   const [processingStep, setProcessingStep] = useState(0) // 0: idle, 1: stock check, 2: creating, 3: completed
   const [createdSale, setCreatedSale] = useState(null)
   const [error, setError] = useState('')
+
+  // Detección de cambios sin guardar en el formulario de venta
+  const isDirty = useMemo(() => {
+    if (isProcessing || createdSale) return false
+    const hasClient = Boolean(clientName.trim() || clientPhone.trim() || selectedClientId)
+    const hasItems = items.some(
+      (it) => it.product_id || (it.unit_price !== '' && Number(it.unit_price) > 0) || Number(it.quantity) > 1
+    )
+    const hasExtra = Boolean(purchaseOrder.trim() || cashReceived.trim() || notes.trim() || discount)
+    return hasClient || hasItems || hasExtra
+  }, [isProcessing, createdSale, clientName, clientPhone, selectedClientId, items, purchaseOrder, cashReceived, notes, discount])
+
+  const { requestLeave, DiscardModalComponent } = useFormLeaveGuard({
+    isDirty,
+    defaultRedirectUrl: '/ventas',
+    modalTitle: '¿Descartar comprobante de venta?',
+    modalDescription: 'Tienes datos de cliente o productos agregados a esta venta. Si sales ahora o recargas la página, toda la información escrita se perderá.'
+  })
 
   // Sync serie and labels with docType
   const handleDocTypeChange = (type) => {
@@ -344,7 +363,7 @@ export default function NewSale() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/ventas')}
+              onClick={() => requestLeave('/ventas')}
               className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-200 transition-colors cursor-pointer shrink-0 shadow-2xs"
               title="Volver a Ventas"
             >
@@ -933,7 +952,7 @@ export default function NewSale() {
 
               <button
                 type="button"
-                onClick={() => navigate('/ventas')}
+                onClick={() => requestLeave('/ventas')}
                 className="w-full py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer"
               >
                 Cancelar y Volver
@@ -1057,6 +1076,9 @@ export default function NewSale() {
           amount={total}
           currency="S/"
         />
+
+        {/* Modal de confirmación para descartar cambios si intenta salir */}
+        {DiscardModalComponent}
 
       </div>
     </AppLayout>

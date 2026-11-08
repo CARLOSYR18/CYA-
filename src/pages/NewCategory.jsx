@@ -7,6 +7,7 @@ import {
   Coffee, Wrench, ShieldCheck, Eye, Palette, Home
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
+import { useFormLeaveGuard } from '../hooks/useFormLeaveGuard'
 import { categoriesService } from '../services/categoriesService'
 import { productsService } from '../services/productsService'
 
@@ -131,6 +132,26 @@ export default function NewCategory() {
   // Contextual stats for editing mode
   const [categoryProducts, setCategoryProducts] = useState([])
   const [originalCategory, setOriginalCategory] = useState(null)
+
+  // Detección de cambios sin guardar en la categoría
+  const isDirty = useMemo(() => {
+    if (isProcessing) return false
+    if (!isEditing) {
+      return Boolean(name.trim() || description.trim() || colorIndex > 0)
+    }
+    if (!originalCategory) return false
+    return (
+      name !== originalCategory.name ||
+      description !== (originalCategory.description || '')
+    )
+  }, [isProcessing, isEditing, name, description, colorIndex, originalCategory])
+
+  const { requestLeave, DiscardModalComponent } = useFormLeaveGuard({
+    isDirty,
+    defaultRedirectUrl: '/categorias',
+    modalTitle: isEditing ? '¿Descartar cambios de la categoría?' : '¿Descartar nueva categoría?',
+    modalDescription: 'Tienes información ingresada para esta categoría. Si sales ahora o recargas la pantalla, los datos ingresados se perderán.'
+  })
 
   useEffect(() => {
     async function loadData() {
@@ -279,7 +300,7 @@ export default function NewCategory() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/categorias')}
+              onClick={() => requestLeave('/categorias')}
               className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95 shadow-xs"
               title="Regresar a Categorías"
             >
@@ -287,7 +308,7 @@ export default function NewCategory() {
             </button>
             <div>
               <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <span className="hover:text-blue-600 cursor-pointer" onClick={() => navigate('/categorias')}>
+                <span className="hover:text-blue-600 cursor-pointer" onClick={() => requestLeave('/categorias')}>
                   Categorías
                 </span>
                 <span>/</span>
@@ -592,7 +613,7 @@ export default function NewCategory() {
 
                 <button
                   type="button"
-                  onClick={() => navigate('/categorias')}
+                  onClick={() => requestLeave('/categorias')}
                   className="w-full py-2 px-4 rounded-xl bg-slate-50 dark:bg-zinc-800/80 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer border border-slate-200 dark:border-zinc-700"
                 >
                   Cancelar y Regresar
@@ -641,6 +662,9 @@ export default function NewCategory() {
             </div>
           </div>
         )}
+
+        {/* Modal de confirmación para descartar cambios */}
+        {DiscardModalComponent}
 
       </div>
     </AppLayout>

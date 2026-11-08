@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Users, User, Phone, Mail, MapPin, Building2,
@@ -7,6 +7,7 @@ import {
   Home, CheckCircle2, AlertTriangle
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
+import { useFormLeaveGuard } from '../hooks/useFormLeaveGuard'
 import { clientsService } from '../services/clientsService'
 
 const getInitials = (name = '') => {
@@ -36,6 +37,27 @@ export default function NewClient() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingStep, setProcessingStep] = useState(0) // 0: idle, 1: validation, 2: saving, 3: completed
   const [error, setError] = useState('')
+
+  // Detección de cambios sin guardar en el cliente
+  const isDirty = useMemo(() => {
+    if (isProcessing) return false
+    return Boolean(
+      name.trim() ||
+      docNumber.trim() ||
+      phone.trim() ||
+      email.trim() ||
+      address.trim() ||
+      reference.trim() ||
+      notes.trim()
+    )
+  }, [isProcessing, name, docNumber, phone, email, address, reference, notes])
+
+  const { requestLeave, DiscardModalComponent } = useFormLeaveGuard({
+    isDirty,
+    defaultRedirectUrl: '/clientes',
+    modalTitle: isEditing ? '¿Descartar cambios del cliente?' : '¿Descartar nuevo cliente?',
+    modalDescription: 'Tienes información ingresada en la ficha del cliente. Si sales ahora o recargas la pantalla, los datos ingresados se perderán.'
+  })
 
   // Load existing client if editing
   useEffect(() => {
@@ -145,7 +167,7 @@ export default function NewClient() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/clientes')}
+              onClick={() => requestLeave('/clientes')}
               className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-200 transition-colors cursor-pointer shrink-0 shadow-2xs"
               title="Volver a Cartera de Clientes"
             >
@@ -156,7 +178,7 @@ export default function NewClient() {
               <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-zinc-500 font-medium">
                 <Home size={12} />
                 <span>›</span>
-                <span className="cursor-pointer hover:underline" onClick={() => navigate('/clientes')}>
+                <span className="cursor-pointer hover:underline" onClick={() => requestLeave('/clientes')}>
                   Cartera de Clientes
                 </span>
                 <span>›</span>
@@ -173,7 +195,7 @@ export default function NewClient() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => navigate('/clientes')}
+              onClick={() => requestLeave('/clientes')}
               className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
             >
               Cancelar
@@ -524,7 +546,7 @@ export default function NewClient() {
 
                   <button
                     type="button"
-                    onClick={() => navigate('/clientes')}
+                    onClick={() => requestLeave('/clientes')}
                     className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
                   >
                     Cancelar y Volver
@@ -586,6 +608,9 @@ export default function NewClient() {
             </div>
           </div>
         )}
+
+        {/* Modal de confirmación para descartar cambios */}
+        {DiscardModalComponent}
 
       </div>
     </AppLayout>
