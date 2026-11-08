@@ -161,16 +161,21 @@ export default function Categories() {
 
   async function loadAll() {
     if (!categoriesService.hasCache?.()) setLoading(true)
+    const safetyTimer = setTimeout(() => {
+      setLoading(false)
+    }, 2500)
+
     try {
       const [c, p] = await Promise.all([
-        categoriesService.list(),
-        productsService.list()
+        categoriesService.list().catch(() => []),
+        productsService.list().catch(() => [])
       ])
       setCategories(c || [])
       setProducts(p || [])
     } catch (err) {
       console.error('Error cargando categorías y productos:', err)
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }

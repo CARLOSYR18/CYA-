@@ -91,6 +91,10 @@ export default function EmployeeActivity() {
     if (!salesService.hasCache?.() && !inventoryMovementsService.hasCache?.()) {
       setLoading(true)
     }
+    const safetyTimer = setTimeout(() => {
+      setLoading(false)
+    }, 2500)
+
     try {
       const [s, m, p, u] = await Promise.all([
         salesService.list().catch(() => []),
@@ -103,6 +107,7 @@ export default function EmployeeActivity() {
       setProducts(p || [])
       setCollaborators(u || [])
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }

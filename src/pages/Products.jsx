@@ -66,11 +66,15 @@ export default function Products() {
 
   async function loadAll() {
     if (!productsService.hasCache?.()) setLoading(true)
+    const safetyTimer = setTimeout(() => {
+      setLoading(false)
+    }, 2500)
+
     try {
       const [p, c, s] = await Promise.all([
-        productsService.list(),
-        categoriesService.list(),
-        suppliersService.list()
+        productsService.list().catch(() => []),
+        categoriesService.list().catch(() => []),
+        suppliersService.list().catch(() => [])
       ])
       setProducts(p || [])
       setCategories(c || [])
@@ -78,6 +82,7 @@ export default function Products() {
     } catch (e) {
       console.error(e)
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }

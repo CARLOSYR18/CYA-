@@ -14,7 +14,7 @@ let cachedCompanyId = (() => {
 let inFlightPromise = null
 
 export async function getCurrentCompanyId() {
-  if (!isSupabaseConfigured) return null
+  if (!isSupabaseConfigured || !supabase) return null
   if (cachedCompanyId) return cachedCompanyId
 
   // Deduplicación de peticiones concurrentes
@@ -22,13 +22,35 @@ export async function getCurrentCompanyId() {
 
   inFlightPromise = (async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return null
-      const { data, error } = await supabase.from('profiles').select('company_id').eq('id', user.id).single()
-      if (error) throw error
-      if (data?.company_id) {
-        setCompanyCache(data.company_id)
-      }
+      const fetchPromise = (async () => {
+        try {
+          const { data: userData } = await supabase.auth.getUser()
+          const user = userData?.user
+          if (!user) return null
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('company_id')
+            .eq('id', user.id)
+            .maybeSingle()
+          if (error) {
+            console.warn('Aviso profile company_id:', error.message)
+            return null
+          }
+          if (data?.company_id) {
+            setCompanyCache(data.company_id)
+            return data.company_id
+          }
+          return null
+        } catch {
+          return null
+        }
+      })()
+
+      // Timeout estricto de 2.5s para no bloquear la aplicación bajo ninguna circunstancia
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 2500))
+      const result = await Promise.race([fetchPromise, timeoutPromise])
+      return result || cachedCompanyId
+    } catch {
       return cachedCompanyId
     } finally {
       inFlightPromise = null

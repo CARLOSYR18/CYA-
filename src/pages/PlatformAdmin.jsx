@@ -69,10 +69,11 @@ export default function PlatformAdmin() {
 
   async function loadData() {
     setLoading(true)
+    const safetyTimer = setTimeout(() => setLoading(false), 2500)
     try {
       const [reqData, compData] = await Promise.all([
-        platformAdminService.listPlanRequests('pendiente'),
-        platformAdminService.listCompanies(),
+        platformAdminService.listPlanRequests('pendiente').catch(() => []),
+        platformAdminService.listCompanies().catch(() => []),
       ])
       setRequests(reqData || [])
       setCompanies(compData || [])
@@ -80,6 +81,7 @@ export default function PlatformAdmin() {
       console.error('Error cargando datos de plataforma:', err)
       showToast('Error al cargar información de la plataforma.', false)
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }

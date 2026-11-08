@@ -92,6 +92,10 @@ export default function Suppliers() {
 
   async function loadAll() {
     if (!suppliersService.hasCache?.()) setLoading(true)
+    const safetyTimer = setTimeout(() => {
+      setLoading(false)
+    }, 2500)
+
     try {
       const [sups, purches, prods] = await Promise.all([
         suppliersService.list().catch(() => []),
@@ -104,6 +108,7 @@ export default function Suppliers() {
     } catch (err) {
       console.error('Error cargando proveedores:', err)
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }

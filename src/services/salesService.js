@@ -8,13 +8,38 @@ export const salesService = {
   ...base,
 
   subtotal(sale) {
-    return sale.items.reduce((sum, it) => sum + it.quantity * it.unit_price, 0)
+    if (!sale?.items || !Array.isArray(sale.items)) return Number(sale?.subtotal) || 0
+    return sale.items.reduce((sum, it) => sum + (Number(it.quantity) || 1) * (Number(it.unit_price) || 0), 0)
   },
 
   saleTotal(sale) {
+    if (sale?.total != null && !isNaN(Number(sale.total))) return Number(sale.total)
     const subtotal = this.subtotal(sale)
-    const discount = Number(sale.discount || 0)
+    const discount = Number(sale?.discount || 0)
     return Math.max(subtotal - discount, 0)
+  },
+
+  normalizeSale(s) {
+    if (!s) return s
+    const sub = this.subtotal(s)
+    const tot = this.saleTotal(s)
+    return {
+      ...s,
+      subtotal: sub,
+      total: tot,
+      items: Array.isArray(s.items) ? s.items : []
+    }
+  },
+
+  getCached(companyId = null) {
+    const raw = base.getCached(companyId)
+    if (!raw) return null
+    return raw.map((s) => this.normalizeSale(s))
+  },
+
+  async list(options) {
+    const raw = await base.list(options)
+    return (raw || []).map((s) => this.normalizeSale(s))
   },
 
   // Una venta "pendiente" está vencida si tiene fecha límite y ya pasó.

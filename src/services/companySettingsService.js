@@ -54,10 +54,10 @@ export const companySettingsService = {
     // Retorno en 0ms si ya tenemos la empresa en almacenamiento local
     if (cached && !forceRefresh) {
       // Revalidación silenciosa en segundo plano
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && supabase) {
         getCurrentCompanyId().then((companyId) => {
           if (!companyId) return
-          supabase.from('companies').select('*').eq('id', companyId).single().then(({ data, error }) => {
+          supabase.from('companies').select('*').eq('id', companyId).maybeSingle().then(({ data, error }) => {
             if (!error && data) {
               paymentMethodsService.hydrateFromCompany({ ...data, ...extra })
               saveStoredCompany({ ...extra, ...data })
@@ -68,23 +68,32 @@ export const companySettingsService = {
       return { ...extra, ...cached }
     }
 
-    if (isSupabaseConfigured) {
-      const companyId = await getCurrentCompanyId()
-      if (!companyId) return cached || { name: 'Mi Empresa', ruc: '', address: '', phone: '', logo_url: '', ...extra }
-      const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).single()
-      if (error) {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const companyId = await getCurrentCompanyId().catch(() => null)
+        if (!companyId) {
+          const fallback = cached || { name: 'CYA Store', ruc: '20608912345', address: 'Lima, Perú', phone: '+51 987 654 321', logo_url: '', ...extra }
+          paymentMethodsService.hydrateFromCompany(fallback)
+          return fallback
+        }
+        const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle()
+        if (error) {
+          console.warn('Aviso al obtener configuración de empresa:', error.message)
+          if (cached) return { ...extra, ...cached }
+        }
+        if (data) {
+          paymentMethodsService.hydrateFromCompany({ ...data, ...extra })
+          const full = { ...extra, ...data }
+          saveStoredCompany(full)
+          return full
+        }
+      } catch (err) {
+        console.warn('Error conectando a empresas en Supabase:', err)
         if (cached) return { ...extra, ...cached }
-        throw error
       }
-      if (data) {
-        paymentMethodsService.hydrateFromCompany({ ...data, ...extra })
-      }
-      const full = { ...extra, ...data }
-      saveStoredCompany(full)
-      return full
     }
     const rows = localDb.getTable('company_settings')
-    const current = rows[0] || { name: 'Mi Empresa', ruc: '', address: '', phone: '', logo_url: '' }
+    const current = rows[0] || { name: 'CYA Store', ruc: '20608912345', address: 'Lima, Perú', phone: '+51 987 654 321', logo_url: '' }
     paymentMethodsService.hydrateFromCompany({ ...current, ...extra })
     const full = { ...extra, ...current }
     saveStoredCompany(full)

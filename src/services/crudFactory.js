@@ -101,7 +101,7 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
     async list(options = {}) {
       const forceRefresh = options?.forceRefresh === true
 
-      if (!isSupabaseConfigured) {
+      if (!isSupabaseConfigured || !supabase) {
         const rows = localDb.getTable(table)
         return [...rows].sort((a, b) =>
           ascending ? new Date(a[orderBy]) - new Date(b[orderBy]) : new Date(b[orderBy]) - new Date(a[orderBy])
@@ -161,35 +161,67 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
     },
 
     async _fetchRemote(company_id, cacheKey, storageKey) {
+      if (!supabase) {
+        const local = localDb.getTable(table)
+        return local || []
+      }
+
       const hasCompId = tableSupportsCompanyId.get(table)
 
-      let query = supabase.from(table).select('*').order(orderBy, { ascending })
-      if (company_id && hasCompId !== false) {
-        query = query.eq('company_id', company_id)
-      }
+      const executeQuery = async () => {
+        let query = supabase.from(table).select('*').order(orderBy, { ascending })
+        if (company_id && hasCompId !== false) {
+          query = query.eq('company_id', company_id)
+        }
 
-      const { data, error } = await query
-      if (error) {
-        // Si falló por falta de columna company_id, recordar permanentemente para no volver a intentar
-        tableSupportsCompanyId.set(table, false)
-        const { data: fallbackData, error: fallbackErr } = await supabase
-          .from(table)
-          .select('*')
-          .order(orderBy, { ascending })
-        if (fallbackErr) throw fallbackErr
-
-        const payload = { data: fallbackData || [], timestamp: Date.now() }
-        memoryCache.set(cacheKey, payload)
-        try {
-          if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.setItem(storageKey, JSON.stringify(payload))
+        const { data, error } = await query
+        if (error) {
+          // Si falló por falta de columna company_id, reintentar sin filtro
+          tableSupportsCompanyId.set(table, false)
+          const { data: fallbackData, error: fallbackErr } = await supabase
+            .from(table)
+            .select('*')
+            .order(orderBy, { ascending })
+          if (fallbackErr) {
+            console.warn(`Aviso consulta remota ${table}:`, fallbackErr.message)
+            return null
           }
-        } catch {}
-        return fallbackData || []
+          return fallbackData || []
+        }
+
+        if (hasCompId === undefined && company_id) {
+          tableSupportsCompanyId.set(table, true)
+        }
+        return data || []
       }
 
-      if (hasCompId === undefined && company_id) {
-        tableSupportsCompanyId.set(table, true)
+      let data = null
+      try {
+        // Timeout de seguridad de 3.5 segundos para jamás congelar la pantalla
+        data = await Promise.race([
+          executeQuery(),
+          new Promise((resolve) => setTimeout(() => resolve(null), 3500))
+        ])
+      } catch (err) {
+        console.warn(`Error en consulta remota ${table}:`, err)
+      }
+
+      // Si la consulta remota falló o agotó el tiempo de espera, recurrir a caché o localDb
+      if (data === null) {
+        const cached = memoryCache.get(cacheKey)
+        if (cached?.data && cached.data.length > 0) return cached.data
+        const local = localDb.getTable(table)
+        if (local && local.length > 0) return local
+        return []
+      }
+
+      // Si Supabase devolvió 0 registros porque la tabla remota aún no ha sido poblada,
+      // apoyarse en los registros de demostración locales para evitar pantallas en blanco
+      if (Array.isArray(data) && data.length === 0) {
+        const local = localDb.getTable(table)
+        if (local && local.length > 0) {
+          data = local
+        }
       }
 
       const payload = { data: data || [], timestamp: Date.now() }

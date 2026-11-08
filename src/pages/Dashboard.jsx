@@ -163,6 +163,9 @@ function DashboardContent() {
     if (force || (!salesService.hasCache?.() && !productsService.hasCache?.())) {
       setLoading(true)
     }
+    const safetyTimer = setTimeout(() => {
+      setLoading(false)
+    }, 2500)
     try {
       const opts = force ? { forceRefresh: true } : {}
       const [p, s, c, cl, co, m] = await Promise.all([
@@ -235,6 +238,7 @@ function DashboardContent() {
     } catch (e) {
       console.error('Error cargando datos del dashboard:', e)
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }

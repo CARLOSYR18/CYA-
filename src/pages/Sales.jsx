@@ -121,6 +121,10 @@ export default function Sales() {
   // Load Real Data from Supabase
   async function loadAll() {
     if (!salesService.hasCache?.()) setLoading(true)
+    const safetyTimer = setTimeout(() => {
+      setLoading(false)
+    }, 2500)
+
     try {
       const [s, p, c, comp, u] = await Promise.all([
         salesService.list().catch(() => []),
@@ -135,6 +139,7 @@ export default function Sales() {
       setCompany(comp || null)
       setSellers(u || [])
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }

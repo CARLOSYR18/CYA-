@@ -79,6 +79,10 @@ export default function Purchases() {
   // Load backend data
   async function loadAll() {
     if (!purchasesService.hasCache?.()) setLoading(true)
+    const safetyTimer = setTimeout(() => {
+      setLoading(false)
+    }, 2500)
+
     try {
       const [pu, su, pr] = await Promise.all([
         purchasesService.list().catch(() => []),
@@ -89,6 +93,7 @@ export default function Purchases() {
       setSuppliers(su || [])
       setProducts(pr || [])
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }

@@ -108,11 +108,13 @@ export const usersService = {
   async _fetchUsers() {
     let remoteUsers = []
     const companyId = await getCurrentCompanyId().catch(() => null)
-    const { data: authData } = await supabase.auth.getUser().catch(() => ({ data: {} }))
-    const currentAuthEmail = authData?.user?.email?.toLowerCase().trim()
-    const currentAuthId = authData?.user?.id
+    const authData = (isSupabaseConfigured && supabase?.auth)
+      ? await supabase.auth.getUser().catch(() => ({ data: {} }))
+      : { data: {} }
+    const currentAuthEmail = authData?.data?.user?.email?.toLowerCase().trim()
+    const currentAuthId = authData?.data?.user?.id
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && supabase) {
       try {
         // Si tenemos la empresa actual, asegurar que el usuario autenticado quede vinculado a ella si aún no lo estaba
         if (companyId && currentAuthId) {
@@ -134,7 +136,7 @@ export const usersService = {
         }
         
         const { data, error } = await query
-        if (!error && Array.isArray(data)) {
+        if (!error && Array.isArray(data) && data.length > 0) {
           remoteUsers = data
         } else if (error) {
           console.warn('Aviso al filtrar perfiles por empresa:', error)
@@ -145,9 +147,15 @@ export const usersService = {
     }
 
     // Obtener colaboradores guardados en almacenamiento local que correspondan a esta empresa
-    const localUsers = getLocalCollaborators().filter(u => 
+    let localUsers = getLocalCollaborators().filter(u => 
       !companyId || !u.company_id || u.company_id === companyId
     )
+
+    // Si tanto remotos como locales registrados están vacíos, cargar de localDb (seedData)
+    if (remoteUsers.length === 0 && localUsers.length === 0) {
+      const seedProfiles = localDb.getTable('profiles') || []
+      localUsers = seedProfiles
+    }
 
     // Fusionar evitando duplicados
     const map = new Map()

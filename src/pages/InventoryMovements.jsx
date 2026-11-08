@@ -116,6 +116,10 @@ export default function InventoryMovements() {
 
   async function loadAll() {
     if (!inventoryMovementsService.hasCache?.()) setLoading(true)
+    const safetyTimer = setTimeout(() => {
+      setLoading(false)
+    }, 2500)
+
     try {
       const [m, p, s, u] = await Promise.all([
         inventoryMovementsService.list().catch(() => []),
@@ -128,6 +132,7 @@ export default function InventoryMovements() {
       setSales(s || [])
       setCollaborators(u || [])
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }

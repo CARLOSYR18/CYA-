@@ -73,6 +73,10 @@ export default function Users() {
 
   async function loadAll() {
     if (!usersService.hasCache?.()) setLoading(true)
+    const safetyTimer = setTimeout(() => {
+      setLoading(false)
+    }, 2500)
+
     try {
       const [usersList, comp] = await Promise.all([
         usersService.list().catch(() => []),
@@ -83,6 +87,7 @@ export default function Users() {
     } catch (err) {
       console.error('Error cargando usuarios:', err)
     } finally {
+      clearTimeout(safetyTimer)
       setLoading(false)
     }
   }
