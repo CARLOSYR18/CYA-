@@ -220,7 +220,7 @@ export default function Clients() {
         (c) =>
           c.name.toLowerCase().includes(q) ||
           (c.phone && c.phone.toLowerCase().includes(q)) ||
-          (c.document_number && c.document_number.toLowerCase().includes(q)) ||
+          ((c.ruc || c.document_number) && (c.ruc || c.document_number).toLowerCase().includes(q)) ||
           (c.email && c.email.toLowerCase().includes(q))
       )
     }
@@ -295,7 +295,7 @@ export default function Clients() {
       return [
         `"${(c.name || '').replace(/"/g, '""')}"`,
         `"${c.phone || ''}"`,
-        `"${c.document_number || ''}"`,
+        `"${c.ruc || c.document_number || ''}"`,
         `"${c.email || ''}"`,
         `"${(c.address || '').replace(/"/g, '""')}"`,
         segment,
@@ -1224,7 +1224,7 @@ export default function Clients() {
                                 {c.name}
                               </p>
                               <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-                                {c.document_number ? `Doc: ${c.document_number}` : 'Cliente Registrado'}
+                                {(c.ruc || c.document_number) ? `Doc: ${c.ruc || c.document_number}` : 'Cliente Registrado'}
                               </span>
                             </div>
                           </div>
@@ -1443,9 +1443,9 @@ export default function Clients() {
                   <h4 className="font-black text-slate-900 dark:text-white text-base sm:text-lg">
                     {selected.name}
                   </h4>
-                  {selected.document_number && (
+                  {(selected.ruc || selected.document_number) && (
                     <p className="text-xs text-slate-400 dark:text-zinc-400 font-mono">
-                      DNI/RUC: {selected.document_number}
+                      DNI/RUC: {selected.ruc || selected.document_number}
                     </p>
                   )}
                   {selected.phone ? (

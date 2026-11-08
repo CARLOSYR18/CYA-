@@ -47,9 +47,10 @@ export default function NewClient() {
         if (data) {
           setName(data.name || '')
           setPhone(data.phone || '')
-          setDocNumber(data.document_number || '')
-          if (data.document_number?.length === 11) setDocType('RUC')
-          else if (data.document_number?.length === 8) setDocType('DNI')
+          const doc = data.ruc || data.document_number || ''
+          setDocNumber(doc)
+          if (doc?.length === 11) setDocType('RUC')
+          else if (doc?.length === 8) setDocType('DNI')
           setEmail(data.email || '')
           setAddress(data.address || '')
           setNotes(data.notes || '')
@@ -102,7 +103,7 @@ export default function NewClient() {
       const payload = {
         name: trimmedName,
         phone: phone.trim() || null,
-        document_number: docNumber.trim() || null,
+        ruc: docNumber.trim() || null,
         email: email.trim() || null,
         address: fullAddress || null,
         notes: finalNotes || null
@@ -590,3 +591,4 @@ export default function NewClient() {
     </AppLayout>
   )
 }
+
