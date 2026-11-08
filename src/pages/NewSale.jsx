@@ -205,21 +205,6 @@ export default function NewSale() {
     return total - igvAmount
   }, [total, igvAmount])
 
-  // Reset form for next sale
-  const handleResetForm = () => {
-    setCreatedSale(null)
-    setClientName('')
-    setClientPhone('')
-    setSelectedClientId('')
-    setPurchaseOrder('')
-    setNotes('')
-    setDiscount('')
-    setCashReceived('')
-    setItems([{ product_id: '', quantity: 1, unit_price: '' }])
-    setIsProcessing(false)
-    setProcessingStep(0)
-  }
-
   // Submit sale creation with visual animation and instant boleta modal
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -258,13 +243,12 @@ export default function NewSale() {
       }
     }
 
-    // Start sleek processing workflow
     setIsProcessing(true)
-    setProcessingStep(1) // Step 1: Validating stock & discounts
+    setProcessingStep(1)
 
     try {
       await new Promise((r) => setTimeout(r, 450))
-      setProcessingStep(2) // Step 2: Registering sale in database & updating stock
+      setProcessingStep(2)
 
       const saleItems = validItems.map((it) => {
         const prod = products.find((p) => p.id === it.product_id)
@@ -310,10 +294,9 @@ export default function NewSale() {
         seller_name: sellerName || user?.full_name || user?.email || 'Admin'
       })
 
-      setProcessingStep(3) // Step 3: Success!
+      setProcessingStep(3)
       await new Promise((r) => setTimeout(r, 550))
 
-      // Present the emitted receipt / boleta modal immediately!
       setIsProcessing(false)
       setCreatedSale(created)
     } catch (err) {
@@ -324,44 +307,44 @@ export default function NewSale() {
 
   return (
     <AppLayout title="Nueva Venta">
-      <div className="max-w-[1400px] mx-auto space-y-2.5 sm:space-y-3 pb-3 animate-fade-in">
+      <div className="max-w-[1440px] mx-auto space-y-3.5 pb-4 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
-            0. COMPACT HEADER BAR (ZERO VERTICAL WASTE)
+            0. HEADER BAR (MATCHING 110% SIZING & PROPORTIONS)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/80 dark:border-zinc-800 px-4 py-2.5 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 px-5 py-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3.5">
           {/* Back button & Title */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate('/ventas')}
-              className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-200 transition-colors cursor-pointer shrink-0"
+              className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-200 transition-colors cursor-pointer shrink-0 shadow-2xs"
               title="Volver a Ventas"
             >
-              <ArrowLeft size={15} />
+              <ArrowLeft size={17} />
             </button>
 
             <div>
-              <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-zinc-500">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-zinc-500 font-medium">
                 <span>Ventas</span>
                 <span>›</span>
                 <span className="font-semibold text-slate-700 dark:text-zinc-300">
                   Emitir Comprobante
                 </span>
               </div>
-              <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight leading-none">
+              <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none mt-0.5">
                 Nueva Venta & Facturación
               </h1>
             </div>
           </div>
 
           {/* Document Type Selector (Boleta / Factura / Nota) */}
-          <div className="flex items-center gap-2">
-            <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200/80 dark:border-zinc-700 text-xs font-bold">
+          <div className="flex items-center gap-2.5">
+            <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200/80 dark:border-zinc-700 text-xs sm:text-sm font-bold">
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('BOLETA')}
-                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
                   docType === 'BOLETA'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
@@ -372,7 +355,7 @@ export default function NewSale() {
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('FACTURA')}
-                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
                   docType === 'FACTURA'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
@@ -383,7 +366,7 @@ export default function NewSale() {
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('NOTA')}
-                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
                   docType === 'NOTA'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
@@ -397,26 +380,26 @@ export default function NewSale() {
             <button
               type="button"
               onClick={handleQuickClient}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               title="Llenar automáticamente con datos de cliente mostrador"
             >
-              <Zap size={13} className="text-amber-500" />
+              <Zap size={14} className="text-amber-500" />
               <span className="hidden sm:inline">Cliente Rápido</span>
             </button>
           </div>
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            1. CUSTOMER & ORDER ATTRIBUTES BAR (SLIM 1-ROW GRID)
+            1. CUSTOMER & ORDER ATTRIBUTES BAR (COMFORTABLE SIZING)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/80 dark:border-zinc-800 p-3 shadow-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5 items-end text-xs">
+        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5 items-end text-xs sm:text-sm">
 
             {/* Client Name / Razón Social */}
             <div className="lg:col-span-4">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-bold text-slate-600 dark:text-zinc-300 flex items-center gap-1">
-                  <User size={12} className="text-blue-600" />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                  <User size={13} className="text-blue-600" />
                   <span>
                     {docType === 'FACTURA' ? 'Razón Social (Empresa) *' : 'Nombre del Cliente *'}
                   </span>
@@ -425,7 +408,7 @@ export default function NewSale() {
                   <select
                     value={selectedClientId}
                     onChange={(e) => handleClientSelect(e.target.value)}
-                    className="text-[10px] bg-transparent text-blue-600 dark:text-blue-400 font-semibold outline-none cursor-pointer"
+                    className="text-xs bg-transparent text-blue-600 dark:text-blue-400 font-semibold outline-none cursor-pointer"
                   >
                     <option value="">Buscar en catálogo…</option>
                     {clients.map((c) => (
@@ -449,36 +432,36 @@ export default function NewSale() {
                     : 'Ej. Juan Pérez / Cliente General'
                 }
                 required
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-900 font-medium"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-900 font-medium"
               />
             </div>
 
             {/* RUC / DNI */}
             <div className="lg:col-span-3">
-              <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-300 mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
                 {docType === 'FACTURA' ? 'R.U.C. (11 dígitos) *' : 'D.N.I. / Celular'}
               </label>
               <div className="relative">
-                <FileText size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <FileText size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={clientPhone}
                   onChange={(e) => setClientPhone(e.target.value)}
                   placeholder={docType === 'FACTURA' ? '20601234567' : '72345678 / 987654321'}
-                  className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg pl-7 pr-2.5 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono"
+                  className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-8 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono"
                 />
               </div>
             </div>
 
             {/* Vendedor Asignado */}
             <div className="lg:col-span-3">
-              <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-300 mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
                 Vendedor Asignado
               </label>
               <select
                 value={sellerName}
                 onChange={(e) => setSellerName(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium cursor-pointer"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium cursor-pointer"
               >
                 {sellerOptions.map((s, idx) => (
                   <option key={idx} value={s}>
@@ -490,7 +473,7 @@ export default function NewSale() {
 
             {/* O.C. / Referencia */}
             <div className="lg:col-span-2">
-              <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-300 mb-1">
+              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
                 O.C. / Referencia
               </label>
               <input
@@ -498,7 +481,7 @@ export default function NewSale() {
                 value={purchaseOrder}
                 onChange={(e) => setPurchaseOrder(e.target.value)}
                 placeholder="Ej. OC-1029"
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono uppercase"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono uppercase"
               />
             </div>
 
@@ -506,40 +489,39 @@ export default function NewSale() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            2. PRODUCTS TABLE (COMPACT, FAST, WITH INTERNAL SCROLL)
+            2. PRODUCTS TABLE (CLEAN, SPACIOUS ROWS, INTERNAL SCROLL)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/80 dark:border-zinc-800 overflow-hidden shadow-xs">
-          <div className="py-2 px-3.5 bg-slate-50/80 dark:bg-zinc-800/60 border-b border-slate-200/80 dark:border-zinc-800 flex items-center justify-between text-xs">
+        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 overflow-hidden shadow-xs">
+          <div className="py-2.5 px-4 bg-slate-50/80 dark:bg-zinc-800/60 border-b border-slate-200/80 dark:border-zinc-800 flex items-center justify-between text-xs sm:text-sm">
             <div className="flex items-center gap-2">
-              <Package size={14} className="text-blue-600" />
+              <Package size={15} className="text-blue-600" />
               <span className="font-bold text-slate-800 dark:text-zinc-200">
                 Artículos Facturados
               </span>
-              <span className="text-[11px] text-slate-400 font-mono">({items.length} ítems)</span>
+              <span className="text-xs text-slate-400 font-mono">({items.length} ítems)</span>
             </div>
 
             <button
               type="button"
               onClick={addItemRow}
-              className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
             >
-              <Plus size={13} strokeWidth={2.5} />
+              <Plus size={14} strokeWidth={2.5} />
               <span>Agregar Fila</span>
             </button>
           </div>
 
-          {/* Table with restricted height so it NEVER expands the whole viewport */}
-          <div className="max-h-[220px] overflow-y-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="sticky top-0 z-10 bg-white dark:bg-[#141417] border-b border-slate-200 dark:border-zinc-800 text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">
+          <div className="max-h-[200px] overflow-y-auto">
+            <table className="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead className="sticky top-0 z-10 bg-white dark:bg-[#141417] border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <tr>
-                  <th className="py-2 px-3 w-8 text-center">#</th>
-                  <th className="py-2 px-3 min-w-[300px]">Producto / Descripción</th>
-                  <th className="py-2 px-3 w-32 text-center">Stock</th>
-                  <th className="py-2 px-3 w-28 text-center">Cant.</th>
-                  <th className="py-2 px-3 w-32 text-right">P. Unitario (S/)</th>
-                  <th className="py-2 px-3 w-28 text-right">Subtotal</th>
-                  <th className="py-2 px-2 w-10 text-center"></th>
+                  <th className="py-2.5 px-3.5 w-10 text-center">#</th>
+                  <th className="py-2.5 px-3 min-w-[320px]">Producto / Descripción</th>
+                  <th className="py-2.5 px-3 w-36 text-center">Stock</th>
+                  <th className="py-2.5 px-3 w-32 text-center">Cant.</th>
+                  <th className="py-2.5 px-3 w-36 text-right">P. Unitario (S/)</th>
+                  <th className="py-2.5 px-3 w-32 text-right">Subtotal</th>
+                  <th className="py-2.5 px-3 w-12 text-center"></th>
                 </tr>
               </thead>
 
@@ -552,17 +534,17 @@ export default function NewSale() {
                   return (
                     <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 transition-colors">
                       {/* # */}
-                      <td className="py-2 px-3 text-center font-bold text-slate-400">
+                      <td className="py-2.5 px-3.5 text-center font-bold text-slate-400">
                         {idx + 1}
                       </td>
 
                       {/* Product select */}
-                      <td className="py-2 px-3">
+                      <td className="py-2.5 px-3">
                         <select
                           value={it.product_id}
                           onChange={(e) => updateItem(idx, { product_id: e.target.value })}
                           required
-                          className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white font-medium outline-none focus:border-blue-600"
+                          className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white font-medium outline-none focus:border-blue-600"
                         >
                           <option value="">Selecciona un producto del catálogo…</option>
                           {products.map((p) => (
@@ -574,10 +556,10 @@ export default function NewSale() {
                       </td>
 
                       {/* Stock badge */}
-                      <td className="py-2 px-3 text-center whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
                         {prod ? (
                           <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold ${
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
                               isOverStock
                                 ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
                                 : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
@@ -592,14 +574,14 @@ export default function NewSale() {
                       </td>
 
                       {/* Cantidad Stepper */}
-                      <td className="py-2 px-3">
-                        <div className="flex items-center justify-center border border-slate-200 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-800 overflow-hidden w-24 mx-auto">
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center justify-center border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800 overflow-hidden w-28 mx-auto">
                           <button
                             type="button"
                             onClick={() => updateItem(idx, { quantity: Math.max(1, Number(it.quantity || 1) - 1) })}
-                            className="px-1.5 py-1 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            className="px-2 py-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white"
                           >
-                            <Minus size={11} />
+                            <Minus size={12} />
                           </button>
                           <input
                             type="number"
@@ -607,22 +589,22 @@ export default function NewSale() {
                             value={it.quantity}
                             onChange={(e) => updateItem(idx, { quantity: e.target.value })}
                             required
-                            className="w-10 bg-transparent text-center font-mono font-bold text-xs text-slate-900 dark:text-white outline-none"
+                            className="w-12 bg-transparent text-center font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-white outline-none"
                           />
                           <button
                             type="button"
                             onClick={() => updateItem(idx, { quantity: Number(it.quantity || 1) + 1 })}
-                            className="px-1.5 py-1 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            className="px-2 py-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white"
                           >
-                            <Plus size={11} />
+                            <Plus size={12} />
                           </button>
                         </div>
                       </td>
 
                       {/* Unit Price */}
-                      <td className="py-2 px-3 text-right">
-                        <div className="relative inline-block w-28">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-[10.5px]">
+                      <td className="py-2.5 px-3 text-right">
+                        <div className="relative inline-block w-32">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
                             S/
                           </span>
                           <input
@@ -633,26 +615,26 @@ export default function NewSale() {
                             onChange={(e) => updateItem(idx, { unit_price: e.target.value })}
                             placeholder="0.00"
                             required
-                            className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg pl-6 pr-2 py-1 text-right font-mono font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                            className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl pl-7 pr-2.5 py-1.5 text-right font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600"
                           />
                         </div>
                       </td>
 
                       {/* Subtotal */}
-                      <td className="py-2 px-3 text-right font-mono font-black text-slate-900 dark:text-white text-xs">
+                      <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-white text-xs sm:text-sm">
                         {fmt(lineTotal)}
                       </td>
 
                       {/* Delete */}
-                      <td className="py-2 px-2 text-center">
+                      <td className="py-2.5 px-3 text-center">
                         <button
                           type="button"
                           onClick={() => removeItemRow(idx)}
                           disabled={items.length <= 1}
-                          className="p-1 text-slate-300 hover:text-red-600 disabled:opacity-20 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                          className="p-1.5 text-slate-300 hover:text-red-600 disabled:opacity-20 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                           title="Quitar"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={15} />
                         </button>
                       </td>
                     </tr>
@@ -669,11 +651,11 @@ export default function NewSale() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
 
           {/* LEFT: CONDICIÓN & MÉTODO DE PAGO (COL 7) */}
-          <div className="lg:col-span-7 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/80 dark:border-zinc-800 p-3.5 shadow-xs flex flex-col justify-between space-y-3">
-            <div className="space-y-2.5">
+          <div className="lg:col-span-7 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs flex flex-col justify-between space-y-3.5">
+            <div className="space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800">
-                <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
-                  <Clock size={13} className="text-blue-600" />
+                <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
+                  <Clock size={14} className="text-blue-600" />
                   Forma & Condición de Pago
                 </span>
 
@@ -682,7 +664,7 @@ export default function NewSale() {
                   <button
                     type="button"
                     onClick={() => setPaymentStatus('pagado')}
-                    className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
                       paymentStatus === 'pagado'
                         ? 'bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
                         : 'text-slate-500'
@@ -693,7 +675,7 @@ export default function NewSale() {
                   <button
                     type="button"
                     onClick={() => setPaymentStatus('pendiente')}
-                    className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
                       paymentStatus === 'pendiente'
                         ? 'bg-amber-500 text-white shadow-xs'
                         : 'text-slate-500'
@@ -706,101 +688,101 @@ export default function NewSale() {
 
               {/* Payment Methods (5 compact horizontal pills) */}
               {paymentStatus === 'pagado' ? (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-5 gap-1.5">
+                <div className="space-y-2.5">
+                  <div className="grid grid-cols-5 gap-2">
                     {/* Efectivo */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('efectivo')}
-                      className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'efectivo'
                           ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs'
                           : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
                       }`}
                     >
-                      <Banknote size={14} />
-                      <span className="text-[11px]">Efectivo</span>
+                      <Banknote size={15} />
+                      <span className="text-xs font-semibold">Efectivo</span>
                     </button>
 
                     {/* Yape */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('yape')}
-                      className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'yape'
                           ? 'bg-[#742284] border-[#742284] text-white font-bold shadow-xs'
                           : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-purple-50'
                       }`}
                     >
-                      <img src="/yape-logo.png" alt="Yape" className="w-3.5 h-3.5 rounded-sm object-cover" />
-                      <span className="text-[11px] font-black">Yape</span>
+                      <img src="/yape-logo.png" alt="Yape" className="w-4 h-4 rounded-md object-cover" />
+                      <span className="text-xs font-black">Yape</span>
                     </button>
 
                     {/* Plin */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('plin')}
-                      className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'plin'
                           ? 'bg-[#00b49f] border-[#00b49f] text-white font-bold shadow-xs'
                           : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-teal-50'
                       }`}
                     >
-                      <img src="/plin-logo.png" alt="Plin" className="w-3.5 h-3.5 rounded-full object-cover" />
-                      <span className="text-[11px] font-black">Plin</span>
+                      <img src="/plin-logo.png" alt="Plin" className="w-4 h-4 rounded-full object-cover" />
+                      <span className="text-xs font-black">Plin</span>
                     </button>
 
                     {/* Transferencia */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('transferencia')}
-                      className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'transferencia'
                           ? 'bg-blue-600 border-blue-600 text-white font-bold shadow-xs'
                           : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
                       }`}
                     >
-                      <Building2 size={13} />
-                      <span className="text-[11px]">Transf.</span>
+                      <Building2 size={14} />
+                      <span className="text-xs font-semibold">Transf.</span>
                     </button>
 
                     {/* Tarjeta */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('tarjeta')}
-                      className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'tarjeta'
                           ? 'bg-indigo-600 border-indigo-600 text-white font-bold shadow-xs'
                           : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
                       }`}
                     >
-                      <CreditCard size={13} />
-                      <span className="text-[11px]">POS</span>
+                      <CreditCard size={14} />
+                      <span className="text-xs font-semibold">POS</span>
                     </button>
                   </div>
 
                   {/* Compact payment interactive feedback row */}
                   {paymentMethod === 'efectivo' && (
-                    <div className="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-between text-xs sm:text-sm">
+                      <div className="flex items-center gap-2.5">
                         <span className="text-slate-500 font-medium">Monto recibido:</span>
-                        <div className="relative w-24">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-[11px]">S/</span>
+                        <div className="relative w-28">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">S/</span>
                           <input
                             type="number"
                             step="0.50"
                             value={cashReceived}
                             onChange={(e) => setCashReceived(e.target.value)}
                             placeholder={total > 0 ? total.toFixed(2) : '0.00'}
-                            className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-md pl-5 pr-1.5 py-0.5 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                            className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg pl-6 pr-2 py-1 text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600"
                           />
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         <span className="text-slate-500 font-medium">Vuelto:</span>
                         <span
-                          className={`font-mono font-black text-xs ${
+                          className={`font-mono font-black text-xs sm:text-sm ${
                             Number(cashReceived) >= total ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
                           }`}
                         >
@@ -811,17 +793,17 @@ export default function NewSale() {
                   )}
 
                   {(paymentMethod === 'yape' || paymentMethod === 'plin') && (
-                    <div className="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-between text-xs">
-                      <span className="text-slate-600 dark:text-zinc-300 font-medium">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-between text-xs sm:text-sm">
+                      <span className="text-slate-700 dark:text-zinc-200 font-medium">
                         {paymentMethod === 'yape' ? 'Pago móvil con Yape' : 'Pago móvil con Plin'}
                       </span>
                       {paymentConfig?.[paymentMethod]?.qr_image && (
                         <button
                           type="button"
                           onClick={() => setShowQrModal(true)}
-                          className="px-2.5 py-1 rounded-md bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                          className="px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
                         >
-                          <QrCode size={12} />
+                          <QrCode size={13} />
                           <span>Ver QR</span>
                         </button>
                       )}
@@ -829,42 +811,42 @@ export default function NewSale() {
                   )}
                 </div>
               ) : (
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 text-xs">
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 text-xs sm:text-sm">
                   <span className="text-amber-800 dark:text-amber-300 font-semibold">Vencimiento:</span>
                   <input
                     type="date"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
-                    className="bg-white dark:bg-zinc-900 border border-amber-300 rounded px-2 py-0.5 text-xs font-mono outline-none"
+                    className="bg-white dark:bg-zinc-900 border border-amber-300 rounded-lg px-2.5 py-1 text-xs font-mono outline-none"
                   />
                 </div>
               )}
             </div>
 
             {/* Notes in 1 slim input */}
-            <div className="pt-1 border-t border-slate-100 dark:border-zinc-800">
+            <div className="pt-1.5 border-t border-slate-100 dark:border-zinc-800">
               <input
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Observaciones / Instrucciones de entrega (opcional)…"
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-slate-800 dark:text-white outline-none focus:border-blue-600"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-1.5 text-xs sm:text-sm text-slate-800 dark:text-white outline-none focus:border-blue-600"
               />
             </div>
           </div>
 
           {/* RIGHT: RESUMEN FINANCIERO & EMISIÓN (COL 5) */}
-          <div className="lg:col-span-5 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/80 dark:border-zinc-800 p-3.5 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="lg:col-span-5 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs flex flex-col justify-between space-y-3.5">
             <div>
-              <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-zinc-800 text-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800 text-xs sm:text-sm">
                 <span className="font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
-                  <DollarSign size={13} className="text-blue-600" />
+                  <DollarSign size={15} className="text-blue-600" />
                   Liquidación de Venta
                 </span>
-                <span className="font-mono text-[11px] text-slate-400">PEN (S/)</span>
+                <span className="font-mono text-xs text-slate-400">PEN (S/)</span>
               </div>
 
-              <div className="space-y-1.5 pt-2 text-xs">
+              <div className="space-y-2 pt-2.5 text-xs sm:text-sm">
                 <div className="flex justify-between items-center text-slate-500">
                   <span>Subtotal / Op. Gravada:</span>
                   <span className="font-mono font-bold text-slate-800 dark:text-white">{fmt(netAmount)}</span>
@@ -882,15 +864,15 @@ export default function NewSale() {
                     value={discount}
                     onChange={(e) => setDiscount(e.target.value)}
                     placeholder="0.00"
-                    className="w-20 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1.5 py-0.5 text-right font-mono font-bold text-xs text-amber-600 outline-none focus:border-blue-600"
+                    className="w-24 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-2 py-1 text-right font-mono font-bold text-xs sm:text-sm text-amber-600 outline-none focus:border-blue-600"
                   />
                 </div>
 
-                <div className="pt-2 border-t border-slate-200 dark:border-zinc-800 flex justify-between items-baseline">
+                <div className="pt-2.5 border-t border-slate-200 dark:border-zinc-800 flex justify-between items-baseline">
                   <span className="font-black text-xs uppercase text-slate-700 dark:text-zinc-300 tracking-wider">
                     TOTAL A PAGAR:
                   </span>
-                  <span className="text-xl sm:text-2xl font-black font-mono text-blue-600 dark:text-blue-400 tracking-tight">
+                  <span className="text-2xl sm:text-3xl font-black font-mono text-blue-600 dark:text-blue-400 tracking-tight">
                     {fmt(total)}
                   </span>
                 </div>
@@ -898,19 +880,19 @@ export default function NewSale() {
             </div>
 
             {error && (
-              <div className="p-2 rounded-lg bg-red-50 text-red-600 text-xs flex items-center gap-1.5">
-                <AlertCircle size={14} className="shrink-0" />
+              <div className="p-2.5 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-1.5">
+                <AlertCircle size={15} className="shrink-0" />
                 <span className="truncate">{error}</span>
               </div>
             )}
 
             {/* Action Buttons */}
-            <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-zinc-800">
+            <div className="space-y-2 pt-1.5 border-t border-slate-100 dark:border-zinc-800">
               <button
                 type="submit"
                 disabled={isProcessing}
                 onClick={handleSubmit}
-                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
                 {isProcessing ? (
                   <span>Emitiendo comprobante…</span>
@@ -925,7 +907,7 @@ export default function NewSale() {
               <button
                 type="button"
                 onClick={() => navigate('/ventas')}
-                className="w-full py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+                className="w-full py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer"
               >
                 Cancelar y Volver
               </button>
