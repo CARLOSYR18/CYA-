@@ -8,7 +8,7 @@ import {
   Calendar, ChevronLeft, ChevronRight, Copy, Check,
   ShoppingCart, ShoppingBag, SlidersHorizontal, RefreshCw,
   Boxes, ShieldAlert, ArrowDownCircle, ArrowUpCircle, User, Bot,
-  Home, BarChart2, PieChart, Sparkles, Truck
+  Home, BarChart2, PieChart, Sparkles, Truck, LayoutGrid, List
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
@@ -63,52 +63,6 @@ function formatDateTime(dateStr) {
   return { date, time }
 }
 
-/* ── Badge de Tipo de Movimiento moderno ── */
-const TypeBadge = ({ type }) =>
-  type === 'entrada' ? (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-500/20 whitespace-nowrap shadow-2xs">
-      <ArrowDownLeft size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-      <span>Ingreso (+ Entrada)</span>
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200/80 dark:border-rose-500/20 whitespace-nowrap shadow-2xs">
-      <ArrowUpRight size={13} className="text-rose-600 dark:text-rose-400 shrink-0" />
-      <span>Egreso (- Salida)</span>
-    </span>
-  )
-
-/* ── Badge de Motivo / Concepto contextual ── */
-const ReasonBadge = ({ reason }) => {
-  if (!reason) {
-    return <span className="text-slate-400 dark:text-slate-500 italic text-xs">Sin motivo especificado</span>
-  }
-
-  const lower = reason.toLowerCase()
-  let icon = <FileText size={12} className="shrink-0 text-slate-500 dark:text-slate-400" />
-  let color = 'text-slate-700 dark:text-slate-300 bg-slate-100/80 dark:bg-white/5 border-slate-200/80 dark:border-white/10'
-
-  if (lower.includes('venta') || lower.includes('pedido') || lower.includes('orden')) {
-    icon = <ShoppingCart size={12} className="shrink-0 text-blue-600 dark:text-blue-400" />
-    color = 'text-blue-700 dark:text-blue-300 bg-blue-50/80 dark:bg-blue-500/10 border-blue-200/70 dark:border-blue-500/20'
-  } else if (lower.includes('compra') || lower.includes('proveedor') || lower.includes('recepción') || lower.includes('mercadería')) {
-    icon = <ShoppingBag size={12} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
-    color = 'text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-500/10 border-emerald-200/70 dark:border-emerald-500/20'
-  } else if (lower.includes('merma') || lower.includes('daño') || lower.includes('venc') || lower.includes('pérdida')) {
-    icon = <AlertTriangle size={12} className="shrink-0 text-amber-600 dark:text-amber-400" />
-    color = 'text-amber-700 dark:text-amber-300 bg-amber-50/80 dark:bg-amber-500/10 border-amber-200/70 dark:border-amber-500/20'
-  } else if (lower.includes('ajuste') || lower.includes('edición') || lower.includes('reconteo')) {
-    icon = <SlidersHorizontal size={12} className="shrink-0 text-indigo-600 dark:text-indigo-400" />
-    color = 'text-indigo-700 dark:text-indigo-300 bg-indigo-50/80 dark:bg-indigo-500/10 border-indigo-200/70 dark:border-indigo-500/20'
-  }
-
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border max-w-[280px] truncate ${color}`}>
-      {icon}
-      <span className="truncate" title={reason}>{reason}</span>
-    </span>
-  )
-}
-
 export default function InventoryMovements() {
   const navigate = useNavigate()
 
@@ -118,9 +72,10 @@ export default function InventoryMovements() {
   const [collaborators, setCollaborators] = useState(() => usersService.getCached?.() || [])
   const [loading, setLoading] = useState(() => !inventoryMovementsService.hasCache?.())
 
-  // Top bar & view controls
+  // View state & KPIs
   const [showMetrics, setShowMetrics] = useState(true)
   const [chartPeriod, setChartPeriod] = useState('6MONTHS')
+  const [viewMode, setViewMode] = useState('table') // 'table' | 'grid'
 
   // Filters & Sorting
   const [search, setSearch] = useState('')
@@ -174,7 +129,6 @@ export default function InventoryMovements() {
   const getMovementResponsible = (m) => {
     if (!m) return { name: 'Admin', role: 'admin', initials: 'AD', email: 'cya@gmail.com' }
 
-    // Detección de operaciones automáticas por Asistente IA
     const refLow = (m.reference || '').toLowerCase()
     const rsnLow = (m.reason || '').toLowerCase()
     if (refLow.includes('asistente') || rsnLow.includes('asistente') || refLow.includes('ia')) {
@@ -187,7 +141,6 @@ export default function InventoryMovements() {
       }
     }
 
-    // Si tiene user_id directo
     if (m.user_id) {
       const matched = collaborators.find((c) => String(c.id) === String(m.user_id))
       if (matched) {
@@ -200,7 +153,6 @@ export default function InventoryMovements() {
       }
     }
 
-    // Si el movimiento proviene de una venta, rastrear el vendedor de la venta
     if (m.reference) {
       const refClean = m.reference.replace('#', '').trim().toLowerCase()
       const sale = sales.find((s) => s.id && String(s.id).toLowerCase().includes(refClean))
@@ -230,7 +182,6 @@ export default function InventoryMovements() {
       }
     }
 
-    // Por defecto, administrador de la empresa
     return {
       name: 'cya@gmail.com',
       role: 'admin',
@@ -262,7 +213,7 @@ export default function InventoryMovements() {
   /* ─── Monthly Kardex Activity Chart (Area Chart) ─── */
   const monthlyChartData = useMemo(() => {
     const months = ['Ago', 'Set', 'Oct', 'Nov', 'Dic', 'Ene']
-    const totals = [18, 24, 35, 28, 42, 39] // Baselines representativos
+    const totals = [18, 24, 35, 28, 42, 39]
 
     movements.forEach((m) => {
       if (m.created_at) {
@@ -348,7 +299,6 @@ export default function InventoryMovements() {
   const filtered = useMemo(() => {
     let result = [...movements]
 
-    // Text search (Product name, SKU, reason, reference, responsible)
     const q = search.trim().toLowerCase()
     if (q) {
       result = result.filter((m) => {
@@ -364,12 +314,10 @@ export default function InventoryMovements() {
       })
     }
 
-    // Type filter
     if (typeFilter !== 'ALL') {
       result = result.filter((m) => m.type === typeFilter)
     }
 
-    // Responsible filter
     if (responsibleFilter !== 'ALL') {
       result = result.filter((m) => {
         const resp = getMovementResponsible(m)
@@ -378,7 +326,6 @@ export default function InventoryMovements() {
       })
     }
 
-    // Date range filter
     if (datePreset === 'TODAY') {
       const startOfDay = new Date()
       startOfDay.setHours(0, 0, 0, 0)
@@ -400,7 +347,6 @@ export default function InventoryMovements() {
       }
     }
 
-    // Sorting
     if (sortBy === 'recent') {
       result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     } else if (sortBy === 'oldest') {
@@ -414,26 +360,21 @@ export default function InventoryMovements() {
     return result
   }, [movements, products, sales, collaborators, search, typeFilter, responsibleFilter, datePreset, dateFrom, dateTo, sortBy])
 
-  // Reset pagination on filter change
   useEffect(() => {
     setCurrentPage(1)
   }, [search, typeFilter, responsibleFilter, datePreset, dateFrom, dateTo, sortBy, pageSize])
 
-  // Paginated movements
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const paginatedMovements = useMemo(() => {
     const start = (currentPage - 1) * pageSize
     return filtered.slice(start, start + pageSize)
   }, [filtered, currentPage, pageSize])
 
-  // Helper getters
   const getProduct = (id) => products.find((p) => p.id === id)
   const productName = (id) => getProduct(id)?.name || 'Producto no encontrado'
   const productSku = (id) => getProduct(id)?.sku || '—'
   const productUnit = (id) => getProduct(id)?.unit || 'uds.'
-  const productImage = (id) => getProduct(id)?.image_url || null
 
-  // Copy reference helper
   const handleCopyRef = (ref, e) => {
     e?.stopPropagation()
     if (!ref) return
@@ -442,7 +383,6 @@ export default function InventoryMovements() {
     setTimeout(() => setCopiedRef(null), 2000)
   }
 
-  // Export to Excel / CSV
   const handleExportExcel = () => {
     const headers = ['Fecha', 'Hora', 'SKU', 'Producto', 'Tipo', 'Cantidad', 'Unidad', 'Responsable', 'Rol', 'Motivo / Concepto', 'Referencia']
     const rows = filtered.map((m) => {
@@ -476,7 +416,6 @@ export default function InventoryMovements() {
     URL.revokeObjectURL(url)
   }
 
-  // Clear all filters
   const handleResetFilters = () => {
     setSearch('')
     setTypeFilter('ALL')
@@ -489,7 +428,6 @@ export default function InventoryMovements() {
 
   const hasActiveFilters = search || typeFilter !== 'ALL' || responsibleFilter !== 'ALL' || datePreset !== 'ALL' || dateFrom || dateTo || sortBy !== 'recent'
 
-  // Modal Handlers
   function openCreate() {
     setEditing(null)
     setForm(emptyForm)
@@ -559,7 +497,6 @@ export default function InventoryMovements() {
     loadAll()
   }
 
-  // Selected product in form for dynamic calculation
   const selectedFormProduct = products.find((p) => p.id === form.product_id)
   const currentStock = selectedFormProduct ? Number(selectedFormProduct.stock) || 0 : 0
   const qtyInput = Number(form.quantity) || 0
@@ -654,7 +591,6 @@ export default function InventoryMovements() {
                   </p>
                 </div>
               </div>
-              {/* Sparkline curve (Blue) */}
               <div className="w-20 h-10 shrink-0">
                 <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
                   <defs>
@@ -696,7 +632,6 @@ export default function InventoryMovements() {
                   </p>
                 </div>
               </div>
-              {/* Sparkline curve (Emerald) */}
               <div className="w-20 h-10 shrink-0">
                 <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
                   <defs>
@@ -738,7 +673,6 @@ export default function InventoryMovements() {
                   </p>
                 </div>
               </div>
-              {/* Sparkline curve (Rose) */}
               <div className="w-20 h-10 shrink-0">
                 <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
                   <defs>
@@ -786,7 +720,6 @@ export default function InventoryMovements() {
                   </p>
                 </div>
               </div>
-              {/* Sparkline curve (Purple) */}
               <div className="w-20 h-10 shrink-0">
                 <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
                   <defs>
@@ -841,9 +774,7 @@ export default function InventoryMovements() {
                 </div>
               </div>
 
-              {/* Interactive SVG Chart */}
               <div className="relative pt-6 pb-2 w-full">
-                {/* Floating Peak Badge */}
                 <div className="absolute top-0 right-6 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold">
                   <span>Pico: {Math.max(...monthlyChartData.map((d) => d.amount))} operaciones</span>
                   <span className="text-emerald-500 font-extrabold">↑</span>
@@ -860,7 +791,6 @@ export default function InventoryMovements() {
                     </linearGradient>
                   </defs>
 
-                  {/* Horizontal Grid lines */}
                   {[0.25, 0.5, 0.75, 1].map((ratio, idx) => {
                     const y = chartSVG.paddingTop + chartSVG.innerH * (1 - ratio)
                     return (
@@ -879,10 +809,8 @@ export default function InventoryMovements() {
                     )
                   })}
 
-                  {/* Shaded Area */}
                   <path d={chartSVG.areaD} fill="url(#areaGradientKdx)" />
 
-                  {/* Curve Path */}
                   <path
                     d={chartSVG.pathD}
                     fill="none"
@@ -891,7 +819,6 @@ export default function InventoryMovements() {
                     strokeLinecap="round"
                   />
 
-                  {/* Data Points */}
                   {chartSVG.coords.map((pt, idx) => (
                     <g key={idx} className="group cursor-pointer">
                       <circle
@@ -938,11 +865,9 @@ export default function InventoryMovements() {
                 </span>
               </div>
 
-              {/* Donut Chart Visual */}
               <div className="flex items-center justify-center py-4">
                 <div className="relative w-40 h-40">
                   <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                    {/* Background track */}
                     <circle
                       cx="50"
                       cy="50"
@@ -952,7 +877,6 @@ export default function InventoryMovements() {
                       strokeWidth="12"
                       className="text-slate-100 dark:text-zinc-800"
                     />
-                    {/* In units slice (Emerald/Blue) */}
                     <circle
                       cx="50"
                       cy="50"
@@ -964,7 +888,6 @@ export default function InventoryMovements() {
                       strokeDashoffset="0"
                       strokeLinecap="round"
                     />
-                    {/* Out units slice (Rose) */}
                     <circle
                       cx="50"
                       cy="50"
@@ -977,7 +900,6 @@ export default function InventoryMovements() {
                       strokeLinecap="round"
                     />
                   </svg>
-                  {/* Center Content */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                     <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
                       {donutData.pctIn}%
@@ -989,7 +911,6 @@ export default function InventoryMovements() {
                 </div>
               </div>
 
-              {/* Legend with Metrics */}
               <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800 text-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1107,7 +1028,7 @@ export default function InventoryMovements() {
               )}
             </div>
 
-            {/* Sort & Quick Date Controls */}
+            {/* Sort & Quick Controls */}
             <div className="flex flex-wrap items-center gap-2">
               
               {/* Filter by Responsible */}
@@ -1143,6 +1064,34 @@ export default function InventoryMovements() {
                   <option value="highest" className="dark:bg-zinc-900">Mayor volumen</option>
                   <option value="lowest" className="dark:bg-zinc-900">Menor volumen</option>
                 </select>
+              </div>
+
+              {/* View Switch: Table vs Grid */}
+              <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200/80 dark:border-zinc-700 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  title="Vista en lista ejecutiva"
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    viewMode === 'table'
+                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+                  }`}
+                >
+                  <List size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  title="Vista en tarjetas"
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    viewMode === 'grid'
+                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+                  }`}
+                >
+                  <LayoutGrid size={15} />
+                </button>
               </div>
 
               {/* Reset filter button if active */}
@@ -1256,7 +1205,7 @@ export default function InventoryMovements() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            4. MOVEMENTS KARDEX TABLE & FEED
+            4. REDESIGNED KARDEX: STREAMLINED TABLE OR EXECUTIVE CARDS
            ═════════════════════════════════════════════════════════ */}
         {loading ? (
           <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-16 flex flex-col items-center justify-center text-center shadow-xs">
@@ -1286,11 +1235,10 @@ export default function InventoryMovements() {
               }
             />
           </div>
-        ) : (
-          <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 overflow-hidden shadow-xs">
-            
-            {/* ── Mobile View (Rich Cards) ── */}
-            <div className="block lg:hidden divide-y divide-slate-100 dark:divide-zinc-800">
+        ) : viewMode === 'grid' ? (
+          /* ─── 4A. EXECUTIVE CARDS VIEW (GRID) ─── */
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {paginatedMovements.map((m) => {
                 const isEntry = m.type === 'entrada'
                 const prod = getProduct(m.product_id)
@@ -1300,131 +1248,167 @@ export default function InventoryMovements() {
                 const resp = getMovementResponsible(m)
 
                 return (
-                  <div key={m.id} className="p-4 space-y-3 hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 transition-colors">
-                    
-                    {/* Header: Product info + quantity */}
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 p-1 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden">
-                          {prod?.image_url ? (
-                            <img
-                              src={prod.image_url}
-                              alt={prod.name}
-                              className="w-full h-full object-contain rounded-lg"
-                              onError={(e) => { e.currentTarget.style.display = 'none' }}
-                            />
-                          ) : (
-                            <Package size={18} className="text-slate-400 dark:text-zinc-500" />
-                          )}
+                  <div
+                    key={m.id}
+                    className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between group"
+                  >
+                    <div>
+                      {/* Top: Product thumbnail + Title + Operation badge */}
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 p-1 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                            {prod?.image_url ? (
+                              <img
+                                src={prod.image_url}
+                                alt={prod.name}
+                                className="w-full h-full object-contain"
+                                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                              />
+                            ) : (
+                              <Package size={22} className="text-slate-400 dark:text-zinc-500" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base leading-snug truncate" title={prod?.name}>
+                              {prod?.name || 'Producto no encontrado'}
+                            </h4>
+                            <span className="font-mono text-[10.5px] font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                              {prod?.sku || 'S/SKU'}
+                            </span>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate leading-snug">
-                            {prod?.name || 'Producto no encontrado'}
-                          </p>
-                          <span className="font-mono text-[10.5px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 px-1.5 py-0.2 rounded border border-slate-200/60 dark:border-zinc-700">
-                            {prod?.sku || 'S/SKU'}
+
+                        {/* Operation Tag */}
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 ${
+                          isEntry
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30'
+                            : 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300 border border-rose-200 dark:border-rose-500/30'
+                        }`}>
+                          {isEntry ? <ArrowDownLeft size={12} /> : <ArrowUpRight size={12} />}
+                          <span>{isEntry ? 'Ingreso' : 'Egreso'}</span>
+                        </span>
+                      </div>
+
+                      {/* Quantity & Impact Card */}
+                      <div className={`p-3.5 rounded-xl border mb-3 flex items-center justify-between ${
+                        isEntry
+                          ? 'bg-emerald-50/60 dark:bg-emerald-500/5 border-emerald-200/80 dark:border-emerald-500/20'
+                          : 'bg-rose-50/60 dark:bg-rose-500/5 border-rose-200/80 dark:border-rose-500/20'
+                      }`}>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-400 block mb-0.5">
+                            Variación de Stock
+                          </span>
+                          <span className={`font-mono font-black text-xl sm:text-2xl ${
+                            isEntry ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                          }`}>
+                            {isEntry ? `+${m.quantity}` : `-${m.quantity}`}{' '}
+                            <span className="text-xs font-normal text-slate-400">
+                              {prod?.unit || 'uds.'}
+                            </span>
                           </span>
                         </div>
-                      </div>
 
-                      <div className="text-right whitespace-nowrap shrink-0">
-                        <span className={`font-mono font-black text-sm sm:text-base ${
-                          isEntry ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-                        }`}>
-                          {isEntry ? `+${m.quantity}` : `-${m.quantity}`}
-                        </span>
-                        <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 ml-1">
-                          {prod?.unit || 'uds.'}
-                        </span>
+                        <div className="text-right">
+                          <span className="text-[10.5px] font-bold text-slate-500 dark:text-zinc-400 block">
+                            {m.reason || (isEntry ? 'Ingreso de almacén' : 'Salida manual')}
+                          </span>
+                          {shortRef && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleCopyRef(m.reference, e)}
+                              className="inline-flex items-center gap-1 font-mono text-[10px] bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-zinc-300 mt-1 cursor-pointer"
+                              title="Copiar referencia"
+                            >
+                              <span>{shortRef}</span>
+                              {copiedRef === m.reference ? <Check size={10} className="text-emerald-500" /> : <Copy size={10} className="text-slate-400" />}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Middle: Type badge + Reason badge + Responsable badge */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <TypeBadge type={m.type} />
-                      <ReasonBadge reason={m.reason} />
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100/90 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200/80 dark:border-zinc-700 max-w-[240px] truncate">
-                        <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${
-                          resp.isAi 
-                            ? 'bg-gradient-to-tr from-purple-600 to-indigo-600' 
-                            : resp.role === 'admin' 
-                            ? 'bg-gradient-to-tr from-emerald-600 to-teal-700' 
-                            : 'bg-gradient-to-tr from-blue-600 to-indigo-600'
-                        }`}>
-                          {resp.initials}
-                        </span>
-                        <span className="truncate">{resp.name}</span>
-                        <span className={`text-[10px] font-semibold px-1 py-0.2 rounded-full ${
-                          resp.role === 'admin'
-                            ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-100/80 dark:bg-emerald-500/20'
-                            : resp.isAi
-                            ? 'text-purple-700 dark:text-purple-400 bg-purple-100/80 dark:bg-purple-500/20'
-                            : 'text-blue-700 dark:text-blue-400 bg-blue-100/80 dark:bg-blue-500/20'
-                        }`}>
-                          {resp.role === 'admin' ? 'Admin' : resp.isAi ? 'IA Bot' : 'Empleado'}
-                        </span>
-                      </span>
-                    </div>
-
-                    {/* Footer: Date, Reference, Actions */}
-                    <div className="flex items-center justify-between text-xs pt-2.5 border-t border-slate-100 dark:border-zinc-800 text-slate-500">
+                    {/* Bottom: Date, Responsable, Actions */}
+                    <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-700 dark:text-zinc-300">
-                          {date}
-                        </span>
-                        <span className="font-mono text-[11px] text-slate-400 flex items-center gap-0.5">
-                          <Clock size={11} /> {time}
-                        </span>
+                        <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold shrink-0">
+                          {resp.initials}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-800 dark:text-zinc-200 text-xs truncate max-w-[120px]">
+                            {resp.name}
+                          </p>
+                          <p className="font-mono text-[10px] text-slate-400">
+                            {date} · {time}
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {shortRef && (
-                          <button
-                            type="button"
-                            onClick={(e) => handleCopyRef(m.reference, e)}
-                            className="font-mono text-[11px] bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-zinc-700 flex items-center gap-1 transition-colors"
-                            title={`Referencia: ${m.reference} (Clic para copiar)`}
-                          >
-                            <span>{shortRef}</span>
-                            {copiedRef === m.reference ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} className="text-slate-400" />}
-                          </button>
-                        )}
-
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => openEdit(m)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors cursor-pointer"
                           title="Editar registro"
                         >
-                          <Pencil size={14} />
+                          <Pencil size={15} />
                         </button>
                         <button
                           onClick={() => setConfirmDelete(m)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
                           title="Eliminar y revertir stock"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </div>
-
                   </div>
                 )
               })}
             </div>
 
-            {/* ── Desktop View (Rich Kardex Table) ── */}
-            <div className="overflow-x-auto hidden lg:block">
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2 text-xs text-slate-500">
+                <span>
+                  Mostrando {((currentPage - 1) * pageSize) + 1} a {Math.min(currentPage * pageSize, filtered.length)} de {filtered.length} operaciones
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <span className="px-3 py-1 font-mono font-bold text-slate-900 dark:text-white">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ─── 4B. STREAMLINED EXECUTIVE TABLE VIEW (SUPER CLEAN) ─── */
+          <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.03)]">
+            <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200/80 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-800/50 text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-                    <th className="py-3 px-4 w-[150px]">Fecha y Hora</th>
-                    <th className="py-3 px-4">Producto Afectado</th>
-                    <th className="py-3 px-4 text-center w-[160px]">Tipo de Movimiento</th>
-                    <th className="py-3 px-4 text-right w-[130px]">Cantidad</th>
-                    <th className="py-3 px-4 w-[180px]">Responsable</th>
-                    <th className="py-3 px-4">Motivo / Concepto</th>
-                    <th className="py-3 px-4 text-center w-[130px]">Referencia</th>
-                    <th className="py-3 px-4 text-right w-[90px]">Acciones</th>
+                  <tr className="border-b border-slate-200/80 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-800/50 text-[11px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
+                    <th className="py-4 px-5">Artículo / Producto Afectado</th>
+                    <th className="py-4 px-4 text-center">Tipo de Movimiento</th>
+                    <th className="py-4 px-4 text-right">Variación / Cantidad</th>
+                    <th className="py-4 px-4">Fecha y Registro</th>
+                    <th className="py-4 px-4">Responsable</th>
+                    <th className="py-4 px-5 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
@@ -1437,131 +1421,116 @@ export default function InventoryMovements() {
                     const resp = getMovementResponsible(m)
 
                     return (
-                      <tr key={m.id} className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/40 transition-colors group">
-                        
-                        {/* 1. Fecha y Hora */}
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-800 dark:text-zinc-200 text-xs">
-                              {date}
-                            </span>
-                            <span className="text-[11px] font-mono text-slate-400 dark:text-zinc-500 flex items-center gap-1 mt-0.5">
-                              <Clock size={11} className="shrink-0" />
-                              {time}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* 2. Producto Afectado con Thumbnail */}
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-3 min-w-[220px]">
-                            <div className="w-11 h-11 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 p-1 flex items-center justify-center shrink-0 shadow-2xs overflow-hidden">
+                      <tr
+                        key={m.id}
+                        className="hover:bg-blue-50/20 dark:hover:bg-zinc-800/40 transition-colors group"
+                      >
+                        {/* 1. Producto + SKU + Concepto integrado (Espacioso y limpio) */}
+                        <td className="py-4 px-5">
+                          <div className="flex items-center gap-3.5 min-w-[260px]">
+                            <div className="w-13 h-13 rounded-2xl bg-slate-50 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 p-1.5 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
                               {prod?.image_url ? (
                                 <img
                                   src={prod.image_url}
                                   alt={prod.name}
-                                  className="w-full h-full object-contain rounded-lg"
+                                  className="w-full h-full object-contain"
                                   onError={(e) => { e.currentTarget.style.display = 'none' }}
                                 />
                               ) : (
-                                <Package size={20} className="text-slate-400 dark:text-zinc-500" />
+                                <Package size={22} className="text-slate-400 dark:text-zinc-500" />
                               )}
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm truncate leading-snug" title={prod?.name}>
+
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <p className="font-extrabold text-slate-900 dark:text-white text-sm truncate leading-snug" title={prod?.name}>
                                 {prod?.name || 'Producto no encontrado'}
                               </p>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="font-mono text-[10.5px] bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 px-1.5 py-0.2 rounded border border-slate-200/60 dark:border-zinc-700">
+                              
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-[11px] font-bold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">
                                   {prod?.sku || 'S/SKU'}
                                 </span>
-                                {prod?.unit && (
-                                  <span className="text-[10.5px] text-slate-400">
-                                    • {prod.unit}
-                                  </span>
+                                
+                                <span className="text-slate-300 dark:text-zinc-600">·</span>
+
+                                <span className="text-xs text-slate-600 dark:text-zinc-300 font-medium">
+                                  {m.reason || (isEntry ? 'Ingreso de almacén' : 'Salida manual')}
+                                </span>
+
+                                {shortRef && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleCopyRef(m.reference, e)}
+                                    className="font-mono text-[10.5px] bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-600 dark:text-zinc-300 px-1.5 py-0.2 rounded border border-slate-200 dark:border-zinc-700 inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                    title={`Copiar referencia ${m.reference}`}
+                                  >
+                                    <span>{shortRef}</span>
+                                    {copiedRef === m.reference ? (
+                                      <Check size={10} className="text-emerald-500" />
+                                    ) : (
+                                      <Copy size={10} className="text-slate-400" />
+                                    )}
+                                  </button>
                                 )}
                               </div>
                             </div>
                           </div>
                         </td>
 
-                        {/* 3. Tipo de Movimiento */}
-                        <td className="py-3.5 px-4 text-center">
-                          <TypeBadge type={m.type} />
+                        {/* 2. Tipo de Movimiento (Elegante badge con degradado) */}
+                        <td className="py-4 px-4 text-center whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold shadow-2xs ${
+                            isEntry
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30'
+                              : 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300 border border-rose-200 dark:border-rose-500/30'
+                          }`}>
+                            {isEntry ? <ArrowDownLeft size={13} /> : <ArrowUpRight size={13} />}
+                            <span>{isEntry ? 'Ingreso a Bodega' : 'Egreso / Despacho'}</span>
+                          </span>
                         </td>
 
-                        {/* 4. Cantidad */}
-                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                          <span className={`font-mono font-black text-sm sm:text-base ${
+                        {/* 3. Cantidad Afectada (Destacada en mono) */}
+                        <td className="py-4 px-4 text-right whitespace-nowrap">
+                          <p className={`font-mono font-black text-base sm:text-lg leading-none ${
                             isEntry ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                           }`}>
                             {isEntry ? `+${m.quantity}` : `-${m.quantity}`}
-                          </span>
-                          <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 ml-1">
+                          </p>
+                          <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 block mt-0.5">
                             {prod?.unit || 'uds.'}
                           </span>
                         </td>
 
+                        {/* 4. Fecha & Hora */}
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <p className="font-bold text-slate-800 dark:text-zinc-200 text-xs">
+                            {date}
+                          </p>
+                          <p className="text-[11px] font-mono text-slate-400 flex items-center gap-1 mt-0.5">
+                            <Clock size={11} /> {time}
+                          </p>
+                        </td>
+
                         {/* 5. Responsable */}
-                        <td className="py-3.5 px-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2.5">
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10.5px] font-bold text-white shadow-2xs shrink-0 ${
-                              resp.isAi 
-                                ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 shadow-purple-500/20' 
-                                : resp.role === 'admin' 
-                                ? 'bg-gradient-to-tr from-emerald-600 to-teal-700 shadow-emerald-500/20' 
-                                : 'bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-blue-500/20'
-                            }`}>
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-xs">
                               {resp.initials}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-bold text-slate-800 dark:text-zinc-200 text-xs truncate max-w-[130px]" title={resp.name}>
+                              <p className="font-semibold text-slate-800 dark:text-zinc-200 text-xs truncate max-w-[130px]" title={resp.name}>
                                 {resp.name}
                               </p>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded-full inline-block ${
-                                  resp.role === 'admin'
-                                    ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-500/20'
-                                    : resp.isAi
-                                    ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-200/60 dark:border-purple-500/20'
-                                    : 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200/60 dark:border-blue-500/20'
-                                }`}>
-                                  {resp.role === 'admin' ? 'Admin' : resp.isAi ? 'IA Bot' : 'Empleado'}
-                                </span>
-                              </div>
+                              <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                {resp.role === 'admin' ? 'Administrador' : resp.isAi ? 'IA Bot' : 'Colaborador'}
+                              </span>
                             </div>
                           </div>
                         </td>
 
-                        {/* 6. Motivo / Concepto */}
-                        <td className="py-3.5 px-4">
-                          <ReasonBadge reason={m.reason} />
-                        </td>
-
-                        {/* 7. Referencia */}
-                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                          {shortRef ? (
-                            <button
-                              type="button"
-                              onClick={(e) => handleCopyRef(m.reference, e)}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-mono text-[11px] bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 transition-colors cursor-pointer group/ref"
-                              title={`Referencia: ${m.reference} (Clic para copiar)`}
-                            >
-                              <span>{shortRef}</span>
-                              {copiedRef === m.reference ? (
-                                <Check size={11} className="text-emerald-500" />
-                              ) : (
-                                <Copy size={11} className="text-slate-400 group-hover/ref:text-slate-600 dark:group-hover/ref:text-white" />
-                              )}
-                            </button>
-                          ) : (
-                            <span className="text-slate-300 dark:text-zinc-600">—</span>
-                          )}
-                        </td>
-
-                        {/* 8. Acciones */}
-                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1">
+                        {/* 6. Acciones */}
+                        <td className="py-4 px-5 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => openEdit(m)}
                               title="Editar registro"
@@ -1578,7 +1547,6 @@ export default function InventoryMovements() {
                             </button>
                           </div>
                         </td>
-
                       </tr>
                     )
                   })}
@@ -1586,15 +1554,13 @@ export default function InventoryMovements() {
               </table>
             </div>
 
-            {/* ── Table Footer & Modern Pagination ── */}
-            <div className="p-3.5 sm:p-4 bg-slate-50/70 dark:bg-zinc-800/40 border-t border-slate-100 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-zinc-400">
-              
+            {/* Table Footer & Pagination */}
+            <div className="p-4 bg-slate-50/70 dark:bg-zinc-800/40 border-t border-slate-100 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-zinc-400">
               <div className="flex items-center gap-3">
                 <span>
                   Mostrando <strong className="text-slate-900 dark:text-white">{Math.min(filtered.length, (currentPage - 1) * pageSize + 1)}</strong> a <strong className="text-slate-900 dark:text-white">{Math.min(filtered.length, currentPage * pageSize)}</strong> de <strong className="text-slate-900 dark:text-white">{filtered.length}</strong> operaciones
                 </span>
 
-                {/* Page Size Select */}
                 <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 dark:border-zinc-700">
                   <span className="text-[11px] text-slate-400">Filas:</span>
                   <select
@@ -1610,7 +1576,6 @@ export default function InventoryMovements() {
                 </div>
               </div>
 
-              {/* Page Navigation */}
               {totalPages > 1 && (
                 <div className="flex items-center gap-1.5">
                   <button
@@ -1661,9 +1626,7 @@ export default function InventoryMovements() {
                   </button>
                 </div>
               )}
-
             </div>
-
           </div>
         )}
 
@@ -1870,7 +1833,13 @@ export default function InventoryMovements() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 dark:text-zinc-400">Tipo de movimiento:</span>
-                <TypeBadge type={confirmDelete.type} />
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                  confirmDelete.type === 'entrada'
+                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
+                    : 'bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
+                }`}>
+                  {confirmDelete.type === 'entrada' ? 'Ingreso (+ Entrada)' : 'Egreso (- Salida)'}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 dark:text-zinc-400">Cantidad afectada:</span>
