@@ -5,14 +5,17 @@ import {
   Calendar, Clock, Package, Check, AlertCircle, FileText,
   Building2, DollarSign, Sparkles, CheckCircle2, ShieldCheck,
   QrCode, Smartphone, CreditCard, Banknote, Copy, Upload, Maximize2,
-  Home, ChevronDown, Minus, Search, AlertTriangle, X
+  Home, ChevronDown, Minus, Search, AlertTriangle, X, Printer,
+  RotateCcw, Zap, CheckCircle
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import PaymentQrModal from '../components/PaymentQrModal'
+import ReceiptModal from '../components/Receipt'
 import { salesService } from '../services/salesService'
 import { productsService } from '../services/productsService'
 import { clientsService } from '../services/clientsService'
 import { usersService } from '../services/usersService'
+import { companySettingsService } from '../services/companySettingsService'
 import { paymentMethodsService } from '../services/paymentMethodsService'
 import { useAuth } from '../context/AuthContext'
 
@@ -27,6 +30,7 @@ export default function NewSale() {
   const [products, setProducts] = useState([])
   const [clients, setClients] = useState([])
   const [sellers, setSellers] = useState([])
+  const [company, setCompany] = useState(null)
   const [loadingData, setLoadingData] = useState(true)
 
   // Document Type & Series
@@ -58,15 +62,36 @@ export default function NewSale() {
   const [notes, setNotes] = useState('')
   const [discount, setDiscount] = useState('')
 
-  const [saving, setSaving] = useState(false)
+  // Processing Animation & Modal States
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingStep, setProcessingStep] = useState(0) // 0: idle, 1: stock check, 2: creating, 3: completed
+  const [createdSale, setCreatedSale] = useState(null)
   const [error, setError] = useState('')
 
-  // Sync serie with docType
+  // Sync serie and labels with docType
   const handleDocTypeChange = (type) => {
     setDocType(type)
-    if (type === 'FACTURA') setSerie('F001')
-    else if (type === 'BOLETA') setSerie('B001')
-    else setSerie('001')
+    if (type === 'FACTURA') {
+      setSerie('F001')
+      if (clientName === 'Cliente General') setClientName('')
+      if (clientPhone === '00000000') setClientPhone('')
+    } else if (type === 'BOLETA') {
+      setSerie('B001')
+    } else {
+      setSerie('001')
+    }
+  }
+
+  // Quick Customer Autofill (Cliente General)
+  const handleQuickClient = () => {
+    if (docType === 'FACTURA') {
+      setClientName('INVERSIONES & SERVICIOS S.A.C.')
+      setClientPhone('20608912345')
+    } else {
+      setClientName('Cliente General')
+      setClientPhone('00000000')
+    }
+    setSelectedClientId('')
   }
 
   // Load initial catalog data
@@ -74,14 +99,16 @@ export default function NewSale() {
     async function init() {
       setLoadingData(true)
       try {
-        const [p, c, u] = await Promise.all([
+        const [p, c, u, comp] = await Promise.all([
           productsService.list().catch(() => []),
           clientsService.list().catch(() => []),
-          usersService.list().catch(() => [])
+          usersService.list().catch(() => []),
+          companySettingsService.get().catch(() => null)
         ])
         setProducts(p || [])
         setClients(c || [])
         setSellers(u || [])
+        setCompany(comp || null)
       } finally {
         setLoadingData(false)
       }
@@ -178,13 +205,37 @@ export default function NewSale() {
     return total - igvAmount
   }, [total, igvAmount])
 
-  // Submit sale creation
+  // Reset form for next sale
+  const handleResetForm = () => {
+    setCreatedSale(null)
+    setClientName('')
+    setClientPhone('')
+    setSelectedClientId('')
+    setPurchaseOrder('')
+    setNotes('')
+    setDiscount('')
+    setCashReceived('')
+    setItems([{ product_id: '', quantity: 1, unit_price: '' }])
+    setIsProcessing(false)
+    setProcessingStep(0)
+  }
+
+  // Submit sale creation with visual animation and instant boleta modal
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
 
     if (!clientName.trim()) {
-      setError('Por favor ingresa o selecciona el nombre o Razón Social del cliente')
+      setError(
+        docType === 'FACTURA'
+          ? 'Por favor ingresa la Razón Social de la empresa'
+          : 'Por favor ingresa o selecciona el nombre del cliente'
+      )
+      return
+    }
+
+    if (docType === 'FACTURA' && (!clientPhone.trim() || clientPhone.trim().length < 11)) {
+      setError('Para emitir una Factura es obligatorio ingresar un R.U.C. válido de 11 dígitos')
       return
     }
 
@@ -207,8 +258,14 @@ export default function NewSale() {
       }
     }
 
-    setSaving(true)
+    // Start sleek processing workflow
+    setIsProcessing(true)
+    setProcessingStep(1) // Step 1: Validating stock & discounts
+
     try {
+      await new Promise((r) => setTimeout(r, 450))
+      setProcessingStep(2) // Step 2: Registering sale in database & updating stock
+
       const saleItems = validItems.map((it) => {
         const prod = products.find((p) => p.id === it.product_id)
         return {
@@ -238,7 +295,7 @@ export default function NewSale() {
         .filter(Boolean)
         .join(' - ')
 
-      await salesService.create({
+      const created = await salesService.create({
         client_name: clientName.trim(),
         client_phone: clientPhone.trim() || undefined,
         user_id: user?.id,
@@ -253,709 +310,679 @@ export default function NewSale() {
         seller_name: sellerName || user?.full_name || user?.email || 'Admin'
       })
 
-      navigate('/ventas', { state: { created: true, clientName } })
+      setProcessingStep(3) // Step 3: Success!
+      await new Promise((r) => setTimeout(r, 550))
+
+      // Present the emitted receipt / boleta modal immediately!
+      setIsProcessing(false)
+      setCreatedSale(created)
     } catch (err) {
+      setIsProcessing(false)
       setError(err.message || 'No se pudo registrar la venta')
-    } finally {
-      setSaving(false)
     }
   }
 
   return (
     <AppLayout title="Nueva Venta">
-      <div className="max-w-[1280px] mx-auto pb-16 space-y-5">
+      <div className="max-w-[1400px] mx-auto space-y-3.5 pb-8 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
-            1. DOCUMENT HEADER & BREADCRUMB (UNIFIED STRIP)
+            0. COMPACT HEADER BAR (ZERO VERTICAL WASTE)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-5 shadow-xs">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/80 dark:border-zinc-800 px-4 py-2.5 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          {/* Back button & Title */}
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => navigate('/ventas')}
+              className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-200 transition-colors cursor-pointer shrink-0"
+              title="Volver a Ventas"
+            >
+              <ArrowLeft size={15} />
+            </button>
 
-            {/* Left: Back button + Title */}
-            <div className="flex items-center gap-3.5">
+            <div>
+              <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-zinc-500">
+                <span>Ventas</span>
+                <span>›</span>
+                <span className="font-semibold text-slate-700 dark:text-zinc-300">
+                  Emitir Comprobante
+                </span>
+              </div>
+              <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight leading-none">
+                Nueva Venta & Facturación
+              </h1>
+            </div>
+          </div>
+
+          {/* Document Type Selector (Boleta / Factura / Nota) */}
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200/80 dark:border-zinc-700 text-xs font-bold">
               <button
                 type="button"
-                onClick={() => navigate('/ventas')}
-                className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-200 transition-colors cursor-pointer shrink-0"
-                title="Volver a Ventas"
+                onClick={() => handleDocTypeChange('BOLETA')}
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  docType === 'BOLETA'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
               >
-                <ArrowLeft size={16} />
+                Boleta (B001)
               </button>
-
-              <div>
-                <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-zinc-500">
-                  <span>Ventas</span>
-                  <span>›</span>
-                  <span className="font-semibold text-slate-700 dark:text-zinc-300">
-                    Emitir Comprobante
-                  </span>
-                </div>
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Nueva Venta & Facturación
-                </h1>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleDocTypeChange('FACTURA')}
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  docType === 'FACTURA'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Factura (F001)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDocTypeChange('NOTA')}
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                  docType === 'NOTA'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Nota de Venta
+              </button>
             </div>
 
-            {/* Right: Document Type Capsule Switcher */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200/80 dark:border-zinc-700 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => handleDocTypeChange('BOLETA')}
-                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                    docType === 'BOLETA'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  Boleta (B001)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDocTypeChange('FACTURA')}
-                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                    docType === 'FACTURA'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  Factura (F001)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDocTypeChange('NOTA')}
-                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                    docType === 'NOTA'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  Nota de Venta
-                </button>
-              </div>
-
-              <span className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-mono font-bold text-xs border border-blue-200/60 dark:border-blue-800/40">
-                Serie: {serie}
-              </span>
-            </div>
-
+            {/* Quick general customer shortcut button */}
+            <button
+              type="button"
+              onClick={handleQuickClient}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Llenar automáticamente con datos de cliente mostrador"
+            >
+              <Zap size={13} className="text-amber-500" />
+              <span className="hidden sm:inline">Cliente Rápido</span>
+            </button>
           </div>
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            2. MAIN INVOICE FORM (STRUCTURED ENTERPRISE DOCUMENT)
+            1. CUSTOMER & ORDER ATTRIBUTES BAR (SLIM 1-ROW GRID)
            ═════════════════════════════════════════════════════════ */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/80 dark:border-zinc-800 p-3 shadow-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5 items-end text-xs">
 
-          {/* ─── SECTION 1: CUSTOMER & ORDER ATTRIBUTES ─── */}
-          <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-zinc-800">
-              <div className="flex items-center gap-2">
-                <User size={16} className="text-blue-600 dark:text-blue-400" />
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Datos del Cliente & Comprobante
-                </h2>
-              </div>
-
-              {clients.length > 0 && (
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-slate-400 font-medium">Autocompletar cliente:</span>
+            {/* Client Name / Razón Social */}
+            <div className="lg:col-span-4">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-zinc-300 flex items-center gap-1">
+                  <User size={12} className="text-blue-600" />
+                  <span>
+                    {docType === 'FACTURA' ? 'Razón Social (Empresa) *' : 'Nombre del Cliente *'}
+                  </span>
+                </label>
+                {clients.length > 0 && (
                   <select
                     value={selectedClientId}
                     onChange={(e) => handleClientSelect(e.target.value)}
-                    className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-slate-800 dark:text-zinc-200 font-semibold outline-none focus:border-blue-600 cursor-pointer max-w-[220px]"
+                    className="text-[10px] bg-transparent text-blue-600 dark:text-blue-400 font-semibold outline-none cursor-pointer"
                   >
-                    <option value="">Seleccionar del catálogo…</option>
+                    <option value="">Buscar en catálogo…</option>
                     {clients.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
                   </select>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
-              {/* Cliente / Razón Social */}
-              <div className="md:col-span-5">
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-300 mb-1">
-                  Cliente / Razón Social <span className="text-blue-600">*</span>
-                </label>
-                <div className="relative">
-                  <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    value={clientName}
-                    onChange={(e) => {
-                      setClientName(e.target.value)
-                      setSelectedClientId('')
-                    }}
-                    placeholder="Ej. DISTRIBUIDORA LIMA S.A.C. / Juan Pérez"
-                    required
-                    className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/90 dark:border-zinc-700 rounded-xl pl-8 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-900 transition-all font-medium"
-                  />
-                </div>
-              </div>
-
-              {/* RUC / DNI / Teléfono */}
-              <div className="md:col-span-3">
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-300 mb-1">
-                  RUC / DNI / Teléfono
-                </label>
-                <div className="relative">
-                  <FileText size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
-                    placeholder="20601234567 / 987654321"
-                    className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/90 dark:border-zinc-700 rounded-xl pl-8 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Vendedor Asignado */}
-              <div className="md:col-span-2">
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-300 mb-1">
-                  Vendedor
-                </label>
-                <select
-                  value={sellerName}
-                  onChange={(e) => setSellerName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/90 dark:border-zinc-700 rounded-xl px-2.5 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-semibold cursor-pointer"
-                >
-                  {sellerOptions.map((s, idx) => (
-                    <option key={idx} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* O.C. / Referencia */}
-              <div className="md:col-span-2">
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-300 mb-1">
-                  O.C. / Referencia
-                </label>
-                <input
-                  type="text"
-                  value={purchaseOrder}
-                  onChange={(e) => setPurchaseOrder(e.target.value)}
-                  placeholder="Ej. OC-1029"
-                  className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/90 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono uppercase"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* ─── SECTION 2: PRODUCTS TABLE (FULL WIDTH, CLEAN ENTERPRISE GRID) ─── */}
-          <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 overflow-hidden shadow-xs">
-            <div className="p-4 sm:p-5 pb-3 flex items-center justify-between border-b border-slate-100 dark:border-zinc-800">
-              <div className="flex items-center gap-2">
-                <Package size={16} className="text-blue-600 dark:text-blue-400" />
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Detalle de Artículos Facturados
-                </h2>
-                <span className="text-xs text-slate-400 font-medium">({items.length} líneas)</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={addItemRow}
-                className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center gap-1.5 border border-blue-200/70 dark:border-blue-800/50 transition-colors cursor-pointer"
-              >
-                <Plus size={14} />
-                <span>Agregar Artículo</span>
-              </button>
-            </div>
-
-            {/* Desktop Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50/70 dark:bg-zinc-800/50 border-b border-slate-200/80 dark:border-zinc-800 text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-                    <th className="py-2.5 px-3 w-10 text-center">#</th>
-                    <th className="py-2.5 px-3 min-w-[280px]">Artículo / Producto</th>
-                    <th className="py-2.5 px-3 w-32 text-center">Stock Disp.</th>
-                    <th className="py-2.5 px-3 w-28 text-center">Cantidad</th>
-                    <th className="py-2.5 px-3 w-36 text-right">P. Unitario (S/)</th>
-                    <th className="py-2.5 px-3 w-32 text-right">Subtotal</th>
-                    <th className="py-2.5 px-3 w-12 text-center"></th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
-                  {items.map((it, idx) => {
-                    const prod = products.find((p) => p.id === it.product_id)
-                    const lineTotal = (Number(it.unit_price) || 0) * (Number(it.quantity) || 0)
-                    const isOverStock = prod && Number(prod.stock) < Number(it.quantity || 1)
-
-                    return (
-                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors">
-                        {/* Number */}
-                        <td className="py-3 px-3 text-center font-bold text-slate-400">
-                          {idx + 1}
-                        </td>
-
-                        {/* Product Select */}
-                        <td className="py-3 px-3">
-                          <select
-                            value={it.product_id}
-                            onChange={(e) => updateItem(idx, { product_id: e.target.value })}
-                            required
-                            className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white font-medium outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-900"
-                          >
-                            <option value="">Selecciona un producto del catálogo…</option>
-                            {products.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.sku ? `[${p.sku}] ` : ''}{p.name} — {fmt(p.sale_price)}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-
-                        {/* Stock */}
-                        <td className="py-3 px-3 text-center whitespace-nowrap">
-                          {prod ? (
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                                isOverStock
-                                  ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
-                                  : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                              }`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full ${isOverStock ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                              <span>{prod.stock} {prod.unit || 'uds.'}</span>
-                            </span>
-                          ) : (
-                            <span className="text-slate-300 dark:text-zinc-600">—</span>
-                          )}
-                        </td>
-
-                        {/* Cantidad with Stepper */}
-                        <td className="py-3 px-3">
-                          <div className="flex items-center justify-center border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800 overflow-hidden w-28 mx-auto">
-                            <button
-                              type="button"
-                              onClick={() => updateItem(idx, { quantity: Math.max(1, Number(it.quantity || 1) - 1) })}
-                              className="px-2 py-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
-                            >
-                              <Minus size={12} />
-                            </button>
-                            <input
-                              type="number"
-                              min="1"
-                              value={it.quantity}
-                              onChange={(e) => updateItem(idx, { quantity: e.target.value })}
-                              required
-                              className="w-12 bg-transparent text-center font-mono font-bold text-xs text-slate-900 dark:text-white outline-none"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => updateItem(idx, { quantity: Number(it.quantity || 1) + 1 })}
-                              className="px-2 py-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
-                            >
-                              <Plus size={12} />
-                            </button>
-                          </div>
-                        </td>
-
-                        {/* P. Unitario */}
-                        <td className="py-3 px-3 text-right">
-                          <div className="relative inline-block w-32">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-[11px]">
-                              S/
-                            </span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={it.unit_price}
-                              onChange={(e) => updateItem(idx, { unit_price: e.target.value })}
-                              placeholder="0.00"
-                              required
-                              className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl pl-7 pr-2.5 py-1.5 text-right font-mono font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
-                            />
-                          </div>
-                        </td>
-
-                        {/* Line Total */}
-                        <td className="py-3 px-3 text-right font-mono font-black text-slate-900 dark:text-white text-xs">
-                          {fmt(lineTotal)}
-                        </td>
-
-                        {/* Delete Row */}
-                        <td className="py-3 px-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => removeItemRow(idx)}
-                            disabled={items.length <= 1}
-                            className="p-1.5 text-slate-300 hover:text-red-600 disabled:opacity-20 disabled:hover:text-slate-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
-                            title="Quitar artículo"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Bottom Add Line Button */}
-            <div className="p-3 bg-slate-50/50 dark:bg-zinc-800/30 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={addItemRow}
-                className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors cursor-pointer"
-              >
-                <Plus size={14} />
-                <span>Agregar otra línea de artículo</span>
-              </button>
-
-              <span className="text-xs font-semibold text-slate-500 font-mono">
-                {items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)} unidades en total
-              </span>
-            </div>
-          </div>
-
-          {/* ─── SECTION 3: BALANCED 2-COLUMN FOOTER (PAYMENT ON LEFT | TOTALS ON RIGHT) ─── */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-
-            {/* LEFT FOOTER: CONDICIÓN & MÉTODO DE PAGO (COL 7) */}
-            <div className="lg:col-span-7 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs flex flex-col justify-between space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                  <div className="flex items-center gap-2">
-                    <Clock size={16} className="text-blue-600 dark:text-blue-400" />
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Condición & Medio de Pago
-                    </h3>
-                  </div>
-
-                  {/* Segmented Contado / Crédito */}
-                  <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl text-xs font-bold">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentStatus('pagado')}
-                      className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                        paymentStatus === 'pagado'
-                          ? 'bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
-                          : 'text-slate-500 hover:text-slate-900'
-                      }`}
-                    >
-                      Al Contado
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentStatus('pendiente')}
-                      className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                        paymentStatus === 'pendiente'
-                          ? 'bg-amber-500 text-white shadow-xs'
-                          : 'text-slate-500 hover:text-slate-900'
-                      }`}
-                    >
-                      A Crédito
-                    </button>
-                  </div>
-                </div>
-
-                {/* When Al Contado: Horizontal compact method pills */}
-                {paymentStatus === 'pagado' ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {/* Efectivo */}
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('efectivo')}
-                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                          paymentMethod === 'efectivo'
-                            ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs ring-1 ring-emerald-400'
-                            : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Banknote size={15} />
-                        <span className="text-[11px] leading-tight">Efectivo</span>
-                      </button>
-
-                      {/* Yape */}
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('yape')}
-                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                          paymentMethod === 'yape'
-                            ? 'bg-[#742284] border-[#742284] text-white font-bold shadow-xs ring-1 ring-purple-400'
-                            : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-purple-50'
-                        }`}
-                      >
-                        <img src="/yape-logo.png" alt="Yape" className="w-4 h-4 rounded-md object-cover" />
-                        <span className="text-[11px] leading-tight font-black">Yape</span>
-                      </button>
-
-                      {/* Plin */}
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('plin')}
-                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                          paymentMethod === 'plin'
-                            ? 'bg-[#00b49f] border-[#00b49f] text-white font-bold shadow-xs ring-1 ring-teal-400'
-                            : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-teal-50'
-                        }`}
-                      >
-                        <img src="/plin-logo.png" alt="Plin" className="w-4 h-4 rounded-full object-cover" />
-                        <span className="text-[11px] leading-tight font-black">Plin</span>
-                      </button>
-
-                      {/* Transferencia */}
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('transferencia')}
-                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                          paymentMethod === 'transferencia'
-                            ? 'bg-blue-600 border-blue-600 text-white font-bold shadow-xs ring-1 ring-blue-400'
-                            : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Building2 size={15} />
-                        <span className="text-[11px] leading-tight">Transf.</span>
-                      </button>
-
-                      {/* Tarjeta */}
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('tarjeta')}
-                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
-                          paymentMethod === 'tarjeta'
-                            ? 'bg-indigo-600 border-indigo-600 text-white font-bold shadow-xs ring-1 ring-indigo-400'
-                            : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
-                        }`}
-                      >
-                        <CreditCard size={15} />
-                        <span className="text-[11px] leading-tight">Tarjeta</span>
-                      </button>
-                    </div>
-
-                    {/* Compact Interactive Panel according to selected method */}
-                    {paymentMethod === 'efectivo' && (
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 flex flex-wrap items-center justify-between gap-3 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-500 font-medium">Monto recibido:</span>
-                          <div className="relative w-28">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono">S/</span>
-                            <input
-                              type="number"
-                              step="0.50"
-                              value={cashReceived}
-                              onChange={(e) => setCashReceived(e.target.value)}
-                              placeholder={total > 0 ? total.toFixed(2) : '0.00'}
-                              className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg pl-6 pr-2 py-1 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-500 font-medium">Vuelto:</span>
-                          <span
-                            className={`font-mono font-black text-sm ${
-                              Number(cashReceived) >= total ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
-                            }`}
-                          >
-                            {Number(cashReceived) >= total ? fmt(Number(cashReceived) - total) : 'S/ 0.00'}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {(paymentMethod === 'yape' || paymentMethod === 'plin') && (
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={paymentMethod === 'yape' ? '/yape-logo.png' : '/plin-logo.png'}
-                            alt={paymentMethod}
-                            className="w-6 h-6 rounded-md object-cover"
-                          />
-                          <div>
-                            <span className="font-bold text-slate-800 dark:text-zinc-200">
-                              {paymentMethod === 'yape' ? 'Pago móvil Yape' : 'Pago móvil Plin'}
-                            </span>
-                            {paymentConfig?.[paymentMethod]?.phone && (
-                              <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500">
-                                <span>{paymentConfig[paymentMethod].phone}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopy(paymentConfig[paymentMethod].phone)}
-                                  className="text-slate-400 hover:text-blue-600"
-                                >
-                                  {copiedText === paymentConfig[paymentMethod].phone ? (
-                                    <Check size={11} className="text-emerald-500" />
-                                  ) : (
-                                    <Copy size={11} />
-                                  )}
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {paymentConfig?.[paymentMethod]?.qr_image && (
-                          <button
-                            type="button"
-                            onClick={() => setShowQrModal(true)}
-                            className="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs flex items-center gap-1.5 hover:opacity-90 transition-opacity cursor-pointer"
-                          >
-                            <QrCode size={13} />
-                            <span>Mostrar QR</span>
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {paymentMethod === 'transferencia' && (
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 text-xs text-slate-600 dark:text-zinc-300 flex items-center justify-between">
-                        <span>Transferencia bancaria / BCP / BBVA habilitada para la orden.</span>
-                        <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
-                          {fmt(total)}
-                        </span>
-                      </div>
-                    )}
-
-                    {paymentMethod === 'tarjeta' && (
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 text-xs text-slate-600 dark:text-zinc-300 flex items-center gap-2">
-                        <CreditCard size={15} className="text-indigo-600 shrink-0" />
-                        <span>Cobro con tarjeta de débito o crédito en terminal POS físico.</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* When A Crédito */
-                  <div className="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/40 space-y-2 text-xs">
-                    <label className="block text-[11px] font-bold text-amber-900 dark:text-amber-200">
-                      Fecha límite de cobro / Vencimiento
-                    </label>
-                    <input
-                      type="date"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 dark:text-white outline-none focus:border-amber-500"
-                    />
-                  </div>
                 )}
               </div>
+              <input
+                type="text"
+                value={clientName}
+                onChange={(e) => {
+                  setClientName(e.target.value)
+                  setSelectedClientId('')
+                }}
+                placeholder={
+                  docType === 'FACTURA'
+                    ? 'Ej. DISTRIBUIDORA INDUSTRIAL S.A.C.'
+                    : 'Ej. Juan Pérez / Cliente General'
+                }
+                required
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-900 font-medium"
+              />
+            </div>
 
-              {/* Compact Notes Field */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-500 dark:text-zinc-400 mb-1">
-                  Observaciones / Instrucciones de entrega (opcional)
-                </label>
+            {/* RUC / DNI */}
+            <div className="lg:col-span-3">
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-300 mb-1">
+                {docType === 'FACTURA' ? 'R.U.C. (11 dígitos) *' : 'D.N.I. / Celular'}
+              </label>
+              <div className="relative">
+                <FileText size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ej. Entregar en sede central / contactar a almacén..."
-                  className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white outline-none focus:border-blue-600"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  placeholder={docType === 'FACTURA' ? '20601234567' : '72345678 / 987654321'}
+                  className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg pl-7 pr-2.5 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono"
                 />
               </div>
             </div>
 
-            {/* RIGHT FOOTER: RESUMEN FINANCIERO & EMISIÓN (COL 5) */}
-            <div className="lg:col-span-5 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs flex flex-col justify-between space-y-4">
-              <div>
-                <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-zinc-800">
-                  <DollarSign size={16} className="text-blue-600 dark:text-blue-400" />
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Resumen Financiero
-                  </h3>
-                </div>
+            {/* Vendedor Asignado */}
+            <div className="lg:col-span-3">
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-300 mb-1">
+                Vendedor Asignado
+              </label>
+              <select
+                value={sellerName}
+                onChange={(e) => setSellerName(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium cursor-pointer"
+              >
+                {sellerOptions.map((s, idx) => (
+                  <option key={idx} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                <div className="space-y-2.5 pt-3 text-xs">
-                  {/* Subtotal */}
-                  <div className="flex justify-between items-center text-slate-600 dark:text-zinc-400">
-                    <span>Op. Gravada / Subtotal:</span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-white">{fmt(netAmount)}</span>
-                  </div>
-
-                  {/* IGV */}
-                  <div className="flex justify-between items-center text-slate-600 dark:text-zinc-400">
-                    <span>I.G.V. (18%):</span>
-                    <span className="font-mono font-semibold">{fmt(igvAmount)}</span>
-                  </div>
-
-                  {/* Descuento Global */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600 dark:text-zinc-400">Descuento Global (S/):</span>
-                    <div className="relative w-24">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={discount}
-                        onChange={(e) => setDiscount(e.target.value)}
-                        placeholder="0.00"
-                        className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-2 py-1 text-right text-xs font-mono font-bold text-amber-600 outline-none focus:border-blue-600"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Grand Total */}
-                  <div className="pt-3 border-t border-slate-200 dark:border-zinc-800 flex justify-between items-baseline">
-                    <div>
-                      <span className="text-xs font-black uppercase text-slate-700 dark:text-zinc-300 tracking-wider">
-                        Total a Pagar:
-                      </span>
-                      <span className="block text-[10px] text-slate-400">Moneda nacional (PEN)</span>
-                    </div>
-                    <span className="text-2xl sm:text-3xl font-black font-mono text-blue-600 dark:text-blue-400 tracking-tight">
-                      {fmt(total)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Error feedback */}
-              {error && (
-                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
-                  <AlertCircle size={15} className="shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-                >
-                  {saving ? (
-                    <span>Emitiendo comprobante…</span>
-                  ) : (
-                    <>
-                      <Check size={16} strokeWidth={3} />
-                      <span>Emitir y Generar Comprobante</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => navigate('/ventas')}
-                  className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-300 font-semibold text-xs transition-colors cursor-pointer"
-                >
-                  Cancelar y Volver
-                </button>
-              </div>
-
-              <div className="text-center text-[10.5px] text-slate-400 flex items-center justify-center gap-1">
-                <ShieldCheck size={13} className="text-emerald-500" />
-                <span>Descuenta existencias del inventario automáticamente</span>
-              </div>
+            {/* O.C. / Referencia */}
+            <div className="lg:col-span-2">
+              <label className="block text-[11px] font-bold text-slate-600 dark:text-zinc-300 mb-1">
+                O.C. / Referencia
+              </label>
+              <input
+                type="text"
+                value={purchaseOrder}
+                onChange={(e) => setPurchaseOrder(e.target.value)}
+                placeholder="Ej. OC-1029"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono uppercase"
+              />
             </div>
 
           </div>
+        </div>
 
-        </form>
+        {/* ═════════════════════════════════════════════════════════
+            2. PRODUCTS TABLE (COMPACT, FAST, WITH INTERNAL SCROLL)
+           ═════════════════════════════════════════════════════════ */}
+        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/80 dark:border-zinc-800 overflow-hidden shadow-xs">
+          <div className="py-2 px-3.5 bg-slate-50/80 dark:bg-zinc-800/60 border-b border-slate-200/80 dark:border-zinc-800 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <Package size={14} className="text-blue-600" />
+              <span className="font-bold text-slate-800 dark:text-zinc-200">
+                Artículos Facturados
+              </span>
+              <span className="text-[11px] text-slate-400 font-mono">({items.length} ítems)</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={addItemRow}
+              className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+            >
+              <Plus size={13} strokeWidth={2.5} />
+              <span>Agregar Fila</span>
+            </button>
+          </div>
+
+          {/* Table with restricted height so it NEVER expands the whole viewport */}
+          <div className="max-h-[220px] overflow-y-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 z-10 bg-white dark:bg-[#141417] border-b border-slate-200 dark:border-zinc-800 text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">
+                <tr>
+                  <th className="py-2 px-3 w-8 text-center">#</th>
+                  <th className="py-2 px-3 min-w-[300px]">Producto / Descripción</th>
+                  <th className="py-2 px-3 w-32 text-center">Stock</th>
+                  <th className="py-2 px-3 w-28 text-center">Cant.</th>
+                  <th className="py-2 px-3 w-32 text-right">P. Unitario (S/)</th>
+                  <th className="py-2 px-3 w-28 text-right">Subtotal</th>
+                  <th className="py-2 px-2 w-10 text-center"></th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
+                {items.map((it, idx) => {
+                  const prod = products.find((p) => p.id === it.product_id)
+                  const lineTotal = (Number(it.unit_price) || 0) * (Number(it.quantity) || 0)
+                  const isOverStock = prod && Number(prod.stock) < Number(it.quantity || 1)
+
+                  return (
+                    <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 transition-colors">
+                      {/* # */}
+                      <td className="py-2 px-3 text-center font-bold text-slate-400">
+                        {idx + 1}
+                      </td>
+
+                      {/* Product select */}
+                      <td className="py-2 px-3">
+                        <select
+                          value={it.product_id}
+                          onChange={(e) => updateItem(idx, { product_id: e.target.value })}
+                          required
+                          className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white font-medium outline-none focus:border-blue-600"
+                        >
+                          <option value="">Selecciona un producto del catálogo…</option>
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.sku ? `[${p.sku}] ` : ''}{p.name} — {fmt(p.sale_price)} (Stock: {p.stock})
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* Stock badge */}
+                      <td className="py-2 px-3 text-center whitespace-nowrap">
+                        {prod ? (
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold ${
+                              isOverStock
+                                ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${isOverStock ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                            <span>{prod.stock} {prod.unit || 'uds.'}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+
+                      {/* Cantidad Stepper */}
+                      <td className="py-2 px-3">
+                        <div className="flex items-center justify-center border border-slate-200 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-800 overflow-hidden w-24 mx-auto">
+                          <button
+                            type="button"
+                            onClick={() => updateItem(idx, { quantity: Math.max(1, Number(it.quantity || 1) - 1) })}
+                            className="px-1.5 py-1 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                          >
+                            <Minus size={11} />
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            value={it.quantity}
+                            onChange={(e) => updateItem(idx, { quantity: e.target.value })}
+                            required
+                            className="w-10 bg-transparent text-center font-mono font-bold text-xs text-slate-900 dark:text-white outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateItem(idx, { quantity: Number(it.quantity || 1) + 1 })}
+                            className="px-1.5 py-1 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                          >
+                            <Plus size={11} />
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* Unit Price */}
+                      <td className="py-2 px-3 text-right">
+                        <div className="relative inline-block w-28">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-[10.5px]">
+                            S/
+                          </span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={it.unit_price}
+                            onChange={(e) => updateItem(idx, { unit_price: e.target.value })}
+                            placeholder="0.00"
+                            required
+                            className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg pl-6 pr-2 py-1 text-right font-mono font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                          />
+                        </div>
+                      </td>
+
+                      {/* Subtotal */}
+                      <td className="py-2 px-3 text-right font-mono font-black text-slate-900 dark:text-white text-xs">
+                        {fmt(lineTotal)}
+                      </td>
+
+                      {/* Delete */}
+                      <td className="py-2 px-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => removeItemRow(idx)}
+                          disabled={items.length <= 1}
+                          className="p-1 text-slate-300 hover:text-red-600 disabled:opacity-20 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                          title="Quitar"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ═════════════════════════════════════════════════════════
+            3. BALANCED BOTTOM SECTION (PAYMENT ON LEFT | TOTALS ON RIGHT)
+           ═════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+
+          {/* LEFT: CONDICIÓN & MÉTODO DE PAGO (COL 7) */}
+          <div className="lg:col-span-7 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/80 dark:border-zinc-800 p-3.5 shadow-xs flex flex-col justify-between space-y-3">
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800">
+                <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
+                  <Clock size={13} className="text-blue-600" />
+                  Forma & Condición de Pago
+                </span>
+
+                {/* Contado / Crédito switch */}
+                <div className="inline-flex items-center p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-lg text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentStatus('pagado')}
+                    className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                      paymentStatus === 'pagado'
+                        ? 'bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                        : 'text-slate-500'
+                    }`}
+                  >
+                    Al Contado
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentStatus('pendiente')}
+                    className={`px-2.5 py-0.5 rounded-md transition-all cursor-pointer ${
+                      paymentStatus === 'pendiente'
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'text-slate-500'
+                    }`}
+                  >
+                    A Crédito
+                  </button>
+                </div>
+              </div>
+
+              {/* Payment Methods (5 compact horizontal pills) */}
+              {paymentStatus === 'pagado' ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {/* Efectivo */}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('efectivo')}
+                      className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        paymentMethod === 'efectivo'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs'
+                          : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Banknote size={14} />
+                      <span className="text-[11px]">Efectivo</span>
+                    </button>
+
+                    {/* Yape */}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('yape')}
+                      className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        paymentMethod === 'yape'
+                          ? 'bg-[#742284] border-[#742284] text-white font-bold shadow-xs'
+                          : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-purple-50'
+                      }`}
+                    >
+                      <img src="/yape-logo.png" alt="Yape" className="w-3.5 h-3.5 rounded-sm object-cover" />
+                      <span className="text-[11px] font-black">Yape</span>
+                    </button>
+
+                    {/* Plin */}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('plin')}
+                      className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        paymentMethod === 'plin'
+                          ? 'bg-[#00b49f] border-[#00b49f] text-white font-bold shadow-xs'
+                          : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-teal-50'
+                      }`}
+                    >
+                      <img src="/plin-logo.png" alt="Plin" className="w-3.5 h-3.5 rounded-full object-cover" />
+                      <span className="text-[11px] font-black">Plin</span>
+                    </button>
+
+                    {/* Transferencia */}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('transferencia')}
+                      className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        paymentMethod === 'transferencia'
+                          ? 'bg-blue-600 border-blue-600 text-white font-bold shadow-xs'
+                          : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Building2 size={13} />
+                      <span className="text-[11px]">Transf.</span>
+                    </button>
+
+                    {/* Tarjeta */}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('tarjeta')}
+                      className={`p-1.5 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        paymentMethod === 'tarjeta'
+                          ? 'bg-indigo-600 border-indigo-600 text-white font-bold shadow-xs'
+                          : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      <CreditCard size={13} />
+                      <span className="text-[11px]">POS</span>
+                    </button>
+                  </div>
+
+                  {/* Compact payment interactive feedback row */}
+                  {paymentMethod === 'efectivo' && (
+                    <div className="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500 font-medium">Monto recibido:</span>
+                        <div className="relative w-24">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-[11px]">S/</span>
+                          <input
+                            type="number"
+                            step="0.50"
+                            value={cashReceived}
+                            onChange={(e) => setCashReceived(e.target.value)}
+                            placeholder={total > 0 ? total.toFixed(2) : '0.00'}
+                            className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-md pl-5 pr-1.5 py-0.5 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-500 font-medium">Vuelto:</span>
+                        <span
+                          className={`font-mono font-black text-xs ${
+                            Number(cashReceived) >= total ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+                          }`}
+                        >
+                          {Number(cashReceived) >= total ? fmt(Number(cashReceived) - total) : 'S/ 0.00'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {(paymentMethod === 'yape' || paymentMethod === 'plin') && (
+                    <div className="p-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-between text-xs">
+                      <span className="text-slate-600 dark:text-zinc-300 font-medium">
+                        {paymentMethod === 'yape' ? 'Pago móvil con Yape' : 'Pago móvil con Plin'}
+                      </span>
+                      {paymentConfig?.[paymentMethod]?.qr_image && (
+                        <button
+                          type="button"
+                          onClick={() => setShowQrModal(true)}
+                          className="px-2.5 py-1 rounded-md bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                        >
+                          <QrCode size={12} />
+                          <span>Ver QR</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 text-xs">
+                  <span className="text-amber-800 dark:text-amber-300 font-semibold">Vencimiento:</span>
+                  <input
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="bg-white dark:bg-zinc-900 border border-amber-300 rounded px-2 py-0.5 text-xs font-mono outline-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Notes in 1 slim input */}
+            <div className="pt-1 border-t border-slate-100 dark:border-zinc-800">
+              <input
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Observaciones / Instrucciones de entrega (opcional)…"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1 text-xs text-slate-800 dark:text-white outline-none focus:border-blue-600"
+              />
+            </div>
+          </div>
+
+          {/* RIGHT: RESUMEN FINANCIERO & EMISIÓN (COL 5) */}
+          <div className="lg:col-span-5 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/80 dark:border-zinc-800 p-3.5 shadow-xs flex flex-col justify-between space-y-3">
+            <div>
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-zinc-800 text-xs">
+                <span className="font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
+                  <DollarSign size={13} className="text-blue-600" />
+                  Liquidación de Venta
+                </span>
+                <span className="font-mono text-[11px] text-slate-400">PEN (S/)</span>
+              </div>
+
+              <div className="space-y-1.5 pt-2 text-xs">
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>Subtotal / Op. Gravada:</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-white">{fmt(netAmount)}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>I.G.V. (18% Incluido):</span>
+                  <span className="font-mono font-semibold">{fmt(igvAmount)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Descuento Global (S/):</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-20 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1.5 py-0.5 text-right font-mono font-bold text-xs text-amber-600 outline-none focus:border-blue-600"
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 dark:border-zinc-800 flex justify-between items-baseline">
+                  <span className="font-black text-xs uppercase text-slate-700 dark:text-zinc-300 tracking-wider">
+                    TOTAL A PAGAR:
+                  </span>
+                  <span className="text-xl sm:text-2xl font-black font-mono text-blue-600 dark:text-blue-400 tracking-tight">
+                    {fmt(total)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-2 rounded-lg bg-red-50 text-red-600 text-xs flex items-center gap-1.5">
+                <AlertCircle size={14} className="shrink-0" />
+                <span className="truncate">{error}</span>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-zinc-800">
+              <button
+                type="submit"
+                disabled={isProcessing}
+                onClick={handleSubmit}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                {isProcessing ? (
+                  <span>Emitiendo comprobante…</span>
+                ) : (
+                  <>
+                    <Check size={16} strokeWidth={3} />
+                    <span>Emitir y Generar Comprobante</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/ventas')}
+                className="w-full py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Cancelar y Volver
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        {/* ═════════════════════════════════════════════════════════
+            OVERLAY: SLEEK EMISSION ANIMATION SCREEN
+           ═════════════════════════════════════════════════════════ */}
+        {isProcessing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-fade-in">
+            <div className="bg-white dark:bg-[#18181b] rounded-2xl border border-slate-200 dark:border-zinc-700 p-6 max-w-sm w-full text-center shadow-2xl space-y-4 animate-slide-up">
+              <div className="w-14 h-14 rounded-full border-3 border-blue-600 border-t-transparent animate-spin mx-auto flex items-center justify-center">
+                <ShoppingCart size={22} className="text-blue-600 animate-pulse" />
+              </div>
+
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Emitiendo Comprobante Electrónico
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                  {processingStep === 1 && 'Validando stock en tiempo real…'}
+                  {processingStep === 2 && 'Generando serie y registrando venta en base de datos…'}
+                  {processingStep === 3 && '¡Comprobante emitido con éxito! Cargando boleta…'}
+                </p>
+              </div>
+
+              <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-blue-600 h-full transition-all duration-300"
+                  style={{
+                    width:
+                      processingStep === 1 ? '35%' : processingStep === 2 ? '75%' : '100%'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═════════════════════════════════════════════════════════
+            MODAL: BOLETA / FACTURA EMITIDA (INSTANT RECEIPT DISPLAY)
+           ═════════════════════════════════════════════════════════ */}
+        {createdSale && (
+          <ReceiptModal
+            sale={createdSale}
+            client={createdSale.client || clients.find((c) => c.name === createdSale.client_name)}
+            products={products}
+            company={company}
+            onClose={() => {
+              setCreatedSale(null)
+              navigate('/ventas', { state: { created: true, clientName } })
+            }}
+          />
+        )}
 
         {/* FULLSCREEN QR CODE MODAL FOR CUSTOMER SCANNING */}
         <PaymentQrModal
