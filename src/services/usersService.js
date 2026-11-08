@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { createClient } from '@supabase/supabase-js'
 import { getCurrentCompanyId } from '../lib/companyContext'
 import { localDb } from '../lib/localDb'
+import { isPlatformAdminEmail, purgeSuperAdminFromLocalCollaborators } from '../lib/superAdmin'
 
 const baseService = createCrudService('profiles', { orderBy: 'full_name', ascending: true })
 
@@ -11,7 +12,10 @@ const COLLAB_STORAGE_KEY = 'cya_registered_collaborators_v1'
 function getLocalCollaborators() {
   try {
     const raw = localStorage.getItem(COLLAB_STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
+    const list = raw ? JSON.parse(raw) : []
+    if (!Array.isArray(list)) return []
+    // Blindaje de seguridad: ningún Super Admin puede figurar como colaborador de empresa
+    return list.filter(u => !isPlatformAdminEmail(u?.email))
   } catch {
     return []
   }
@@ -29,6 +33,11 @@ function invalidateUsersCache() {
 
 function saveLocalCollaborator(user) {
   if (!user) return
+  // Blindaje de seguridad: jamás guardar al Super Admin como colaborador de una empresa
+  if (isPlatformAdminEmail(user?.email)) {
+    console.warn('PROTECCIÓN SUPER ADMIN: Intento bloqueado de registrar cuenta de Super Admin como colaborador.')
+    return
+  }
   try {
     const list = getLocalCollaborators()
     const targetEmail = (user.email || '').toLowerCase().trim()
@@ -106,6 +115,9 @@ export const usersService = {
    * Filtra estrictamente por company_id para garantizar aislamiento total entre empresas.
    */
   async _fetchUsers() {
+    // Saneamiento proactivo de datos residuales
+    purgeSuperAdminFromLocalCollaborators()
+
     let remoteUsers = []
     const companyId = await getCurrentCompanyId().catch(() => null)
     const authData = (isSupabaseConfigured && supabase?.auth)
@@ -117,7 +129,8 @@ export const usersService = {
     if (isSupabaseConfigured && supabase) {
       try {
         // Si tenemos la empresa actual, asegurar que el usuario autenticado quede vinculado a ella si aún no lo estaba
-        if (companyId && currentAuthId) {
+        // (NUNCA vincular a Super Admin a ninguna empresa)
+        if (companyId && currentAuthId && !isPlatformAdminEmail(currentAuthEmail)) {
           supabase
             .from('profiles')
             .update({ company_id: companyId })
@@ -137,7 +150,7 @@ export const usersService = {
         
         const { data, error } = await query
         if (!error && Array.isArray(data) && data.length > 0) {
-          remoteUsers = data
+          remoteUsers = data.filter(u => !isPlatformAdminEmail(u?.email))
         } else if (error) {
           console.warn('Aviso al filtrar perfiles por empresa:', error)
         }
@@ -147,13 +160,13 @@ export const usersService = {
     }
 
     // Obtener colaboradores guardados en almacenamiento local que correspondan a esta empresa
-    let localUsers = getLocalCollaborators().filter(u => 
-      !companyId || !u.company_id || u.company_id === companyId
-    )
+    let localUsers = getLocalCollaborators()
+      .filter(u => !isPlatformAdminEmail(u?.email))
+      .filter(u => !companyId || !u.company_id || u.company_id === companyId)
 
     // Si tanto remotos como locales registrados están vacíos, cargar de localDb (seedData)
     if (remoteUsers.length === 0 && localUsers.length === 0) {
-      const seedProfiles = localDb.getTable('profiles') || []
+      const seedProfiles = (localDb.getTable('profiles') || []).filter(u => !isPlatformAdminEmail(u?.email))
       localUsers = seedProfiles
     }
 
@@ -162,12 +175,12 @@ export const usersService = {
 
     for (const u of remoteUsers) {
       const key = (u.email || u.id || '').toLowerCase().trim()
-      if (key) map.set(key, u)
+      if (key && !isPlatformAdminEmail(key)) map.set(key, u)
     }
 
     for (const u of localUsers) {
       const key = (u.email || u.id || '').toLowerCase().trim()
-      if (key) {
+      if (key && !isPlatformAdminEmail(key)) {
         if (!map.has(key)) {
           map.set(key, u)
         } else {
@@ -179,8 +192,9 @@ export const usersService = {
       }
     }
 
-    // Siempre garantizar que la cuenta del administrador actual esté presente
-    if (currentAuthEmail && !map.has(currentAuthEmail)) {
+    // Siempre garantizar que la cuenta del administrador actual de la empresa esté presente
+    // (Excepto si es el Super Admin de la plataforma)
+    if (currentAuthEmail && !isPlatformAdminEmail(currentAuthEmail) && !map.has(currentAuthEmail)) {
       map.set(currentAuthEmail, {
         id: currentAuthId,
         email: currentAuthEmail,
@@ -191,7 +205,7 @@ export const usersService = {
       })
     }
 
-    const merged = Array.from(map.values())
+    const merged = Array.from(map.values()).filter(u => !isPlatformAdminEmail(u?.email))
     return merged.sort((a, b) => 
       (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '')
     )
@@ -207,6 +221,21 @@ export const usersService = {
     const cleanEmail = email.trim().toLowerCase()
     const cleanName = full_name.trim()
 
+    // 0. BLINDAJE CRÍTICO: Bloquear registro o asignación de Super Admin como colaborador de empresa
+    if (isPlatformAdminEmail(cleanEmail)) {
+      throw new Error(
+        `PROTECCIÓN DE SEGURIDAD: El correo "${cleanEmail}" pertenece a la Administración General de la Plataforma (Super Admin). Está estrictamente prohibido registrarlo como colaborador de una empresa.`
+      )
+    }
+
+    // Validar en local si ya existe para evitar sobrescrituras no deseadas
+    const existingLocalProfiles = localDb.getTable('profiles') || []
+    const alreadyExistsInLocal = existingLocalProfiles.some(p => p.email && p.email.toLowerCase().trim() === cleanEmail)
+    const alreadyExistsInLocalCollab = getLocalCollaborators().some(p => p.email && p.email.toLowerCase().trim() === cleanEmail)
+    if (alreadyExistsInLocal || alreadyExistsInLocalCollab) {
+      throw new Error(`El correo "${cleanEmail}" ya se encuentra registrado en el sistema. No se puede sobrescribir una cuenta existente.`)
+    }
+
     if (isSupabaseConfigured) {
       if (!password || password.trim().length < 6) {
         throw new Error('La contraseña debe tener al menos 6 caracteres.')
@@ -214,15 +243,15 @@ export const usersService = {
 
       const companyId = await getCurrentCompanyId().catch(() => null)
 
-      // 1. Validar si el correo ya existe en otra empresa del sistema
+      // 1. Validar si el correo ya existe en cualquier empresa o perfil del sistema
       const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id, email, company_id')
         .eq('email', cleanEmail)
         .maybeSingle()
 
-      if (existingProfile && existingProfile.company_id && companyId && existingProfile.company_id !== companyId) {
-        throw new Error('Este correo ya está registrado en otra empresa del sistema. No se puede vincular; utiliza un correo diferente.')
+      if (existingProfile) {
+        throw new Error('Este correo ya está registrado en el sistema. No se puede registrar un usuario duplicado ni cambiar su cuenta.')
       }
 
       const url = import.meta.env.VITE_SUPABASE_URL
@@ -251,9 +280,7 @@ export const usersService = {
 
       // Si Supabase devuelve identities vacío, el usuario ya existía en Authentication
       if (!authError && authData?.user?.identities && authData.user.identities.length === 0) {
-        if (existingProfile && existingProfile.company_id && companyId && existingProfile.company_id !== companyId) {
-          throw new Error('Este correo ya tiene una cuenta independiente registrada en otra empresa. Utiliza un correo nuevo para este colaborador.')
-        }
+        throw new Error('Este correo ya tiene una cuenta independiente registrada. Utiliza un correo nuevo para este colaborador.')
       }
 
       if (authError) {
@@ -334,6 +361,9 @@ export const usersService = {
     }
 
     // Modo local / demo
+    if (isPlatformAdminEmail(cleanEmail)) {
+      throw new Error(`PROTECCIÓN DE SEGURIDAD: El correo "${cleanEmail}" pertenece al Super Admin y no puede registrarse como colaborador.`)
+    }
     const createdLocal = baseService.create({
       email: cleanEmail,
       password,
@@ -346,6 +376,9 @@ export const usersService = {
   },
 
   async update(id, patch) {
+    if (patch?.email && isPlatformAdminEmail(patch.email)) {
+      throw new Error('PROTECCIÓN DE SEGURIDAD: No se puede asignar el correo del Super Admin a un usuario.')
+    }
     saveLocalCollaborator({ id, ...patch })
     if (isSupabaseConfigured) {
       try {

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { localDb } from '../lib/localDb'
 import { clearCompanyCache, setCompanyCache } from '../lib/companyContext'
+import { isPlatformAdminEmail, purgeSuperAdminFromLocalCollaborators } from '../lib/superAdmin'
 import AuthOverlay from '../components/ui/AuthOverlay'
 import LogoutConfirmModal from '../components/ui/LogoutConfirmModal'
 
@@ -26,6 +27,9 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let isMounted = true
 
+    // Purgar inmediatamente cualquier residuo de Super Administrador como colaborador
+    purgeSuperAdminFromLocalCollaborators()
+
     if (isSupabaseConfigured) {
       // 1. Temporizador de seguridad: NUNCA dejar la UI bloqueada en loading más de 2s
       const fallbackTimer = setTimeout(() => {
@@ -37,16 +41,19 @@ export function AuthProvider({ children }) {
         if (!isMounted) return
         const session = data?.session
         if (session?.user) {
+          const isSuper = isPlatformAdminEmail(session.user.email)
           const meta = session.user.user_metadata || {}
-          const compId = meta.company_id || getCachedCompanyId() || null
+          const compId = isSuper ? null : (meta.company_id || getCachedCompanyId() || null)
           setUser({
             id: session.user.id,
             email: session.user.email,
-            role: meta.role || 'empleado',
+            role: isSuper ? 'superadmin' : (meta.role || 'empleado'),
+            is_platform_admin: isSuper,
             company_id: compId,
             avatar_url: meta.avatar_url || null
           })
-          if (compId) setCompanyCache(compId)
+          if (isSuper) clearCompanyCache()
+          else if (compId) setCompanyCache(compId)
 
           // Cargar perfil en segundo plano sin bloquear
           loadProfile(session.user).catch(() => {})
@@ -77,21 +84,23 @@ export function AuthProvider({ children }) {
         }
 
         if (session?.user) {
+          const isSuper = isPlatformAdminEmail(session.user.email)
           const meta = session.user.user_metadata || {}
-          const compId = meta.company_id || getCachedCompanyId() || null
+          const compId = isSuper ? null : (meta.company_id || getCachedCompanyId() || null)
 
           setUser((prev) => {
-            if (prev?.id === session.user.id && prev?.company_id) return prev
             return {
               id: session.user.id,
               email: session.user.email,
-              role: meta.role || prev?.role || 'empleado',
-              company_id: prev?.company_id || compId,
+              role: isSuper ? 'superadmin' : (meta.role || prev?.role || 'empleado'),
+              is_platform_admin: isSuper || prev?.is_platform_admin === true,
+              company_id: isSuper ? null : (prev?.company_id || compId),
               avatar_url: meta.avatar_url || prev?.avatar_url || null,
               ...(prev || {})
             }
           })
-          if (compId) setCompanyCache(compId)
+          if (isSuper) clearCompanyCache()
+          else if (compId) setCompanyCache(compId)
           setLoading(false)
 
           // Cargar perfil desacoplado para liberar el lock interno de Supabase
@@ -111,7 +120,23 @@ export function AuthProvider({ children }) {
     }
 
     const raw = localStorage.getItem(SESSION_KEY)
-    if (raw) setUser(JSON.parse(raw))
+    if (raw) {
+      try {
+        let parsed = JSON.parse(raw)
+        if (isPlatformAdminEmail(parsed?.email)) {
+          parsed = {
+            ...parsed,
+            role: 'superadmin',
+            is_platform_admin: true,
+            company_id: null,
+            full_name: parsed.full_name || 'Carlos Yamacacho'
+          }
+          localStorage.setItem(SESSION_KEY, JSON.stringify(parsed))
+          clearCompanyCache()
+        }
+        setUser(parsed)
+      } catch {}
+    }
     setLoading(false)
     setProfileLoaded(true)
   }, [])
@@ -121,6 +146,9 @@ export function AuthProvider({ children }) {
       setProfileLoaded(true)
       return null
     }
+
+    const isSuper = isPlatformAdminEmail(authUser.email)
+
     try {
       // 1. Usar maybeSingle() para obtener perfil de Supabase
       const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle()
@@ -128,11 +156,19 @@ export function AuthProvider({ children }) {
         console.warn('Aviso profiles query:', error.message)
       }
 
-      let companyId = data?.company_id || null
+      let companyId = isSuper ? null : (data?.company_id || null)
 
-      // 2. Si el usuario aún no tiene company_id asignado (sea admin, vendedor o cualquier cuenta),
-      // buscar automáticamente si ya existe una empresa en la base de datos (companies)
-      if (!companyId) {
+      // 2. Si es superadmin, garantizar que no pertenezca a una sola empresa ni se degrade
+      if (isSuper) {
+        companyId = null
+        clearCompanyCache()
+        supabase
+          .from('profiles')
+          .update({ company_id: null, role: 'superadmin' })
+          .eq('id', authUser.id)
+          .catch(() => {})
+      } else if (!companyId) {
+        // Solo para usuarios convencionales: auto-vincular a la primera empresa si no tiene
         try {
           const { data: existingComp } = await supabase
             .from('companies')
@@ -143,7 +179,6 @@ export function AuthProvider({ children }) {
 
           if (existingComp?.id) {
             companyId = existingComp.id
-            // Auto-vincular de forma permanente al usuario con la empresa en la BD
             supabase.from('profiles').update({ company_id: existingComp.id }).eq('id', authUser.id).catch(() => {})
           }
         } catch (e) {
@@ -151,8 +186,8 @@ export function AuthProvider({ children }) {
         }
       }
 
-      // 3. Fallback de caché de empresa guardado en el navegador
-      if (!companyId) {
+      // 3. Fallback de caché de empresa guardado en el navegador (solo si no es superadmin)
+      if (!isSuper && !companyId) {
         companyId = getCachedCompanyId()
       }
 
@@ -160,15 +195,17 @@ export function AuthProvider({ children }) {
       const profile = {
         id: authUser.id,
         email: authUser.email,
-        full_name: data?.full_name || metadata.full_name || authUser.email.split('@')[0],
-        role: data?.role || metadata.role || 'empleado',
-        company_id: companyId || null,
+        full_name: isSuper ? (data?.full_name || 'Carlos Yamacacho') : (data?.full_name || metadata.full_name || authUser.email.split('@')[0]),
+        role: isSuper ? 'superadmin' : (data?.role || metadata.role || 'empleado'),
+        is_platform_admin: isSuper,
+        company_id: isSuper ? null : (companyId || null),
         avatar_url: data?.avatar_url || metadata.avatar_url || null,
         active: data?.active !== false
       }
 
       setUser(profile)
-      if (profile.company_id) setCompanyCache(profile.company_id)
+      if (isSuper) clearCompanyCache()
+      else if (profile.company_id) setCompanyCache(profile.company_id)
 
       // Precarga silenciosa en segundo plano
       setTimeout(() => {
@@ -184,16 +221,18 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.warn('Aviso cargando perfil:', err)
       const metadata = authUser?.user_metadata || {}
-      const compId = getCachedCompanyId() || null
+      const compId = isSuper ? null : (getCachedCompanyId() || null)
       const fallback = {
         id: authUser.id,
         email: authUser.email,
-        role: metadata.role || 'empleado',
+        role: isSuper ? 'superadmin' : (metadata.role || 'empleado'),
+        is_platform_admin: isSuper,
         company_id: compId,
         avatar_url: metadata.avatar_url || null
       }
       setUser(fallback)
-      if (fallback.company_id) setCompanyCache(fallback.company_id)
+      if (isSuper) clearCompanyCache()
+      else if (fallback.company_id) setCompanyCache(fallback.company_id)
       setProfileLoaded(true)
       return fallback
     }
@@ -234,16 +273,19 @@ export function AuthProvider({ children }) {
 
       if (data?.user) {
         const meta = data.user.user_metadata || {}
-        const compId = meta.company_id || getCachedCompanyId() || null
+        const isSuper = isPlatformAdminEmail(data.user.email)
+        const compId = isSuper ? null : (meta.company_id || getCachedCompanyId() || null)
         const initialUser = {
           id: data.user.id,
           email: data.user.email,
-          role: meta.role || 'empleado',
+          role: isSuper ? 'superadmin' : (meta.role || 'empleado'),
+          is_platform_admin: isSuper,
           company_id: compId,
           avatar_url: meta.avatar_url || null
         }
         setUser(initialUser)
-        if (initialUser.company_id) setCompanyCache(initialUser.company_id)
+        if (isSuper) clearCompanyCache()
+        else if (initialUser.company_id) setCompanyCache(initialUser.company_id)
 
         // Cargar perfil completo con timeout de 2.5s para asegurar datos de empresa antes de entrar
         try {
@@ -262,19 +304,44 @@ export function AuthProvider({ children }) {
     }
 
     const profiles = localDb.getTable('profiles')
-    const match = profiles.find((p) => p.email.toLowerCase() === email.toLowerCase() && p.password === password)
+    let match = profiles.find((p) => p.email.toLowerCase() === email.toLowerCase() && p.password === password)
+    const isSuper = isPlatformAdminEmail(cleanEmail)
+
+    // Si es superadmin intentando entrar en modo local, asegurar acceso garantizado
+    if (!match && isSuper && cleanPassword.length >= 4) {
+      match = {
+        id: 'u-superadmin',
+        created_at: new Date().toISOString(),
+        full_name: 'Carlos Yamacacho',
+        email: cleanEmail,
+        password: cleanPassword,
+        role: 'superadmin',
+        is_platform_admin: true,
+        active: true,
+        company_id: null
+      }
+      localDb.insert('profiles', match)
+    }
+
     if (!match) throw new Error('Credenciales incorrectas')
     if (match.active === false) throw new Error('Este usuario está desactivado')
+
+    if (isSuper) {
+      match.role = 'superadmin'
+      match.is_platform_admin = true
+      match.company_id = null
+    }
 
     setAuthTransition({
       type: 'login',
       title: 'Iniciando sesión…',
-      subtitle: 'Cargando tu espacio de trabajo…'
+      subtitle: isSuper ? 'Accediendo al Panel de Super Administrador…' : 'Cargando tu espacio de trabajo…'
     })
 
     const session = { ...match }
     delete session.password
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+    if (isSuper) clearCompanyCache()
     setUser(session)
     await new Promise((r) => setTimeout(r, 650))
     setAuthTransition(null)
@@ -409,17 +476,42 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const isSuperAdminUser = Boolean(
+    user?.is_platform_admin === true ||
+    user?.role === 'superadmin' ||
+    isPlatformAdminEmail(user?.email)
+  )
+
   const needsOnboarding = isSupabaseConfigured &&
     !!user &&
     profileLoaded &&
     !user.company_id &&
     user.role === 'admin' &&
-    !user.is_platform_admin
+    !isSuperAdminUser
 
   const requestLogout = () => setConfirmLogoutOpen(true)
 
   return (
-    <AuthContext.Provider value={{ user, loading, authTransition, setAuthTransition, login, logout, requestLogout, signUp, completeOnboarding, needsOnboarding, loginWithGoogle, loginWithMagicLink, updateProfile, updatePassword, isAdmin: user?.role === 'admin', isPlatformAdmin: user?.is_platform_admin === true }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        authTransition,
+        setAuthTransition,
+        login,
+        logout,
+        requestLogout,
+        signUp,
+        completeOnboarding,
+        needsOnboarding,
+        loginWithGoogle,
+        loginWithMagicLink,
+        updateProfile,
+        updatePassword,
+        isAdmin: user?.role === 'admin' || isSuperAdminUser,
+        isPlatformAdmin: isSuperAdminUser,
+      }}
+    >
       {children}
       <LogoutConfirmModal
         open={confirmLogoutOpen}

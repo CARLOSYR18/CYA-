@@ -12,6 +12,7 @@ import { usersService } from '../services/usersService'
 import { companySettingsService } from '../services/companySettingsService'
 import { getLimits } from '../lib/planLimits'
 import { isSupabaseConfigured } from '../lib/supabaseClient'
+import { isPlatformAdminEmail } from '../lib/superAdmin'
 
 const AVATAR_PALETTES = [
   { bg: 'from-blue-600 to-indigo-700', text: 'text-white' },
@@ -148,6 +149,11 @@ export default function NewUser() {
 
     if (!cleanEmail) {
       setError('El correo electrónico es obligatorio.')
+      return
+    }
+
+    if (isPlatformAdminEmail(cleanEmail)) {
+      setError('PROTECCIÓN DE SEGURIDAD: El correo ingresado pertenece a la Administración General de la Plataforma (Super Admin). No se puede registrar ni asignar como colaborador de ninguna empresa.')
       return
     }
 
@@ -341,6 +347,17 @@ export default function NewUser() {
                       required
                       className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white placeholder:text-slate-400 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-50"
                     />
+                    {isPlatformAdminEmail(form.email) && (
+                      <div className="mt-2 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 rounded-xl text-red-700 dark:text-red-300 text-xs flex items-start gap-2.5 animate-fade-in">
+                        <ShieldAlert size={16} className="shrink-0 text-red-600 dark:text-red-400 mt-0.5" />
+                        <div>
+                          <p className="font-bold">Cuenta de Super Administrador de la Plataforma</p>
+                          <p className="text-[11px] mt-0.5 text-red-600/90 dark:text-red-300/80">
+                            Este correo administra el sistema global SaaS y maneja los planes de todas las empresas. No puede ser registrado como colaborador ni pertenecer a una empresa individual.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Password */}
@@ -594,7 +611,7 @@ export default function NewUser() {
                 {/* PRIMARY SUBMIT BUTTON */}
                 <button
                   type="submit"
-                  disabled={isProcessing || !form.full_name.trim() || !form.email.trim() || limitReached}
+                  disabled={isProcessing || !form.full_name.trim() || !form.email.trim() || limitReached || isPlatformAdminEmail(form.email)}
                   className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isProcessing ? (

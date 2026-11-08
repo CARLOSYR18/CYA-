@@ -264,11 +264,11 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
           <div className="flex items-center gap-3 min-w-0">
             <div
               className={`h-10 ${effectiveCollapsed ? 'w-10' : 'min-w-[40px] max-w-[50px]'} rounded-xl overflow-hidden bg-white/95 shrink-0 flex items-center justify-center border border-white/20 shadow-md p-1`}
-              title={effectiveCollapsed ? (company?.name || 'CLEANIG SERVICE') : undefined}
+              title={isPlatformAdmin ? 'CYA SaaS Platform' : (company?.name || 'CYA ERP')}
             >
               <img
-                src={company?.logo_url || '/logo.png'}
-                alt={company?.name || 'CYA'}
+                src={isPlatformAdmin ? '/logo-cya-badge.png' : (company?.logo_url || '/logo.png')}
+                alt={isPlatformAdmin ? 'CYA Platform' : (company?.name || 'CYA')}
                 className="max-h-full max-w-full w-auto h-auto object-contain"
                 onError={(e) => {
                   e.currentTarget.src = '/logo-cya-badge.png'
@@ -278,10 +278,10 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
             {!effectiveCollapsed && (
               <div className="min-w-0">
                 <p className="font-display font-bold text-white text-[14.5px] leading-tight truncate">
-                  {company?.name || 'CLEANIG SERVICE'}
+                  {isPlatformAdmin ? 'CYA PLATFORM' : (company?.name || 'CYA ERP')}
                 </p>
                 <p className="text-[10.5px] text-blue-300 font-semibold uppercase tracking-wider mt-0.5 truncate">
-                  {company?.ruc ? `RUC: ${company.ruc}` : 'ERP'}
+                  {isPlatformAdmin ? 'SUPER ADMIN GLOBAL' : (company?.ruc ? `RUC: ${company.ruc}` : 'ERP')}
                 </p>
               </div>
             )}
@@ -294,9 +294,29 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
 
         {/* Navigation list with hidden native scrollbar */}
         <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-1.5 no-scrollbar overscroll-contain z-10">
-          {!isPlatformAdmin ? (
-            MODULES.map((mod) => {
-              if (mod.adminOnly && !isAdmin) return null
+          {/* Super Admin Special Master Access Pill */}
+          {isPlatformAdmin && (
+            <div className="mb-2 px-1">
+              <NavLink
+                to="/admin-plataforma"
+                onClick={onClose}
+                title={effectiveCollapsed ? "Panel Super Admin" : undefined}
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 px-3 py-2.5 rounded-2xl text-[13.5px] font-bold transition-all shadow-md ${
+                    isActive
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-amber-500/30'
+                      : 'bg-white/10 hover:bg-white/15 text-amber-300 hover:text-white border border-amber-400/30'
+                  } ${effectiveCollapsed ? 'justify-center px-0' : ''}`
+                }
+              >
+                <ShieldAlert size={18} className="shrink-0 text-amber-300" />
+                {!effectiveCollapsed && <span className="truncate flex-1">Panel Super Admin</span>}
+              </NavLink>
+            </div>
+          )}
+
+          {MODULES.map((mod) => {
+            if (mod.adminOnly && !isAdmin && !isPlatformAdmin) return null
 
               // Single item (Dashboard)
               if (mod.type === 'single') {
@@ -435,10 +455,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
                   )}
                 </div>
               )
-            })
-          ) : (
-            <Item to="/admin-plataforma" label="Panel Plataforma" icon={ShieldAlert} onClick={onClose} isCollapsed={effectiveCollapsed} />
-          )}
+            })}
 
           {/* Help Support Card (exact match to Captura 3) */}
           {!effectiveCollapsed && (
