@@ -4,7 +4,7 @@ import {
   ArrowLeft, Building2, User, Phone, Mail, MapPin, FileText,
   Check, AlertCircle, Sparkles, ShoppingBag, DollarSign,
   ShieldCheck, Eye, MessageCircle, Copy, ExternalLink,
-  CreditCard, Truck, Clock, CheckCircle2
+  CreditCard, Truck, Clock, CheckCircle2, Home, X
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import { suppliersService } from '../services/suppliersService'
@@ -13,8 +13,6 @@ import { productsService } from '../services/productsService'
 
 const fmt = (n) =>
   `S/ ${(Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-
-const fmtN = (n) => (Number(n) || 0).toLocaleString('es-PE')
 
 const AVATAR_PALETTES = [
   { bg: 'from-blue-600 to-indigo-700', text: 'text-white' },
@@ -27,6 +25,7 @@ const AVATAR_PALETTES = [
 
 const getInitials = (name = '') => {
   const parts = name.trim().split(/\s+/)
+  if (!parts[0]) return 'PR'
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase()
 }
@@ -38,28 +37,31 @@ export default function NewSupplier() {
   const { id } = useParams()
   const isEditing = Boolean(id)
 
-  const [form, setForm] = useState({
-    name: '',
-    ruc: '',
-    contact_name: '',
-    email: '',
-    phone: '',
-    address: '',
-    notes: ''
-  })
+  // Form State
+  const [name, setName] = useState('')
+  const [ruc, setRuc] = useState('')
+  const [contactName, setContactName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
+  const [creditTerms, setCreditTerms] = useState('CONTADO') // 'CONTADO' | '15_DIAS' | '30_DIAS' | '60_DIAS'
+  const [notes, setNotes] = useState('')
 
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  // UI States
+  const [loadingInitial, setLoadingInitial] = useState(isEditing)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processingStep, setProcessingStep] = useState(0) // 1: 35%, 2: 75%, 3: 100%
   const [error, setError] = useState('')
-  const [originalSupplier, setOriginalSupplier] = useState(null)
 
-  // Contextual stats for editing mode
+  // Historical data when editing
   const [supplierPurchases, setSupplierPurchases] = useState([])
   const [supplierProducts, setSupplierProducts] = useState([])
 
+  // Load existing supplier if editing
   useEffect(() => {
     async function initData() {
-      setLoading(true)
+      if (!id) return
+      setLoadingInitial(true)
       try {
         const [sups, purches, prods] = await Promise.all([
           suppliersService.list().catch(() => []),
@@ -67,41 +69,36 @@ export default function NewSupplier() {
           productsService.list().catch(() => [])
         ])
 
-        if (isEditing) {
-          const current = (sups || []).find((s) => String(s.id) === String(id))
-          if (current) {
-            setOriginalSupplier(current)
-            setForm({
-              name: current.name || '',
-              ruc: current.ruc || '',
-              contact_name: current.contact_name || '',
-              email: current.email || '',
-              phone: current.phone || '',
-              address: current.address || '',
-              notes: current.notes || ''
-            })
+        const current = (sups || []).find((s) => String(s.id) === String(id))
+        if (current) {
+          setName(current.name || '')
+          setRuc(current.ruc || '')
+          setContactName(current.contact_name || '')
+          setEmail(current.email || '')
+          setPhone(current.phone || '')
+          setAddress(current.address || '')
+          setNotes(current.notes || '')
 
-            const purList = (purches || []).filter((p) => String(p.supplier_id) === String(id))
-            setSupplierPurchases(purList)
+          const purList = (purches || []).filter((p) => String(p.supplier_id) === String(id))
+          setSupplierPurchases(purList)
 
-            const prodList = (prods || []).filter((p) => String(p.supplier_id) === String(id))
-            setSupplierProducts(prodList)
-          } else {
-            setError('No se encontró el proveedor solicitado.')
-          }
+          const prodList = (prods || []).filter((p) => String(p.supplier_id) === String(id))
+          setSupplierProducts(prodList)
+        } else {
+          setError('No se encontró el proveedor solicitado.')
         }
       } catch (err) {
         console.error('Error cargando proveedor:', err)
         setError('Error al conectar con la base de datos.')
       } finally {
-        setLoading(false)
+        setLoadingInitial(false)
       }
     }
 
     initData()
   }, [id, isEditing])
 
-  // Computed summary metrics if editing
+  // Contextual metrics if editing
   const editingMetrics = useMemo(() => {
     const totalOrders = supplierPurchases.length
     const totalSpent = supplierPurchases.reduce((sum, p) => sum + purchasesService.purchaseTotal(p), 0)
@@ -109,33 +106,50 @@ export default function NewSupplier() {
     return { totalOrders, totalSpent, productCount }
   }, [supplierPurchases, supplierProducts])
 
-  // Avatar gradient based on name
+  // Dynamic Avatar gradient based on name
   const avatarStyle = useMemo(() => {
-    const hash = (form.name || 'P').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    const hash = (name || 'PROVEEDOR').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
     return AVATAR_PALETTES[hash % AVATAR_PALETTES.length]
-  }, [form.name])
+  }, [name])
 
-  // Form submission
-  async function handleSubmit(e) {
-    e.preventDefault()
+  // Form submission with 3-phase loading animation
+  const handleSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault()
     setError('')
 
-    const cleanName = form.name.trim()
+    const cleanName = name.trim()
     if (!cleanName) {
-      setError('El nombre o razón social del proveedor es obligatorio.')
+      setError('Por favor, ingresa la Razón Social o Nombre Comercial del proveedor.')
       return
     }
 
-    setSaving(true)
+    if (ruc && ruc.trim().length !== 11 && ruc.trim().length !== 8) {
+      setError('El R.U.C. debe contener 11 dígitos numéricos (o 8 para D.N.I.).')
+      return
+    }
+
+    setIsProcessing(true)
+    setProcessingStep(1) // 35%
+
     try {
+      await new Promise((r) => setTimeout(r, 400))
+      setProcessingStep(2) // 75%
+
+      const finalNotes = [
+        creditTerms !== 'CONTADO' ? `[Condición: ${creditTerms.replace('_', ' ')}]` : '',
+        notes.trim()
+      ]
+        .filter(Boolean)
+        .join(' - ')
+
       const payload = {
         name: cleanName,
-        ruc: form.ruc.trim(),
-        contact_name: form.contact_name.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim(),
-        address: form.address.trim(),
-        notes: form.notes ? form.notes.trim() : ''
+        ruc: ruc.trim() || null,
+        contact_name: contactName.trim() || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        address: address.trim() || null,
+        notes: finalNotes || null
       }
 
       if (isEditing) {
@@ -144,6 +158,10 @@ export default function NewSupplier() {
         await suppliersService.create(payload)
       }
 
+      setProcessingStep(3) // 100%
+      await new Promise((r) => setTimeout(r, 450))
+
+      setIsProcessing(false)
       navigate('/proveedores', {
         state: {
           created: !isEditing,
@@ -152,371 +170,423 @@ export default function NewSupplier() {
         }
       })
     } catch (err) {
-      console.error(err)
-      setError(err.message || 'No se pudo guardar la información del proveedor.')
-      setSaving(false)
+      setIsProcessing(false)
+      setProcessingStep(0)
+      setError(err.message || 'Error al guardar el proveedor en la base de datos.')
     }
   }
 
   return (
-    <AppLayout title={isEditing ? 'Modificar Proveedor' : 'Nuevo Proveedor'}>
-      <div className="space-y-6 max-w-6xl mx-auto pb-16">
+    <AppLayout title={isEditing ? 'Editar Proveedor' : 'Nuevo Proveedor'}>
+      <div className="max-w-6xl mx-auto space-y-3.5 pb-8 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
-            0. EXECUTIVE BREADCRUMB & TOP HEADER BAR
+            0. TOP BAR (COMPACT EXECUTIVE HEADER & BREADCRUMB)
            ═════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#141417] p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-xs">
-          <div className="flex items-center gap-3.5">
+        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3.5 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate('/proveedores')}
-              className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all cursor-pointer shadow-xs active:scale-95"
-              title="Regresar a Proveedores"
+              className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
+              title="Volver a Directorio de Proveedores"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={16} />
             </button>
             <div>
-              <div className="flex items-center gap-2">
-                <Link to="/proveedores" className="text-xs font-semibold text-slate-400 hover:text-brand transition-colors">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+                <span className="hover:text-blue-600 cursor-pointer" onClick={() => navigate('/proveedores')}>
                   Proveedores
-                </Link>
-                <span className="text-xs text-slate-300 dark:text-zinc-600">/</span>
-                <span className="text-xs font-bold text-brand dark:text-blue-400">
-                  {isEditing ? 'Ficha de Proveedor' : 'Nuevo Registro'}
+                </span>
+                <span>/</span>
+                <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                  {isEditing ? 'Editar Registro' : 'Nuevo Proveedor'}
                 </span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight mt-0.5 font-display">
-                {isEditing ? `Editar: ${originalSupplier?.name || form.name}` : 'Registrar Nuevo Proveedor'}
+              <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                {isEditing ? 'Editar Datos del Proveedor' : 'Registrar Nuevo Proveedor Comercial'}
               </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-blue-50 text-brand dark:bg-blue-500/15 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30">
-              <Building2 size={14} /> Cadena de Suministro
-            </span>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => navigate('/proveedores')}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isProcessing}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-blue-500/25 transition-all cursor-pointer disabled:opacity-60"
+            >
+              <Check size={15} strokeWidth={2.5} />
+              <span>{isEditing ? 'Guardar Cambios' : 'Guardar y Registrar Proveedor'}</span>
+            </button>
           </div>
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            ERROR NOTIFICATION
+            1. MAIN FORM GRID: LEFT FORM (7 COLS) + RIGHT PREVIEW (5 COLS)
            ═════════════════════════════════════════════════════════ */}
-        {error && (
-          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2.5 shadow-xs animate-slide-up">
-            <AlertCircle size={18} className="shrink-0 text-rose-600 dark:text-rose-400" />
-            <span className="font-semibold">{error}</span>
+        {loadingInitial ? (
+          <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-16 flex flex-col items-center justify-center text-center">
+            <div className="w-10 h-10 rounded-full border-3 border-blue-600 border-t-transparent animate-spin mb-3" />
+            <p className="text-xs text-slate-500">Cargando datos del proveedor…</p>
           </div>
-        )}
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
 
-        {/* ═════════════════════════════════════════════════════════
-            MAIN FORM: 2 COLUMNS (FISCAL & CONTACT | LIVE PREVIEW)
-           ═════════════════════════════════════════════════════════ */}
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            {/* ─── LEFT COLUMN: COMPACT FORM CARDS (7 COLS) ─── */}
+            <div className="lg:col-span-7 space-y-3.5">
 
-            {/* ─── LEFT COLUMN: SUPPLIER DATA & TERMS (7 COLS) ─── */}
-            <div className="lg:col-span-7 space-y-5">
-
-              {/* CARD 1: FISCAL & IDENTIFICATION DATA */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                  <div className="flex items-center gap-2">
-                    <Building2 size={16} className="text-brand dark:text-blue-400" />
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                      1. Identificación Fiscal y Comercial
+              {/* CARD 1: IDENTIFICACIÓN FISCAL & COMERCIAL */}
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-xs space-y-3">
+                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-zinc-800">
+                  <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <Building2 size={15} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                      1. Identificación Fiscal & Comercial
                     </h3>
                   </div>
-                  <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium">Campos obligatorios *</span>
                 </div>
 
-                <div className="space-y-4">
-                  {/* Company Name */}
+                <div className="space-y-3 text-xs sm:text-sm">
+                  {/* Razón Social */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
-                      Nombre Comercial / Razón Social *
+                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Nombre Comercial / Razón Social <span className="text-rose-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      placeholder="Ej: Distribuidora Tech SAC, Importaciones Lima EIRL…"
-                      required
-                      autoFocus
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 font-semibold outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* RUC / Tax ID */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
-                        RUC / Documento Tributario
-                      </label>
+                    <div className="relative">
+                      <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type="text"
-                        value={form.ruc}
-                        maxLength={11}
-                        onChange={(e) => setForm({ ...form, ruc: e.target.value.replace(/\D/g, '') })}
-                        placeholder="Ej: 20601234567"
-                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Ej. Distribuidora Tecnológica S.A.C."
+                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium"
                       />
-                      <p className="text-[10.5px] text-slate-400 dark:text-zinc-500 mt-1">
-                        {form.ruc.length === 11 ? (
-                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                            <CheckCircle2 size={12} /> Formato RUC válido (11 dígitos)
-                          </span>
-                        ) : (
-                          'RUC válido en SUNAT (11 dígitos)'
-                        )}
-                      </p>
+                    </div>
+                  </div>
+
+                  {/* RUC & Contacto en 2 columnas */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                        R.U.C. (11 dígitos)
+                      </label>
+                      <div className="relative">
+                        <FileText size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={ruc}
+                          onChange={(e) => setRuc(e.target.value)}
+                          placeholder="20601234567"
+                          maxLength={11}
+                          className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono"
+                        />
+                      </div>
                     </div>
 
-                    {/* Contact Person */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
                         Persona de Contacto
                       </label>
+                      <div className="relative">
+                        <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          value={contactName}
+                          onChange={(e) => setContactName(e.target.value)}
+                          placeholder="Ej. Ing. Carlos Mendoza"
+                          className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 2: CANALES DE CONTACTO & UBICACIÓN */}
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-xs space-y-3">
+                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-zinc-800">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <Phone size={15} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                      2. Vías de Contacto & Dirección Fiscal
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-xs sm:text-sm">
+                  {/* Teléfono & Correo en 2 columnas */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                        Teléfono / WhatsApp
+                      </label>
+                      <div className="relative">
+                        <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="Ej. 987 654 321"
+                          className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                        Correo Electrónico
+                      </label>
+                      <div className="relative">
+                        <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="ventas@proveedor.com"
+                          className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dirección Fiscal */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Dirección Fiscal / Almacén Central
+                    </label>
+                    <div className="relative">
+                      <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type="text"
-                        value={form.contact_name}
-                        onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
-                        placeholder="Ej: Carlos Vega (Ejecutivo de Ventas)"
-                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Ej. Av. Argentina 1450, Lima"
+                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium"
                       />
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* CARD 2: CONTACT CHANNELS & LOCATION */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                  <div className="flex items-center gap-2">
-                    <Phone size={16} className="text-brand dark:text-blue-400" />
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                      2. Canales de Contacto y Ubicación
+              {/* CARD 3: TÉRMINOS COMERCIALES & NOTAS */}
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-xs space-y-3">
+                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100 dark:border-zinc-800">
+                  <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <CreditCard size={15} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                      3. Condiciones Comerciales & Notas Internas
                     </h3>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Phone / WhatsApp */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
-                      Teléfono / WhatsApp
+                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Condición de Pago Habitual
+                    </label>
+                    <select
+                      value={creditTerms}
+                      onChange={(e) => setCreditTerms(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium cursor-pointer"
+                    >
+                      <option value="CONTADO">Pago al Contado</option>
+                      <option value="15_DIAS">Crédito a 15 días</option>
+                      <option value="30_DIAS">Crédito a 30 días</option>
+                      <option value="60_DIAS">Crédito a 60 días</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Notas Internas / Observaciones
                     </label>
                     <input
                       type="text"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      placeholder="Ej: +51 987 654 321"
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Ej. Descuento por compras mayores a 100 uds."
+                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium"
                     />
                   </div>
-
-                  {/* Email */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
-                      Correo Electrónico
-                    </label>
-                    <input
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      placeholder="Ej: [email protected]"
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
-                    />
-                  </div>
-
-                  {/* Fiscal Address */}
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
-                      Dirección Fiscal / Almacén Central
-                    </label>
-                    <input
-                      type="text"
-                      value={form.address}
-                      onChange={(e) => setForm({ ...form, address: e.target.value })}
-                      placeholder="Ej: Av. Argentina 450, Cercado de Lima, Lima"
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* CARD 3: COMMERCIAL TERMS & NOTES (OPTIONAL) */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                  <div className="flex items-center gap-2">
-                    <FileText size={16} className="text-brand dark:text-blue-400" />
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                      3. Términos Comerciales y Notas Internas
-                    </h3>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
-                    Condiciones de Pago y Entrega (Opcional)
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={form.notes}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    placeholder="Ej: Crédito a 15 días, entrega en almacén central, cuenta corriente BCP soles…"
-                    className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500 leading-relaxed"
-                  />
                 </div>
               </div>
 
             </div>
 
-            {/* ─── RIGHT COLUMN: LIVE PREVIEW & ACTIONS (5 COLS) ─── */}
-            <div className="lg:col-span-5 space-y-5">
+            {/* ─── RIGHT COLUMN: LIVE CARD PREVIEW & ACTIONS (5 COLS) ─── */}
+            <div className="lg:col-span-5 space-y-3.5">
 
-              {/* CARD: LIVE SUPPLIER CARD PREVIEW */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-3.5">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                  <div className="flex items-center gap-2">
-                    <Eye size={16} className="text-brand dark:text-blue-400" />
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                      Ficha Comercial en Tiempo Real
-                    </h3>
+              {/* CARD PREVIEW IN REAL TIME */}
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-amber-500" />
+                    <span className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                      Vista Previa de Ficha
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-500/20">
-                    En vivo
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                    En Tiempo Real
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-400 dark:text-zinc-500">
-                  Así se presentará la tarjeta en el directorio de compras:
-                </p>
-
-                {/* THE MOCK CARD */}
-                <div className="bg-white dark:bg-[#18181c] rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm space-y-4">
+                {/* The Supplier Card Replica */}
+                <div className="bg-slate-50/70 dark:bg-zinc-800/40 rounded-2xl border border-slate-200/80 dark:border-zinc-700 p-4 space-y-3">
                   <div className="flex items-start gap-3">
                     <div
-                      className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${avatarStyle.bg} flex items-center justify-center font-black text-base text-white shrink-0 shadow-xs`}
+                      className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${avatarStyle.bg} flex items-center justify-center font-black text-sm text-white shrink-0 shadow-xs`}
                     >
-                      {getInitials(form.name || 'PR')}
+                      {getInitials(name)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="font-bold text-slate-900 dark:text-zinc-100 text-base leading-snug truncate">
-                        {form.name.trim() || 'Razón Social del Proveedor'}
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm leading-snug truncate">
+                        {name || 'Razón Social del Proveedor'}
                       </h4>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs font-mono font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">
-                          {form.ruc ? `RUC ${form.ruc}` : 'RUC Pendiente'}
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="inline-block px-2 py-0.5 rounded-md font-mono text-[10.5px] font-bold bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                          {ruc ? `RUC ${ruc}` : 'RUC Pendiente'}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Contact details */}
-                  <div className="space-y-2 text-xs pt-3 border-t border-slate-100 dark:border-zinc-800 text-slate-600 dark:text-zinc-400">
+                  {/* Contact Info preview */}
+                  <div className="space-y-1.5 text-xs text-slate-600 dark:text-zinc-400 pt-2 border-t border-slate-200/60 dark:border-zinc-700/60">
                     <div className="flex items-center gap-2">
-                      <User size={13} className="text-slate-400 shrink-0" />
+                      <User size={12} className="text-slate-400 shrink-0" />
                       <span className="truncate">
-                        Contacto: <strong className="text-slate-800 dark:text-zinc-200">{form.contact_name || 'No especificado'}</strong>
+                        Contacto: <strong>{contactName || 'No especificado'}</strong>
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Phone size={13} className="text-slate-400 shrink-0" />
-                      <span className="truncate font-mono">{form.phone || 'Sin teléfono'}</span>
+                      <Phone size={12} className="text-slate-400 shrink-0" />
+                      <span className="truncate font-mono">{phone || 'Sin teléfono'}</span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Mail size={13} className="text-slate-400 shrink-0" />
-                      <span className="truncate">{form.email || 'Sin correo electrónico'}</span>
+                      <Mail size={12} className="text-slate-400 shrink-0" />
+                      <span className="truncate">{email || 'Sin correo electrónico'}</span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <MapPin size={13} className="text-slate-400 shrink-0" />
-                      <span className="truncate">{form.address || 'Sin dirección fiscal'}</span>
+                      <MapPin size={12} className="text-slate-400 shrink-0" />
+                      <span className="truncate">{address || 'Sin dirección fiscal'}</span>
                     </div>
                   </div>
 
-                  {/* Micro stats preview */}
-                  <div className="grid grid-cols-2 gap-2 text-center pt-2">
-                    <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-2 border border-slate-100 dark:border-zinc-800">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Órdenes</p>
-                      <p className="font-extrabold text-slate-900 dark:text-zinc-100 text-sm font-display">
-                        {isEditing ? editingMetrics.totalOrders : 0} compras
+                  {/* Metrics footer preview */}
+                  <div className="pt-2 border-t border-slate-200/60 dark:border-zinc-700/60 grid grid-cols-2 gap-2 text-center text-xs">
+                    <div className="bg-white dark:bg-zinc-800 p-2 rounded-xl border border-slate-200/80 dark:border-zinc-700">
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Compras</p>
+                      <p className="font-mono font-bold text-slate-900 dark:text-white">
+                        {isEditing ? `${editingMetrics.totalOrders} órdenes` : '0 órdenes'}
                       </p>
                     </div>
 
-                    <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-2 border border-slate-100 dark:border-zinc-800">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total Invertido</p>
-                      <p className="font-extrabold text-brand dark:text-blue-400 text-sm font-display truncate">
+                    <div className="bg-white dark:bg-zinc-800 p-2 rounded-xl border border-slate-200/80 dark:border-zinc-700">
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Total Invertido</p>
+                      <p className="font-mono font-bold text-blue-600 dark:text-blue-400">
                         {isEditing ? fmt(editingMetrics.totalSpent) : 'S/ 0.00'}
                       </p>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* CARD: CONTEXTUAL STATS (IF EDITING) */}
-              {isEditing && (
-                <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs space-y-3">
-                  <div className="flex items-center gap-2 text-slate-900 dark:text-zinc-100 font-bold text-sm">
-                    <ShoppingBag size={16} className="text-brand dark:text-blue-400" />
-                    <span>Relación Comercial y Compras</span>
+                {error && (
+                  <div className="p-2.5 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-1.5">
+                    <AlertCircle size={15} className="shrink-0" />
+                    <span className="truncate">{error}</span>
                   </div>
+                )}
 
-                  <div className="space-y-2 text-xs text-slate-600 dark:text-zinc-400">
-                    <div className="flex justify-between py-1 border-b border-slate-100 dark:border-zinc-800">
-                      <span>Órdenes de compra registradas:</span>
-                      <strong className="text-slate-900 dark:text-zinc-100">{editingMetrics.totalOrders}</strong>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100 dark:border-zinc-800">
-                      <span>Inversión total acumulada:</span>
-                      <strong className="text-brand dark:text-blue-400 font-bold">{fmt(editingMetrics.totalSpent)}</strong>
-                    </div>
-                    <div className="flex justify-between py-1">
-                      <span>SKUs provistos en catálogo:</span>
-                      <strong className="text-slate-900 dark:text-zinc-100">{editingMetrics.productCount} artículos</strong>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* CARD: SUBMIT & CANCEL BUTTONS */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs space-y-3">
-                <button
-                  type="submit"
-                  disabled={saving || !form.name.trim()}
-                  className="w-full py-3 px-4 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow-card active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {saving ? (
-                    <>
-                      <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                {/* Main Action Button */}
+                <div className="space-y-2 pt-2">
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={handleSubmit}
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  >
+                    {isProcessing ? (
                       <span>Guardando proveedor…</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check size={16} />
-                      <span>{isEditing ? 'Guardar Cambios' : 'Registrar Proveedor'}</span>
-                    </>
-                  )}
-                </button>
+                    ) : (
+                      <>
+                        <Check size={16} strokeWidth={3} />
+                        <span>{isEditing ? 'Guardar Cambios' : 'Registrar Proveedor'}</span>
+                      </>
+                    )}
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => navigate('/proveedores')}
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-50 dark:bg-zinc-800/80 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer border border-slate-200 dark:border-zinc-700"
-                >
-                  Cancelar y Regresar
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/proveedores')}
+                    className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer text-center"
+                  >
+                    Cancelar y Regresar
+                  </button>
+                </div>
+
+                <div className="pt-2 text-center text-[10.5px] text-slate-400 flex items-center justify-center gap-1">
+                  <ShieldCheck size={13} className="text-emerald-500" />
+                  <span>Vinculación instantánea al catálogo de abastecimiento</span>
+                </div>
               </div>
 
             </div>
 
           </div>
-        </form>
+        )}
+
+        {/* ═════════════════════════════════════════════════════════
+            OVERLAY: 3-STEP LOADING ANIMATION SCREEN
+           ═════════════════════════════════════════════════════════ */}
+        {isProcessing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-fade-in">
+            <div className="bg-white dark:bg-[#18181b] rounded-2xl border border-slate-200 dark:border-zinc-700 p-6 max-w-sm w-full text-center shadow-2xl space-y-4 animate-slide-up">
+              <div className="w-14 h-14 rounded-full border-3 border-blue-600 border-t-transparent animate-spin mx-auto flex items-center justify-center">
+                <Building2 size={22} className="text-blue-600 animate-pulse" />
+              </div>
+
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  {isEditing ? 'Actualizando Proveedor' : 'Registrando Nuevo Proveedor'}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                  {processingStep === 1 && 'Validando razón social y formato tributario…'}
+                  {processingStep === 2 && 'Guardando expediente en base de datos protegida…'}
+                  {processingStep === 3 && '¡Proveedor guardado con éxito! Redirigiendo…'}
+                </p>
+              </div>
+
+              <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-blue-600 h-full transition-all duration-300"
+                  style={{
+                    width: processingStep === 1 ? '35%' : processingStep === 2 ? '75%' : '100%'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </AppLayout>
   )
 }
-
