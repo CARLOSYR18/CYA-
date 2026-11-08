@@ -5,33 +5,33 @@ import { ThemeProvider } from './context/ThemeContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import Assistant from './components/Assistant'
 
-// Core pages (loaded synchronously for instant startup)
+// Core ERP pages (loaded synchronously for instant, zero-flicker transitions)
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Products from './pages/Products'
+import NewProduct from './pages/NewProduct'
+import Categories from './pages/Categories'
+import NewCategory from './pages/NewCategory'
+import InventoryMovements from './pages/InventoryMovements'
+import Sales from './pages/Sales'
+import NewSale from './pages/NewSale'
+import Purchases from './pages/Purchases'
+import NewPurchase from './pages/NewPurchase'
+import Clients from './pages/Clients'
+import Suppliers from './pages/Suppliers'
+import NewSupplier from './pages/NewSupplier'
+import Users from './pages/Users'
+import NewUser from './pages/NewUser'
+import EmployeeActivity from './pages/EmployeeActivity'
+import CompanySettings from './pages/CompanySettings'
+import Plans from './pages/Plans'
+import PlatformAdmin from './pages/PlatformAdmin'
+import Profile from './pages/Profile'
+import NotFound from './pages/NotFound'
 
-// Lazy-loaded pages (loaded on demand for maximum mobile speed & fluid transitions)
+// Infrequent pages loaded on demand
 const SignUp = lazy(() => import('./pages/SignUp'))
 const Onboarding = lazy(() => import('./pages/Onboarding'))
-const Products = lazy(() => import('./pages/Products'))
-const NewProduct = lazy(() => import('./pages/NewProduct'))
-const Categories = lazy(() => import('./pages/Categories'))
-const NewCategory = lazy(() => import('./pages/NewCategory'))
-const InventoryMovements = lazy(() => import('./pages/InventoryMovements'))
-const Sales = lazy(() => import('./pages/Sales'))
-const NewSale = lazy(() => import('./pages/NewSale'))
-const Purchases = lazy(() => import('./pages/Purchases'))
-const NewPurchase = lazy(() => import('./pages/NewPurchase'))
-const Clients = lazy(() => import('./pages/Clients'))
-const Suppliers = lazy(() => import('./pages/Suppliers'))
-const NewSupplier = lazy(() => import('./pages/NewSupplier'))
-const Users = lazy(() => import('./pages/Users'))
-const NewUser = lazy(() => import('./pages/NewUser'))
-const EmployeeActivity = lazy(() => import('./pages/EmployeeActivity'))
-const CompanySettings = lazy(() => import('./pages/CompanySettings'))
-const Plans = lazy(() => import('./pages/Plans'))
-const PlatformAdmin = lazy(() => import('./pages/PlatformAdmin'))
-const Profile = lazy(() => import('./pages/Profile'))
-const NotFound = lazy(() => import('./pages/NotFound'))
 
 export default function App() {
   return (
