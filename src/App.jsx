@@ -18,6 +18,7 @@ import NewSale from './pages/NewSale'
 import Purchases from './pages/Purchases'
 import NewPurchase from './pages/NewPurchase'
 import Clients from './pages/Clients'
+import NewClient from './pages/NewClient'
 import Suppliers from './pages/Suppliers'
 import NewSupplier from './pages/NewSupplier'
 import Users from './pages/Users'
@@ -63,6 +64,8 @@ export default function App() {
               <Route path="/compras" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
               <Route path="/compras/nueva" element={<ProtectedRoute><NewPurchase /></ProtectedRoute>} />
               <Route path="/clientes" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+              <Route path="/clientes/nuevo" element={<ProtectedRoute><NewClient /></ProtectedRoute>} />
+              <Route path="/clientes/editar/:id" element={<ProtectedRoute><NewClient /></ProtectedRoute>} />
               <Route path="/proveedores" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
               <Route path="/proveedores/nuevo" element={<ProtectedRoute><NewSupplier /></ProtectedRoute>} />
               <Route path="/proveedores/editar/:id" element={<ProtectedRoute><NewSupplier /></ProtectedRoute>} />

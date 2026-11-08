@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Users, Phone, Calendar, TrendingUp, ChevronRight, Search, X,
   ArrowUpDown, List, LayoutGrid, DollarSign, Clock,
@@ -47,20 +47,22 @@ const getWhatsAppUrl = (phone, name) => {
   return `https://wa.me/${fullNumber}?text=${text}`
 }
 
-const emptyForm = {
-  name: '',
-  phone: '',
-  document_number: '',
-  email: '',
-  address: '',
-  notes: ''
-}
-
 export default function Clients() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [clients, setClients] = useState(() => clientsService.getCached?.() || [])
   const [loading, setLoading] = useState(() => !clientsService.hasCache?.())
   const [successToast, setSuccessToast] = useState('')
+
+  // Watch for state passed from NewClient page
+  useEffect(() => {
+    if (location.state?.created && location.state?.clientName) {
+      const action = location.state.isEditing ? 'actualizado' : 'registrado'
+      setSuccessToast(`¡Cliente "${location.state.clientName}" ${action} con éxito en la cartera!`)
+      window.history.replaceState({}, document.title)
+      loadAll()
+    }
+  }, [location.state])
 
   // Selection & Details (Expediente Dossier)
   const [selected, setSelected] = useState(null)
@@ -78,13 +80,6 @@ export default function Clients() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(12)
-
-  // Create / Edit Modal
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingClient, setEditingClient] = useState(null)
-  const [form, setForm] = useState(emptyForm)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
 
   // Delete confirmation
   const [confirmDelete, setConfirmDelete] = useState(null)
@@ -322,63 +317,12 @@ export default function Clients() {
   }
 
   const openCreate = () => {
-    setEditingClient(null)
-    setForm(emptyForm)
-    setError('')
-    setModalOpen(true)
+    navigate('/clientes/nuevo')
   }
 
   const openEdit = (client, e) => {
     e?.stopPropagation()
-    setEditingClient(client)
-    setForm({
-      name: client.name || '',
-      phone: client.phone || '',
-      document_number: client.document_number || '',
-      email: client.email || '',
-      address: client.address || '',
-      notes: client.notes || ''
-    })
-    setError('')
-    setModalOpen(true)
-  }
-
-  const handleSubmitClient = async (e) => {
-    e.preventDefault()
-    setError('')
-
-    const trimmedName = form.name.trim()
-    if (!trimmedName) {
-      setError('El nombre o razón social del cliente es obligatorio')
-      return
-    }
-
-    setSaving(true)
-    try {
-      const payload = {
-        name: trimmedName,
-        phone: form.phone.trim() || null,
-        document_number: form.document_number.trim() || null,
-        email: form.email.trim() || null,
-        address: form.address.trim() || null,
-        notes: form.notes.trim() || null
-      }
-
-      if (editingClient) {
-        await clientsService.update(editingClient.id, payload)
-        setSuccessToast(`Cliente "${trimmedName}" actualizado con éxito.`)
-      } else {
-        await clientsService.create(payload)
-        setSuccessToast(`Cliente "${trimmedName}" registrado con éxito.`)
-      }
-
-      setModalOpen(false)
-      loadAll()
-    } catch (err) {
-      setError(err.message || 'No se pudo guardar la información del cliente')
-    } finally {
-      setSaving(false)
-    }
+    navigate(`/clientes/editar/${client.id}`)
   }
 
   const handleDeleteClient = async () => {
@@ -1628,108 +1572,7 @@ export default function Clients() {
       </Modal>
 
       {/* ═════════════════════════════════════════════════════════
-          6. CREATE / EDIT CLIENT MODAL
-         ═════════════════════════════════════════════════════════ */}
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editingClient ? 'Editar Datos del Cliente' : 'Registrar Nuevo Cliente'}
-        width="max-w-lg"
-      >
-        <form onSubmit={handleSubmitClient} className="space-y-4">
-          <div>
-            <label className="label">Nombre Completo o Razón Social *</label>
-            <input
-              required
-              className="field dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
-              placeholder="Ej. Distribuidora Lima S.A.C. / Juan Pérez"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">Teléfono / WhatsApp</label>
-              <input
-                className="field dark:bg-zinc-800 dark:border-zinc-700 dark:text-white font-mono"
-                placeholder="Ej. 987 654 321"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">DNI / RUC</label>
-              <input
-                className="field dark:bg-zinc-800 dark:border-zinc-700 dark:text-white font-mono"
-                placeholder="Ej. 20601234567"
-                value={form.document_number}
-                onChange={(e) => setForm({ ...form, document_number: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">Correo Electrónico</label>
-              <input
-                type="email"
-                className="field dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
-                placeholder="Ej. cliente@gmail.com"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">Dirección de Entrega</label>
-              <input
-                className="field dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
-                placeholder="Ej. Av. Larco 456, Lima"
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="label">Notas y Preferencias Comerciales</label>
-            <textarea
-              rows={2}
-              className="field dark:bg-zinc-800 dark:border-zinc-700 dark:text-white resize-none"
-              placeholder="Ej. Solicita comprobante con RUC, prefiere entregas por las tardes..."
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-          </div>
-
-          {error && (
-            <div className="text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 rounded-xl p-3 flex items-center gap-2">
-              <AlertTriangle size={15} className="shrink-0 text-rose-600 dark:text-rose-400" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-zinc-800">
-            <button
-              type="button"
-              onClick={() => setModalOpen(false)}
-              className="btn-secondary"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn-primary"
-            >
-              {saving ? 'Guardando…' : editingClient ? 'Guardar Cambios' : 'Registrar Cliente'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* ═════════════════════════════════════════════════════════
-          7. CONFIRM DELETE CLIENT MODAL
+          6. CONFIRM DELETE CLIENT MODAL
          ═════════════════════════════════════════════════════════ */}
       <Modal
         open={!!confirmDelete}
