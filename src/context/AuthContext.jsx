@@ -361,7 +361,15 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email, password, options: { data: { full_name: fullName } },
     })
-    if (error) throw error
+    if (error) {
+      const msg = (error.message || '').toLowerCase()
+      if (msg.includes('rate limit') || error.status === 429) {
+        throw new Error(
+          'Límite de correos excedido en Supabase al enviar la confirmación. Para registrarte de inmediato sin esperas ni límites, desactiva "Confirm email" en el panel de Supabase (Authentication > Providers > Email).'
+        )
+      }
+      throw error
+    }
     if (!data.session) return { needsEmailConfirmation: true }
     await loadProfile(data.user)
     return { needsEmailConfirmation: false }

@@ -49,7 +49,14 @@ export default function SignUp() {
         navigate('/onboarding')
       }
     } catch (err) {
-      setError(err.message || 'Error al registrar la cuenta. Intente nuevamente.')
+      const msg = (err.message || '').toLowerCase()
+      if (msg.includes('rate limit') || err.status === 429) {
+        setError(
+          'Límite de correos excedido en Supabase al intentar enviar la verificación. Desactiva "Confirm email" en Supabase (Authentication > Providers > Email) para permitir registros instantáneos sin este bloqueo.'
+        )
+      } else {
+        setError(err.message || 'Error al registrar la cuenta. Intente nuevamente.')
+      }
     } finally {
       setLoading(false)
     }
