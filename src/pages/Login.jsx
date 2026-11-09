@@ -78,7 +78,14 @@ export default function Login() {
       await loginWithMagicLink(email.trim())
       setMagicLinkSent(true)
     } catch (err) {
-      setError(err.message || 'No se pudo enviar el enlace de acceso')
+      const msg = (err.message || '').toLowerCase()
+      if (msg.includes('rate limit') || err.status === 429) {
+        setError(
+          'Límite de correos excedido: Supabase permite solo 3 o 4 correos por hora con su servidor gratuito predeterminado. Por favor espera unos minutos o inicia sesión con tu contraseña.'
+        )
+      } else {
+        setError(err.message || 'No se pudo enviar el enlace de acceso')
+      }
     } finally {
       setLoading(false)
     }

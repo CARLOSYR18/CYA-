@@ -449,7 +449,15 @@ export function AuthProvider({ children }) {
       email,
       options: { emailRedirectTo: window.location.origin },
     })
-    if (error) throw error
+    if (error) {
+      const msg = (error.message || '').toLowerCase()
+      if (msg.includes('rate limit') || error.status === 429) {
+        throw new Error(
+          'Límite de correos excedido: Supabase permite un máximo de 3 o 4 correos por hora con su servidor gratuito predeterminado. Por favor espera unos minutos o inicia sesión con tu contraseña.'
+        )
+      }
+      throw error
+    }
   }
 
   async function updateProfile(patch) {
