@@ -1038,7 +1038,7 @@ function DashboardContent() {
                       <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
                         {user?.full_name || company?.name || 'Administrador'}
                       </p>
-                      <p className="text-[11px] text-slate-400 truncate">{user?.email || 'cya@gmail.com'}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{user?.email || ''}</p>
                     </div>
                   </div>
                   <div className="pt-1 space-y-0.5">

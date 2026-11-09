@@ -247,8 +247,15 @@ create trigger on_auth_user_created
 -- 6. TRIGGERS DE GUARDIA CONTRA ESCALADA
 -- ----------------------------------------------------------------------------
 create or replace function public.guard_profiles_update()
-returns trigger as $$
+returns trigger
+security invoker
+as $$
 begin
+  -- Si la modificación proviene de un contexto interno/RPC o superuser del sistema, permitir
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+
   if public.is_platform_admin() then
     return new;
   end if;
@@ -258,7 +265,7 @@ begin
     raise exception 'Solo un administrador de plataforma puede modificar is_platform_admin.';
   end if;
 
-  -- Un usuario normal no puede cambiarse su propio rol o empresa (excepto si pasa por RPC definer)
+  -- Un usuario normal no puede cambiarse su propio rol o empresa directamente vía API
   if auth.uid() = old.id and old.company_id is not null then
     if new.role is distinct from old.role or new.company_id is distinct from old.company_id or new.active is distinct from old.active then
       raise exception 'No puedes alterar tu propio rol, empresa o estado de cuenta.';
@@ -267,7 +274,7 @@ begin
 
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql;
 
 drop trigger if exists trg_guard_profiles_update on public.profiles;
 create trigger trg_guard_profiles_update
@@ -275,8 +282,15 @@ create trigger trg_guard_profiles_update
   for each row execute procedure public.guard_profiles_update();
 
 create or replace function public.guard_companies_update()
-returns trigger as $$
+returns trigger
+security invoker
+as $$
 begin
+  -- Si la modificación proviene de un contexto interno/RPC o superuser del sistema, permitir
+  if current_user not in ('authenticated', 'anon') then
+    return new;
+  end if;
+
   if public.is_platform_admin() then
     return new;
   end if;
@@ -292,7 +306,7 @@ begin
 
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql;
 
 drop trigger if exists trg_guard_companies_update on public.companies;
 create trigger trg_guard_companies_update
@@ -494,3 +508,4 @@ create policy "plan_requests_member" on public.plan_requests
 
 create policy "plan_requests_insert" on public.plan_requests
   for insert with check (company_id = public.current_company_id());
+

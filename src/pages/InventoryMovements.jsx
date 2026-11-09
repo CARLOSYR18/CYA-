@@ -143,7 +143,7 @@ export default function InventoryMovements() {
 
   /* ─── Helper: Resolver el colaborador responsable de cada movimiento ─── */
   const getMovementResponsible = (m) => {
-    if (!m) return { name: 'Admin', role: 'admin', initials: 'AD', email: 'cya@gmail.com' }
+    if (!m) return { name: 'Administrador', role: 'admin', initials: 'AD', email: '' }
 
     const refLow = (m.reference || '').toLowerCase()
     const rsnLow = (m.reason || '').toLowerCase()
@@ -187,22 +187,21 @@ export default function InventoryMovements() {
           }
         }
         if (sale.seller_name) {
-          const isAdm = sale.seller_name.toLowerCase().includes('cya')
           return {
             name: sale.seller_name,
-            role: isAdm ? 'admin' : 'empleado',
+            role: 'empleado',
             initials: sale.seller_name.slice(0, 2).toUpperCase(),
-            email: sale.seller_name.includes('@') ? sale.seller_name : (isAdm ? 'cya@gmail.com' : 'empleado@erp.com')
+            email: sale.seller_name.includes('@') ? sale.seller_name : ''
           }
         }
       }
     }
 
     return {
-      name: 'cya@gmail.com',
+      name: 'Almacén / Sistema',
       role: 'admin',
-      initials: 'CY',
-      email: 'cya@gmail.com'
+      initials: 'AL',
+      email: ''
     }
   }
 

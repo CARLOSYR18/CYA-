@@ -1,7 +1,14 @@
 -- ============================================================================
 -- CYA ERP — ESQUEMA COMPLETO Y ARQUITECTURA MULTIEMPRESA (SUPABASE)
 -- ============================================================================
--- Este archivo unifica todo el esquema de producción con RLS y RPCs.
+-- NOTA IMPORTANTE PARA EL SQL EDITOR DE SUPABASE:
+-- El comando '\i' es un metacomando de la consola interactiva psql y NO se
+-- soporta en el editor web de Supabase (SQL Editor).
+--
+-- Para aplicar las migraciones y esquemas a tu base de datos:
+-- 1. Dirígete a la carpeta: supabase/migrations/
+-- 2. Ejecuta en el SQL Editor el archivo base:
+--      supabase/migrations/20261108_rls_cya.sql
+-- 3. Si necesitas aplicar parches de seguridad posteriores, ejecuta:
+--      supabase/migrations/20261108b_security_patch.sql
 -- ============================================================================
-
-\i migrations/20261108_rls_cya.sql;
