@@ -119,7 +119,7 @@ export default function Products() {
   /* ─── Monthly Inventory Chart Data (Area Chart) ─── */
   const monthlyChartData = useMemo(() => {
     const months = ['Ago', 'Set', 'Oct', 'Nov', 'Dic', 'Ene']
-    const baseValuation = stats.inventoryValuation || 11300
+    const baseValuation = stats.inventoryValuation || 0
     // Visual smooth progression based on real valuation
     const totals = [
       Math.round(baseValuation * 0.72),
@@ -133,8 +133,8 @@ export default function Products() {
   }, [stats.inventoryValuation])
 
   const maxChartVal = useMemo(() => {
-    const max = Math.max(...monthlyChartData.map((d) => d.amount), 5000)
-    return Math.ceil(max / 2000) * 2000
+    const max = Math.max(...monthlyChartData.map((d) => d.amount), 0)
+    return max > 0 ? Math.ceil(max / 2000) * 2000 : 2000
   }, [monthlyChartData])
 
   const chartSVG = useMemo(() => {
@@ -190,7 +190,10 @@ export default function Products() {
     })
 
     const list = Object.values(catMap).filter((c) => c.count > 0)
-    const total = products.length || 1
+    const total = products.length
+    if (total <= 0) {
+      return { list: [], topCat: { name: 'Sin productos', count: 0 }, topPct: 0, stroke1: 0, stroke2: 0, C: 251.32 }
+    }
     const topCat = list[0] || { name: 'Catálogo', count: total }
     const topPct = Math.round((topCat.count / total) * 100)
 

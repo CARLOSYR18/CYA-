@@ -197,7 +197,7 @@ export default function Suppliers() {
   /* ─── Monthly Purchases History Chart Data (Area Chart) ─── */
   const monthlyChartData = useMemo(() => {
     const months = ['Ago', 'Set', 'Oct', 'Nov', 'Dic', 'Ene']
-    const totals = [450, 680, 850, 620, 920, 850] // Sensible baselines
+    const totals = [0, 0, 0, 0, 0, 0]
 
     // Aggregate real purchases by month if available
     purchases.forEach((p) => {
@@ -215,8 +215,8 @@ export default function Suppliers() {
   }, [purchases])
 
   const maxChartVal = useMemo(() => {
-    const max = Math.max(...monthlyChartData.map((d) => d.amount), 1000)
-    return Math.ceil(max / 500) * 500
+    const max = Math.max(...monthlyChartData.map((d) => d.amount), 0)
+    return max > 0 ? Math.ceil(max / 500) * 500 : 500
   }, [monthlyChartData])
 
   const chartSVG = useMemo(() => {

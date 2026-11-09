@@ -1282,7 +1282,7 @@ function DashboardContent() {
                   type="button"
                   onClick={() => {
                     setQrModalMethod('yape')
-                    setQrModalAmount(currentMonthMetrics.facturacionMes || 150)
+                    setQrModalAmount(currentMonthMetrics.facturacionMes || 0)
                   }}
                   className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#742284]/10 hover:bg-[#742284] text-[#742284] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
                   title="Ver QR de Yape"
@@ -1294,7 +1294,7 @@ function DashboardContent() {
                   type="button"
                   onClick={() => {
                     setQrModalMethod('plin')
-                    setQrModalAmount(currentMonthMetrics.facturacionMes || 150)
+                    setQrModalAmount(currentMonthMetrics.facturacionMes || 0)
                   }}
                   className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#00b49f]/10 hover:bg-[#00b49f] text-[#00b49f] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
                   title="Ver QR de Plin"
@@ -1306,7 +1306,7 @@ function DashboardContent() {
                   type="button"
                   onClick={() => {
                     setQrModalMethod('transfer')
-                    setQrModalAmount(currentMonthMetrics.facturacionMes || 150)
+                    setQrModalAmount(currentMonthMetrics.facturacionMes || 0)
                   }}
                   className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white dark:bg-white/10 dark:hover:bg-blue-600 dark:text-slate-200 transition-all cursor-pointer"
                   title="Ver Cuentas Bancarias"

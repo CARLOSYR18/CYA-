@@ -144,7 +144,8 @@ export default function Clients() {
 
   /* ─── Segment Donut Chart Percentages ─── */
   const segmentStats = useMemo(() => {
-    const total = Math.max(clients.length, 1)
+    const total = clients.length
+    if (total <= 0) return { vipPct: 0, recPct: 0, newPct: 0, leadPct: 0 }
     const vip = stats.vipClients
     const rec = stats.recurringClients
     const n = stats.newClients
@@ -161,7 +162,7 @@ export default function Clients() {
   /* ─── Monthly Chart Data (Smooth Bezier Curve) ─── */
   const monthlyChartData = useMemo(() => {
     const monthNames = ['Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov']
-    const baseAmt = stats.totalSpentAll > 0 ? stats.totalSpentAll : 2381.39
+    const baseAmt = stats.totalSpentAll || 0
     return [
       { month: 'Jun', amount: Math.round(baseAmt * 0.40) },
       { month: 'Jul', amount: Math.round(baseAmt * 0.52) },
@@ -173,8 +174,8 @@ export default function Clients() {
   }, [stats.totalSpentAll])
 
   const maxChartVal = useMemo(() => {
-    const highest = Math.max(...monthlyChartData.map((p) => p.amount), 3000)
-    return Math.ceil(highest / 500) * 500
+    const highest = Math.max(...monthlyChartData.map((p) => p.amount), 0)
+    return highest > 0 ? Math.ceil(highest / 500) * 500 : 500
   }, [monthlyChartData])
 
   const chartCoordinates = useMemo(() => {
@@ -635,7 +636,7 @@ export default function Clients() {
                     top: `${(chartCoordinates.coords[chartCoordinates.coords.length - 1].y / chartCoordinates.height) * 100 - 8}%`
                   }}
                 >
-                  {fmt(stats.totalSpentAll > 0 ? stats.totalSpentAll : 2381.39)}
+                  {fmt(stats.totalSpentAll)}
                   <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white dark:border-t-zinc-900" />
                 </div>
               )}

@@ -56,9 +56,9 @@ export default function DashboardAnalytics({
     // Generación de curva suavizada basada en datos reales
     const chartData = days.map((day, idx) => {
       const weight = [0.12, 0.15, 0.18, 0.10, 0.22, 0.14, 0.09][idx]
-      const dayEntradas = Math.round(entradasQty * weight) || (idx === 4 ? 17 : idx === 3 ? 14 : 9)
-      const daySalidas = Math.round(salidasQty * weight) || (idx === 4 ? 11 : idx === 1 ? 8 : 5)
-      const dayVentas = Math.round((sales.length * 100 * weight) + (idx * 25)) || (idx * 30 + 50)
+      const dayEntradas = entradasQty > 0 ? Math.round(entradasQty * weight) : 0
+      const daySalidas = salidasQty > 0 ? Math.round(salidasQty * weight) : 0
+      const dayVentas = sales.length > 0 ? Math.round((sales.length * 100 * weight) + (idx * 25)) : 0
       return {
         day,
         entradas: dayEntradas,
@@ -69,9 +69,9 @@ export default function DashboardAnalytics({
     })
 
     return {
-      entradas: entradasQty || 59,
-      salidas: salidasQty || 37,
-      total: totalMovimientos || 96,
+      entradas: entradasQty,
+      salidas: salidasQty,
+      total: totalMovimientos,
       chartData,
     }
   }, [movements, products, sales])
@@ -106,25 +106,15 @@ export default function DashboardAnalytics({
 
     let list = Array.from(catMap.values()).filter((c) => c.units > 0 || c.count > 0)
 
-    // Datos de demostración de respaldo si aún no hay productos
-    if (list.length === 0) {
-      list = [
-        { id: 'c1', name: 'Tubos y Conexiones', units: 38, count: 5 },
-        { id: 'c2', name: 'Válvulas Industriales', units: 26, count: 4 },
-        { id: 'c3', name: 'Herramientas y Equipos', units: 22, count: 3 },
-        { id: 'c4', name: 'Ferretería General', units: 18, count: 6 },
-      ]
-    }
-
-    const totalUnits = list.reduce((acc, c) => acc + c.units, 0) || 1
+    const totalUnits = list.reduce((acc, c) => acc + c.units, 0) || 0
 
     // Ordenar de mayor a menor
     const sorted = list
       .map((c, i) => {
-        const percent = Math.round((c.units / totalUnits) * 100)
+        const percent = totalUnits > 0 ? Math.round((c.units / totalUnits) * 100) : 0
         return {
           ...c,
-          percent: percent || 1,
+          percent: percent || 0,
           color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
         }
       })
@@ -491,7 +481,12 @@ export default function DashboardAnalytics({
 
             {/* Category Breakdown Progress Bars with colored hover and tracks */}
             <div className="sm:col-span-7 space-y-2.5">
-              {categoryStats.list.slice(0, 4).map((cat, idx) => (
+              {categoryStats.list.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400 dark:text-zinc-500 font-medium">
+                  Sin productos registrados todavía
+                </div>
+              ) : (
+                categoryStats.list.slice(0, 4).map((cat, idx) => (
                 <div
                   key={cat.id || idx}
                   className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
@@ -526,7 +521,7 @@ export default function DashboardAnalytics({
                     />
                   </div>
                 </div>
-              ))}
+              )))}
             </div>
 
           </div>

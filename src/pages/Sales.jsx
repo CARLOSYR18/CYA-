@@ -338,9 +338,9 @@ export default function Sales() {
     const total = productos + servicios + otros
     if (total <= 0) {
       return {
-        prodPct: 68,
-        servPct: 24,
-        otroPct: 8
+        prodPct: 0,
+        servPct: 0,
+        otroPct: 0
       }
     }
 
@@ -385,13 +385,6 @@ export default function Sales() {
       points[3].amount = Math.round(finalAmt * 0.70)
       points[4].amount = Math.round(finalAmt * 0.62)
       points[5].amount = finalAmt
-    } else if (totalRecorded === 0 && stats.totalAmount === 0) {
-      points[0].amount = 8000
-      points[1].amount = 10500
-      points[2].amount = 12000
-      points[3].amount = 15400
-      points[4].amount = 12800
-      points[5].amount = 15200
     }
 
     return points
@@ -699,7 +692,7 @@ export default function Sales() {
                   Ventas Totales
                 </p>
                 <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                  {loading ? '…' : fmtMoney(stats.totalAmount > 0 ? stats.totalAmount : 25430)}
+                  {loading ? '…' : fmtMoney(stats.totalAmount)}
                 </h3>
                 <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
                   <span>↑ +14.8%</span>
@@ -742,7 +735,7 @@ export default function Sales() {
                   Comprobantes Emitidos
                 </p>
                 <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                  {loading ? '…' : (stats.vouchersCount > 0 ? stats.vouchersCount : 248)}
+                  {loading ? '…' : stats.vouchersCount}
                 </h3>
                 <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
                   <span>↑ +12.5%</span>
@@ -784,7 +777,7 @@ export default function Sales() {
                   Clientes Atendidos
                 </p>
                 <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                  {loading ? '…' : (stats.clientsCount > 0 ? stats.clientsCount : 187)}
+                  {loading ? '…' : stats.clientsCount}
                 </h3>
                 <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
                   <span>↑ +10.2%</span>
@@ -826,7 +819,7 @@ export default function Sales() {
                   Ticket Promedio
                 </p>
                 <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                  {loading ? '…' : fmtMoney(stats.avgTicket > 0 ? stats.avgTicket : 102.54)}
+                  {loading ? '…' : fmtMoney(stats.avgTicket)}
                 </h3>
                 <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
                   <span>↑ +6.7%</span>
@@ -895,7 +888,7 @@ export default function Sales() {
                     top: `${(chartCoordinates.coords[chartCoordinates.coords.length - 1].y / chartCoordinates.height) * 100 - 8}%`
                   }}
                 >
-                  {fmtMoney(stats.totalAmount > 0 ? stats.totalAmount : 25430)}
+                  {fmtMoney(stats.totalAmount)}
                   <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white dark:border-t-zinc-900" />
                 </div>
               )}

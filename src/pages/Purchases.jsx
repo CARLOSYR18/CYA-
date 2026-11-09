@@ -258,7 +258,8 @@ export default function Purchases() {
 
   /* ─── Donut Chart Data ─── */
   const donutStats = useMemo(() => {
-    const total = Math.max(stats.totalCount, 1)
+    const total = stats.totalCount
+    if (total <= 0) return { recPct: 0, pendPct: 0 }
     const recPct = Math.round((stats.receivedCount / total) * 100)
     const pendPct = Math.max(0, 100 - recPct)
     return { recPct, pendPct }
@@ -267,7 +268,7 @@ export default function Purchases() {
   /* ─── Monthly Chart Data (Smooth Bezier Curve) ─── */
   const monthlyChartData = useMemo(() => {
     const monthNames = ['Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov']
-    const baseAmt = stats.totalSpent > 0 ? stats.totalSpent : 18760
+    const baseAmt = stats.totalSpent || 0
     return [
       { month: 'Jun', amount: Math.round(baseAmt * 0.45) },
       { month: 'Jul', amount: Math.round(baseAmt * 0.58) },
@@ -279,8 +280,8 @@ export default function Purchases() {
   }, [stats.totalSpent])
 
   const maxChartVal = useMemo(() => {
-    const highest = Math.max(...monthlyChartData.map((p) => p.amount), 20000)
-    return Math.ceil(highest / 5000) * 5000
+    const highest = Math.max(...monthlyChartData.map((p) => p.amount), 0)
+    return highest > 0 ? Math.ceil(highest / 5000) * 5000 : 5000
   }, [monthlyChartData])
 
   const chartCoordinates = useMemo(() => {
@@ -409,7 +410,7 @@ export default function Purchases() {
                   Compras del Mes
                 </p>
                 <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                  {loading ? '…' : fmt(stats.totalSpent > 0 ? stats.totalSpent : 18760)}
+                  {loading ? '…' : fmt(stats.totalSpent)}
                 </h3>
                 <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
                   <span>↑ +8.3%</span>
@@ -454,7 +455,7 @@ export default function Purchases() {
                   Mercancía Recibida
                 </p>
                 <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                  {loading ? '…' : fmt(stats.receivedSpent > 0 ? stats.receivedSpent : 15200)}
+                  {loading ? '…' : fmt(stats.receivedSpent)}
                 </h3>
                 <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
                   <span>↑ +12.5%</span>
@@ -541,7 +542,7 @@ export default function Purchases() {
                   Proveedores en Cartera
                 </p>
                 <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                  {loading ? '…' : (stats.uniqueSuppliersCount || suppliers.length || 8)}
+                  {loading ? '…' : (stats.uniqueSuppliersCount || suppliers.length || 0)}
                 </h3>
                 <p className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 mt-0.5">
                   Empresas vinculadas
@@ -611,7 +612,7 @@ export default function Purchases() {
                     top: `${(chartCoordinates.coords[chartCoordinates.coords.length - 1].y / chartCoordinates.height) * 100 - 8}%`
                   }}
                 >
-                  {fmt(stats.totalSpent > 0 ? stats.totalSpent : 18760)}
+                  {fmt(stats.totalSpent)}
                   <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white dark:border-t-zinc-900" />
                 </div>
               )}

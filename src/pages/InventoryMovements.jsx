@@ -228,7 +228,7 @@ export default function InventoryMovements() {
   /* ─── Monthly Kardex Activity Chart (Area Chart) ─── */
   const monthlyChartData = useMemo(() => {
     const months = ['Ago', 'Set', 'Oct', 'Nov', 'Dic', 'Ene']
-    const totals = [18, 24, 35, 28, 42, 39]
+    const totals = [0, 0, 0, 0, 0, 0]
 
     movements.forEach((m) => {
       if (m.created_at) {
@@ -245,8 +245,8 @@ export default function InventoryMovements() {
   }, [movements])
 
   const maxChartVal = useMemo(() => {
-    const max = Math.max(...monthlyChartData.map((d) => d.amount), 50)
-    return Math.ceil(max / 10) * 10
+    const max = Math.max(...monthlyChartData.map((d) => d.amount), 0)
+    return max > 0 ? Math.ceil(max / 10) * 10 : 50
   }, [monthlyChartData])
 
   const chartSVG = useMemo(() => {
@@ -288,18 +288,30 @@ export default function InventoryMovements() {
 
   /* ─── Donut Chart Calculations ─── */
   const donutData = useMemo(() => {
-    const total = (stats.totalInUnits + stats.totalOutUnits) || 1
+    const totalUnits = (stats.totalInUnits + stats.totalOutUnits)
+    if (totalUnits <= 0) {
+      return {
+        total: 0,
+        inUnits: 0,
+        outUnits: 0,
+        pctIn: 0,
+        pctOut: 0,
+        inStroke: 0,
+        outStroke: 0,
+        C: 251.32
+      }
+    }
     const inUnits = stats.totalInUnits
     const outUnits = stats.totalOutUnits
-    const pctIn = Math.round((inUnits / total) * 100)
+    const pctIn = Math.round((inUnits / totalUnits) * 100)
     const pctOut = 100 - pctIn
 
     const C = 251.32
-    const inStroke = (inUnits / total) * C
-    const outStroke = (outUnits / total) * C
+    const inStroke = (inUnits / totalUnits) * C
+    const outStroke = (outUnits / totalUnits) * C
 
     return {
-      total,
+      total: totalUnits,
       inUnits,
       outUnits,
       pctIn,
