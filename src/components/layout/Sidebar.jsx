@@ -294,29 +294,68 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
 
         {/* Navigation list with hidden native scrollbar */}
         <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-1.5 no-scrollbar overscroll-contain z-10">
-          {/* Super Admin Special Master Access Pill */}
-          {isPlatformAdmin && (
-            <div className="mb-2 px-1">
+          {/* Navegación Exclusiva para Super Administrador de la Plataforma */}
+          {isPlatformAdmin ? (
+            <div className="space-y-1.5 animate-fade-in">
               <NavLink
                 to="/admin-plataforma"
                 onClick={onClose}
                 title={effectiveCollapsed ? "Panel Super Admin" : undefined}
                 className={({ isActive }) =>
-                  `flex items-center gap-2.5 px-3 py-2.5 rounded-2xl text-[13.5px] font-bold transition-all shadow-md ${
+                  `group relative flex items-center transition-all duration-150 ${
+                    effectiveCollapsed
+                      ? 'justify-center mx-1 px-0 py-2.5 rounded-2xl'
+                      : 'gap-3 mx-1 px-3.5 py-2.5 rounded-2xl text-[13.5px]'
+                  } font-bold ${
                     isActive
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-amber-500/30'
-                      : 'bg-white/10 hover:bg-white/15 text-amber-300 hover:text-white border border-amber-400/30'
-                  } ${effectiveCollapsed ? 'justify-center px-0' : ''}`
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30 font-bold'
+                      : 'text-slate-200/90 hover:text-white hover:bg-white/[0.08] active:scale-[0.98]'
+                  }`
                 }
               >
-                <ShieldAlert size={18} className="shrink-0 text-amber-300" />
-                {!effectiveCollapsed && <span className="truncate flex-1">Panel Super Admin</span>}
+                {({ isActive }) => (
+                  <>
+                    <ShieldAlert
+                      size={18}
+                      strokeWidth={isActive ? 2.4 : 2}
+                      className={`shrink-0 ${isActive ? 'text-amber-300' : 'text-amber-400 group-hover:text-white'}`}
+                    />
+                    {!effectiveCollapsed && <span className="truncate flex-1">Panel de Plataforma</span>}
+                  </>
+                )}
+              </NavLink>
+
+              <NavLink
+                to="/perfil"
+                onClick={onClose}
+                title={effectiveCollapsed ? "Mi Perfil Master" : undefined}
+                className={({ isActive }) =>
+                  `group relative flex items-center transition-all duration-150 ${
+                    effectiveCollapsed
+                      ? 'justify-center mx-1 px-0 py-2.5 rounded-2xl'
+                      : 'gap-3 mx-1 px-3.5 py-2.5 rounded-2xl text-[13.5px]'
+                  } font-semibold ${
+                    isActive
+                      ? 'bg-white text-[#0B4FC5] shadow-md shadow-black/15 font-bold'
+                      : 'text-slate-200/90 hover:text-white hover:bg-white/[0.08] active:scale-[0.98]'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <UserCog
+                      size={18}
+                      strokeWidth={isActive ? 2.4 : 2}
+                      className={`shrink-0 ${isActive ? 'text-[#0B4FC5]' : 'text-blue-200/80 group-hover:text-white'}`}
+                    />
+                    {!effectiveCollapsed && <span className="truncate flex-1">Mi Cuenta Master</span>}
+                  </>
+                )}
               </NavLink>
             </div>
-          )}
-
-          {MODULES.map((mod) => {
-            if (mod.adminOnly && !isAdmin && !isPlatformAdmin) return null
+          ) : (
+            MODULES.map((mod) => {
+              if (mod.adminOnly && !isAdmin) return null
 
               // Single item (Dashboard)
               if (mod.type === 'single') {
@@ -455,7 +494,8 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
                   )}
                 </div>
               )
-            })}
+            })
+          )}
 
           {/* Help Support Card (exact match to Captura 3) */}
           {!effectiveCollapsed && (

@@ -32,12 +32,20 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
   const [loadingNotifs, setLoadingNotifs] = useState(false)
   const notifRef = useRef(null)
 
-  const avatarUrl = user?.avatar_url || company?.logo_url || ''
+  const avatarUrl = isPlatformAdmin
+    ? (user?.avatar_url || '/logo-cya-badge.png')
+    : (user?.avatar_url || company?.logo_url || '')
 
-  const initials = user?.full_name
-    ? user.full_name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase()
-    : (user?.email ? user.email.charAt(0).toUpperCase() : 'US')
-  const color = avatarColor(user?.full_name || user?.email || '')
+  const displayName = isPlatformAdmin
+    ? (user?.full_name || 'Carlos Yamacacho')
+    : (user?.full_name || company?.name || 'Usuario')
+
+  const initials = isPlatformAdmin
+    ? 'CY'
+    : (user?.full_name
+        ? user.full_name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase()
+        : (user?.email ? user.email.charAt(0).toUpperCase() : 'US'))
+  const color = avatarColor(displayName || user?.email || '')
 
   useEffect(() => {
     companySettingsService.get().then(c => {
@@ -282,11 +290,11 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
               )}
             </div>
             <div className="hidden sm:flex flex-col leading-tight text-left">
-              <span className="text-[13px] text-slate-800 dark:text-slate-200 font-semibold truncate max-w-[110px]">
-                {user?.full_name || company?.name || 'Usuario'}
+              <span className="text-[13px] text-slate-800 dark:text-slate-200 font-semibold truncate max-w-[130px]">
+                {displayName}
               </span>
               {isPlatformAdmin ? (
-                <span className="text-[9px] font-extrabold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">
+                <span className="text-[9px] font-extrabold text-purple-700 bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300 px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">
                   SUPER ADMIN
                 </span>
               ) : (
@@ -307,7 +315,7 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
                 )}
                 <div className="min-w-0">
                   <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100 truncate">
-                    {user?.full_name || company?.name || 'Colaborador'}
+                    {displayName}
                   </p>
                   <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{user?.email}</p>
                 </div>

@@ -71,3 +71,4 @@ export function purgeSuperAdminFromLocalCollaborators() {
     console.warn('Aviso en purgeSuperAdminFromLocalCollaborators:', err)
   }
 }
+

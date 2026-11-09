@@ -46,7 +46,8 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
   }
 
   if (!user) return <Navigate to="/login" replace />
-  if (isPlatformAdmin && location.pathname === '/') {
+  // El Super Administrador de la plataforma solo accede a su panel general y a su perfil, no a los módulos de empresas
+  if (isPlatformAdmin && location.pathname !== '/admin-plataforma' && location.pathname !== '/perfil') {
     return <Navigate to="/admin-plataforma" replace />
   }
   if (needsOnboarding && location.pathname !== '/onboarding') {
