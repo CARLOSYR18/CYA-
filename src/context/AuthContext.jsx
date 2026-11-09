@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { localDb } from '../lib/localDb'
 import { clearCompanyCache, setCompanyCache } from '../lib/companyContext'
 import { isPlatformAdminEmail, purgeSuperAdminFromLocalCollaborators } from '../lib/superAdmin'
+import { invalidateCache } from '../services/crudFactory'
 import AuthOverlay from '../components/ui/AuthOverlay'
 import LogoutConfirmModal from '../components/ui/LogoutConfirmModal'
 
@@ -156,83 +157,71 @@ export function AuthProvider({ children }) {
         console.warn('Aviso profiles query:', error.message)
       }
 
-      let companyId = isSuper ? null : (data?.company_id || null)
+      const isPlatformAdminUser = isSuper || Boolean(data?.is_platform_admin)
+      let companyId = isPlatformAdminUser ? null : (data?.company_id || null)
 
       // 2. Si es superadmin, garantizar que no pertenezca a una sola empresa ni se degrade
-      if (isSuper) {
+      if (isPlatformAdminUser) {
         companyId = null
         clearCompanyCache()
         supabase
           .from('profiles')
-          .update({ company_id: null, role: 'superadmin' })
+          .update({ company_id: null, role: 'superadmin', is_platform_admin: true })
           .eq('id', authUser.id)
           .catch(() => {})
-      } else if (!companyId) {
-        // Solo para usuarios convencionales: auto-vincular a la primera empresa si no tiene
-        try {
-          const { data: existingComp } = await supabase
-            .from('companies')
-            .select('id')
-            .order('created_at', { ascending: true })
-            .limit(1)
-            .maybeSingle()
-
-          if (existingComp?.id) {
-            companyId = existingComp.id
-            supabase.from('profiles').update({ company_id: existingComp.id }).eq('id', authUser.id).catch(() => {})
-          }
-        } catch (e) {
-          console.warn('Aviso buscando companies:', e)
-        }
-      }
-
-      // 3. Fallback de caché de empresa guardado en el navegador (solo si no es superadmin)
-      if (!isSuper && !companyId) {
-        companyId = getCachedCompanyId()
       }
 
       const metadata = authUser?.user_metadata || {}
+      // A2: El rol proviene estrictamente de la tabla protegida profiles en la base de datos
+      const userRole = isPlatformAdminUser
+        ? 'superadmin'
+        : (data?.role || 'empleado')
+
       const profile = {
         id: authUser.id,
         email: authUser.email,
-        full_name: isSuper ? (data?.full_name || 'Carlos Yamacacho') : (data?.full_name || metadata.full_name || authUser.email.split('@')[0]),
-        role: isSuper ? 'superadmin' : (data?.role || metadata.role || 'empleado'),
-        is_platform_admin: isSuper,
-        company_id: isSuper ? null : (companyId || null),
+        full_name: isPlatformAdminUser
+          ? (data?.full_name || 'Carlos Yamacacho')
+          : (data?.full_name || metadata.full_name || authUser.email.split('@')[0]),
+        role: userRole,
+        is_platform_admin: isPlatformAdminUser,
+        company_id: companyId,
         avatar_url: data?.avatar_url || metadata.avatar_url || null,
         active: data?.active !== false
       }
 
       setUser(profile)
-      if (isSuper) clearCompanyCache()
+      if (isPlatformAdminUser) clearCompanyCache()
       else if (profile.company_id) setCompanyCache(profile.company_id)
+      else clearCompanyCache()
 
-      // Precarga silenciosa en segundo plano
-      setTimeout(() => {
-        import('../services/productsService').then(m => m.productsService.list().catch(() => {})).catch(() => {})
-        import('../services/salesService').then(m => m.salesService.list().catch(() => {})).catch(() => {})
-        import('../services/categoriesService').then(m => m.categoriesService.list().catch(() => {})).catch(() => {})
-        import('../services/clientsService').then(m => m.clientsService.list().catch(() => {})).catch(() => {})
-        import('../services/companySettingsService').then(m => m.companySettingsService.get().catch(() => {})).catch(() => {})
-      }, 300)
+      // Precarga silenciosa en segundo plano solo si pertenece a una empresa
+      if (profile.company_id) {
+        setTimeout(() => {
+          import('../services/productsService').then(m => m.productsService.list().catch(() => {})).catch(() => {})
+          import('../services/salesService').then(m => m.salesService.list().catch(() => {})).catch(() => {})
+          import('../services/categoriesService').then(m => m.categoriesService.list().catch(() => {})).catch(() => {})
+          import('../services/clientsService').then(m => m.clientsService.list().catch(() => {})).catch(() => {})
+          import('../services/companySettingsService').then(m => m.companySettingsService.get().catch(() => {})).catch(() => {})
+        }, 300)
+      }
 
       setProfileLoaded(true)
       return profile
     } catch (err) {
       console.warn('Aviso cargando perfil:', err)
       const metadata = authUser?.user_metadata || {}
-      const compId = isSuper ? null : (getCachedCompanyId() || null)
       const fallback = {
         id: authUser.id,
         email: authUser.email,
-        role: isSuper ? 'superadmin' : (metadata.role || 'empleado'),
+        full_name: isSuper ? 'Carlos Yamacacho' : (metadata.full_name || authUser.email.split('@')[0]),
+        role: isSuper ? 'superadmin' : 'empleado',
         is_platform_admin: isSuper,
-        company_id: compId,
+        company_id: null,
         avatar_url: metadata.avatar_url || null
       }
       setUser(fallback)
       if (isSuper) clearCompanyCache()
-      else if (fallback.company_id) setCompanyCache(fallback.company_id)
       setProfileLoaded(true)
       return fallback
     }
@@ -360,10 +349,28 @@ export function AuthProvider({ children }) {
     return { needsEmailConfirmation: false }
   }
 
-  // Crea la empresa y la vincula al usuario actual como admin.
-  // Solo funciona una vez por usuario (mientras company_id sea null).
+  // Crea la empresa y la vincula al usuario actual como admin de forma segura (RPC / Fallback)
   async function completeOnboarding({ name, ruc, address, phone, logo_url }) {
     if (!user) throw new Error('Debes iniciar sesión primero')
+
+    // A6: Intentar creación segura mediante RPC atómica en Postgres
+    try {
+      const { data: rpcComp, error: rpcErr } = await supabase.rpc('create_company', {
+        p_name: name,
+        p_ruc: ruc || null,
+        p_address: address || null,
+        p_phone: phone || null,
+        p_logo_url: logo_url || null,
+      })
+      if (!rpcErr && rpcComp?.id) {
+        setCompanyCache(rpcComp.id)
+        setUser({ ...user, company_id: rpcComp.id, role: 'admin' })
+        return rpcComp
+      }
+    } catch (e) {
+      console.warn('RPC create_company fallback a consulta directa:', e)
+    }
+
     const { data: company, error: companyError } = await supabase
       .from('companies')
       .insert({ name, ruc: ruc || null, address: address || null, phone: phone || null, logo_url: logo_url || null })
@@ -393,8 +400,14 @@ export function AuthProvider({ children }) {
       if (isSupabaseConfigured) await supabase.auth.signOut()
       else localStorage.removeItem(SESSION_KEY)
     } finally {
-      setUser(null)
+      // B6: Limpieza profunda de memoria, caché de sesión y llaves de tenant
+      invalidateCache()
+      try {
+        sessionStorage.clear()
+        localStorage.removeItem(SESSION_KEY)
+      } catch {}
       clearCompanyCache()
+      setUser(null)
       setTimeout(() => {
         setAuthTransition(null)
       }, 350)
@@ -482,11 +495,11 @@ export function AuthProvider({ children }) {
     isPlatformAdminEmail(user?.email)
   )
 
+  // A6: Todo usuario autenticado sin empresa (excepto el Super Admin) debe fundar su empresa en onboarding
   const needsOnboarding = isSupabaseConfigured &&
     !!user &&
     profileLoaded &&
     !user.company_id &&
-    user.role === 'admin' &&
     !isSuperAdminUser
 
   const requestLogout = () => setConfirmLogoutOpen(true)

@@ -139,9 +139,9 @@ export default function EmployeeActivity() {
         matchedUser = currentAuthUser
       }
 
-      const userName = matchedUser?.full_name || matchedUser?.email?.split('@')[0] || sale.seller_name || 'Admin'
-      const userEmail = matchedUser?.email || (sale.seller_name?.includes('@') ? sale.seller_name : 'cya@gmail.com')
-      const userRole = matchedUser?.role || (userEmail.toLowerCase().includes('cya') ? 'admin' : 'empleado')
+      const userName = matchedUser?.full_name || matchedUser?.email?.split('@')[0] || sale.seller_name || 'Administrador'
+      const userEmail = matchedUser?.email || (sale.seller_name?.includes('@') ? sale.seller_name : '')
+      const userRole = matchedUser?.role || 'admin'
 
       const totalAmount = salesService.saleTotal(sale)
       const pNum = sale.id ? String(sale.id).slice(-4).toUpperCase() : '0000'
@@ -214,10 +214,10 @@ export default function EmployeeActivity() {
 
       if (!matchedUser && !isAiMovement) {
         matchedUser = {
-          name: 'cya@gmail.com',
-          email: 'cya@gmail.com',
+          name: 'Almacén Central',
+          email: '',
           role: 'admin',
-          initials: 'CY'
+          initials: 'AL'
         }
       }
 
@@ -240,10 +240,10 @@ export default function EmployeeActivity() {
         status: 'completado',
         user: {
           id: matchedUser?.id || mov.user_id,
-          name: matchedUser?.name || matchedUser?.full_name || matchedUser?.email?.split('@')[0] || 'Admin',
-          email: matchedUser?.email || 'cya@gmail.com',
+          name: matchedUser?.name || matchedUser?.full_name || matchedUser?.email?.split('@')[0] || 'Almacén',
+          email: matchedUser?.email || '',
           role: matchedUser?.role || 'empleado',
-          initials: (matchedUser?.name || matchedUser?.full_name || matchedUser?.email || 'EM').slice(0, 2).toUpperCase(),
+          initials: (matchedUser?.name || matchedUser?.full_name || matchedUser?.email || 'AL').slice(0, 2).toUpperCase(),
           isAi: matchedUser?.isAi
         },
         raw: mov

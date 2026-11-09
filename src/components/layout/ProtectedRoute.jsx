@@ -3,24 +3,10 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { companySettingsService } from '../../services/companySettingsService'
 
-export default function ProtectedRoute({ children, adminOnly = false }) {
+export default function ProtectedRoute({ children, adminOnly = false, platformAdminOnly = false }) {
   const { user, loading, isAdmin, needsOnboarding, isPlatformAdmin } = useAuth()
   const location = useLocation()
   const [companyActive, setCompanyActive] = useState(true)
-  const [safetyTimeoutReached, setSafetyTimeoutReached] = useState(false)
-
-  // En caso de latencia de red móvil, nunca mantener la pantalla de carga más de 2.2s
-  useEffect(() => {
-    let t
-    if (loading) {
-      t = setTimeout(() => {
-        setSafetyTimeoutReached(true)
-      }, 2200)
-    } else {
-      setSafetyTimeoutReached(false)
-    }
-    return () => clearTimeout(t)
-  }, [loading])
 
   useEffect(() => {
     if (user?.company_id) {
@@ -28,7 +14,7 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
     }
   }, [user])
 
-  if (loading && !safetyTimeoutReached) {
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white/90 dark:bg-[#0c0d12]/92 backdrop-blur-md p-4 animate-fade-in select-none">
         <div className="relative mb-4 flex items-center justify-center">
@@ -46,10 +32,15 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
   }
 
   if (!user) return <Navigate to="/login" replace />
+
+  // Acceso restringido exclusivo a Super Administrador
+  if (platformAdminOnly && !isPlatformAdmin) return <Navigate to="/" replace />
+
   // El Super Administrador de la plataforma solo accede a su panel general y a su perfil, no a los módulos de empresas
   if (isPlatformAdmin && location.pathname !== '/admin-plataforma' && location.pathname !== '/perfil') {
     return <Navigate to="/admin-plataforma" replace />
   }
+
   if (needsOnboarding && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />
   }

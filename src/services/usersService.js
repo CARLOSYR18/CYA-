@@ -313,6 +313,22 @@ export const usersService = {
       // Guardar inmediatamente en la persistencia local
       saveLocalCollaborator(localRecord)
 
+      // A6: Vincular al colaborador a la empresa mediante RPC segura en Postgres
+      try {
+        const { data: rpcProfile, error: rpcErr } = await supabase.rpc('add_user_to_my_company', {
+          p_user_id: newUserId,
+          p_full_name: cleanName,
+          p_role: role,
+          p_active: active
+        })
+        if (!rpcErr && rpcProfile) {
+          saveLocalCollaborator(rpcProfile)
+          return rpcProfile
+        }
+      } catch (e) {
+        console.warn('RPC add_user_to_my_company fallback a upsert:', e)
+      }
+
       // Actualizar o insertar el perfil con rol y empresa usando la sesión del admin actual
       try {
         let { data: profile, error: profileError } = await supabase

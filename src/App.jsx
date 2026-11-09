@@ -80,7 +80,7 @@ export default function App() {
               <Route path="/configuracion" element={<ProtectedRoute adminOnly><CompanySettings /></ProtectedRoute>} />
               <Route path="/planes" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
               <Route path="/perfil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-              <Route path="/admin-plataforma" element={<ProtectedRoute><PlatformAdmin /></ProtectedRoute>} />
+              <Route path="/admin-plataforma" element={<ProtectedRoute platformAdminOnly><PlatformAdmin /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
