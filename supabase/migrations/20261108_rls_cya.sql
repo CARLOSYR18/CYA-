@@ -1,13 +1,7 @@
 -- ============================================================================
--- CYA ERP — MIGRACIÓN DE SEGURIDAD, AISLAMIENTO MULTIEMPRESA (RLS) Y RPCs
+-- CYA ERP — MIGRACIÓN OFICIAL: RLS, AISLAMIENTO Y SEGURIDAD MULTIEMPRESA
 -- ============================================================================
--- Este script implementa:
--- 1. Estructura multiempresa completa con company_id en todas las tablas
--- 2. Funciones de aislamiento: current_company_id() e is_platform_admin()
--- 3. Políticas RLS estrictas (ninguna empresa puede ver o alterar datos de otra)
--- 4. Triggers de guardia contra escalada de privilegios y autoservicio de planes
--- 5. Funciones RPC seguras (create_company, add_user_to_my_company)
--- 6. SKU único por empresa: unique(company_id, sku)
+-- Nombre: rls_cya.sql (versión aplicada en la base real de Supabase)
 -- ============================================================================
 
 create extension if not exists "pgcrypto";
@@ -35,11 +29,13 @@ create table if not exists public.companies (
 -- ----------------------------------------------------------------------------
 -- 2. TABLA PERFILES (PROFILES)
 -- ----------------------------------------------------------------------------
+-- El rol se restringe estrictamente a admin, empleado o vendedor.
+-- La condición de Super Admin de plataforma la rige exclusivamente el booleano is_platform_admin.
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null default '',
   email text not null,
-  role text not null default 'empleado' check (role in ('admin', 'empleado', 'vendedor', 'superadmin')),
+  role text not null default 'empleado' check (role in ('admin', 'empleado', 'vendedor')),
   company_id uuid references public.companies(id) on delete set null,
   is_platform_admin boolean not null default false,
   active boolean not null default true,
@@ -47,13 +43,12 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
--- Asegurar columnas si la tabla ya existía previamente
 alter table public.profiles add column if not exists company_id uuid references public.companies(id) on delete set null;
 alter table public.profiles add column if not exists is_platform_admin boolean not null default false;
 alter table public.profiles add column if not exists avatar_url text;
 
 -- ----------------------------------------------------------------------------
--- 3. AGREGAR company_id A TODAS LAS TABLAS DE NEGOCIO SI NO LO TIENEN
+-- 3. TABLAS DE NEGOCIO CON company_id
 -- ----------------------------------------------------------------------------
 create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
@@ -108,7 +103,7 @@ create table if not exists public.products (
 alter table public.products add column if not exists company_id uuid references public.companies(id) on delete cascade;
 alter table public.products add column if not exists image_url text;
 
--- B2: Eliminar unicidad global de SKU y aplicar unicidad por empresa
+-- SKU único por empresa
 alter table public.products drop constraint if exists products_sku_key;
 do $$
 begin
@@ -163,32 +158,36 @@ alter table public.purchases add column if not exists company_id uuid references
 alter table public.purchases add column if not exists total numeric(12,2) not null default 0;
 alter table public.purchases add column if not exists notes text;
 
+-- Columnas exactas que usa el frontend: plan_period y price
 create table if not exists public.plan_requests (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,
   user_id uuid references public.profiles(id) on delete set null,
   requested_plan text not null,
-  period text not null default 'trimestral',
+  plan_period text not null default 'trimestral',
   price numeric(12,2) not null default 0,
   voucher_url text,
   status text not null default 'pendiente' check (status in ('pendiente', 'aprobado', 'rechazado')),
   created_at timestamptz not null default now()
 );
+alter table public.plan_requests add column if not exists plan_period text not null default 'trimestral';
+alter table public.plan_requests add column if not exists price numeric(12,2) not null default 0;
 
+-- Columnas exactas que usa el frontend: usage_date y count
 create table if not exists public.assistant_usage (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,
-  date date not null default current_date,
-  message_count integer not null default 1,
+  usage_date date not null default current_date,
+  count integer not null default 1,
   created_at timestamptz not null default now(),
-  constraint assistant_usage_company_date_key unique (company_id, date)
+  constraint assistant_usage_company_usage_date_key unique (company_id, usage_date)
 );
+alter table public.assistant_usage add column if not exists usage_date date not null default current_date;
+alter table public.assistant_usage add column if not exists count integer not null default 1;
 
 -- ----------------------------------------------------------------------------
--- 4. FUNCIONES DE SEGURIDAD (SECURITY DEFINER)
+-- 4. FUNCIONES DE AYUDA (SECURITY DEFINER)
 -- ----------------------------------------------------------------------------
-
--- Determina si el usuario autenticado es Super Admin de la plataforma
 create or replace function public.is_platform_admin()
 returns boolean as $$
 declare
@@ -202,8 +201,6 @@ begin
 end;
 $$ language plpgsql security definer stable;
 
--- Determina el company_id seguro de la empresa activa del usuario actual
--- Solo retorna company_id si la empresa existe y está activa (A9)
 create or replace function public.current_company_id()
 returns uuid as $$
 declare
@@ -221,9 +218,8 @@ end;
 $$ language plpgsql security definer stable;
 
 -- ----------------------------------------------------------------------------
--- 5. TRIGGER: REGISTRO DE NUEVO USUARIO EN AUTH (A2, A6)
+-- 5. TRIGGER: NUEVO USUARIO
 -- ----------------------------------------------------------------------------
--- Todo usuario nuevo nace como empleado sin empresa (el onboarding le asigna empresa)
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
@@ -232,10 +228,10 @@ begin
     new.id,
     lower(trim(new.email)),
     coalesce(nullif(trim(new.raw_user_meta_data->>'full_name'), ''), split_part(new.email, '@', 1)),
-    'empleado', -- Nace siempre con rol base
+    'empleado',
     true,
-    null,       -- Sin empresa hasta completar onboarding o ser invitado
-    false       -- Nunca es platform admin por defecto
+    null,
+    false
   )
   on conflict (id) do nothing;
   return new;
@@ -248,28 +244,24 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- ----------------------------------------------------------------------------
--- 6. TRIGGERS DE GUARDIA CONTRA ESCALADA DE PRIVILEGIOS (A5)
+-- 6. TRIGGERS DE GUARDIA CONTRA ESCALADA
 -- ----------------------------------------------------------------------------
-
--- Guardia en profiles: usuarios normales no pueden cambiarse de rol, empresa ni hacerse superadmin
 create or replace function public.guard_profiles_update()
 returns trigger as $$
 begin
-  -- Si quien ejecuta es Super Admin, se permiten todos los cambios
   if public.is_platform_admin() then
     return new;
   end if;
 
-  -- Usuario común o admin de empresa modificando profiles:
-  -- 1. Nadie puede otorgarse is_platform_admin
+  -- Nadie puede otorgarse is_platform_admin
   if new.is_platform_admin is distinct from old.is_platform_admin then
-    raise exception 'Seguridad: Solo un Super Administrador puede modificar privilegios de plataforma.';
+    raise exception 'Solo un administrador de plataforma puede modificar is_platform_admin.';
   end if;
 
-  -- 2. El propio usuario común solo puede modificar su propio nombre y avatar
-  if auth.uid() = old.id then
+  -- Un usuario normal no puede cambiarse su propio rol o empresa (excepto si pasa por RPC definer)
+  if auth.uid() = old.id and old.company_id is not null then
     if new.role is distinct from old.role or new.company_id is distinct from old.company_id or new.active is distinct from old.active then
-      raise exception 'Seguridad: No puedes alterar tu propio rol, empresa o estado de cuenta.';
+      raise exception 'No puedes alterar tu propio rol, empresa o estado de cuenta.';
     end if;
   end if;
 
@@ -282,7 +274,6 @@ create trigger trg_guard_profiles_update
   before update on public.profiles
   for each row execute procedure public.guard_profiles_update();
 
--- Guardia en companies: empresas no pueden cambiarse de plan ni reactivarse solas
 create or replace function public.guard_companies_update()
 returns trigger as $$
 begin
@@ -296,7 +287,7 @@ begin
      new.plan_started_at is distinct from old.plan_started_at or
      new.plan_expires_at is distinct from old.plan_expires_at or
      new.active is distinct from old.active then
-    raise exception 'Seguridad: Los planes y el estado de la empresa solo pueden ser autorizados por la Plataforma.';
+    raise exception 'Los planes y estado de la empresa solo pueden ser autorizados por la Plataforma.';
   end if;
 
   return new;
@@ -309,10 +300,10 @@ create trigger trg_guard_companies_update
   for each row execute procedure public.guard_companies_update();
 
 -- ----------------------------------------------------------------------------
--- 7. FUNCIONES RPC SEGURAS (A6)
+-- 7. FUNCIONES RPC ATÓMICAS (SECURITY DEFINER)
 -- ----------------------------------------------------------------------------
 
--- Crea la empresa del usuario y lo nombra administrador legítimo (solo una vez)
+-- create_company: crea empresa y vincula al creador como primer admin
 create or replace function public.create_company(
   p_name text,
   p_ruc text default null,
@@ -330,18 +321,15 @@ begin
     raise exception 'No autenticado.';
   end if;
 
-  -- Verificar si el usuario ya tiene una empresa vinculada
   select company_id into v_existing_comp from public.profiles where id = v_user_id;
   if v_existing_comp is not null then
     raise exception 'Ya tienes una empresa vinculada a tu cuenta.';
   end if;
 
-  -- Crear la empresa con plan free inicial
   insert into public.companies (name, ruc, address, phone, logo_url, plan, active)
   values (trim(p_name), nullif(trim(p_ruc), ''), nullif(trim(p_address), ''), nullif(trim(p_phone), ''), nullif(trim(p_logo_url), ''), 'free', true)
   returning * into v_new_company;
 
-  -- Asignar la empresa y rol admin al creador
   update public.profiles
   set company_id = v_new_company.id,
       role = 'admin'
@@ -351,7 +339,7 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- Permite al admin de una empresa vincular un colaborador creado
+-- add_user_to_my_company: vincula a un colaborador creado hace menos de 15 minutos
 create or replace function public.add_user_to_my_company(
   p_user_id uuid,
   p_full_name text,
@@ -373,12 +361,12 @@ begin
     raise exception 'Solo un administrador puede vincular colaboradores a su empresa.';
   end if;
 
-  -- No permitir que asignen rol superadmin
   if p_role not in ('admin', 'empleado', 'vendedor') then
     raise exception 'Rol no autorizado.';
   end if;
 
-  -- Actualizar el perfil del colaborador con el company_id del llamador
+  -- Se restringe la vinculación a perfiles creados en los últimos 15 minutos
+  -- y que no pertenezcan ya a otra empresa
   update public.profiles
   set full_name = trim(p_full_name),
       role = p_role,
@@ -386,10 +374,11 @@ begin
       company_id = v_caller_comp
   where id = p_user_id
     and (company_id is null or company_id = v_caller_comp)
+    and created_at >= (now() - interval '15 minutes')
   returning * into v_target_profile;
 
   if not found then
-    raise exception 'El usuario no existe o ya pertenece a otra empresa independiente.';
+    raise exception 'El usuario no existe, expiró la ventana de vinculación de 15 minutos o ya pertenece a otra empresa.';
   end if;
 
   return to_jsonb(v_target_profile);
@@ -397,10 +386,8 @@ end;
 $$ language plpgsql security definer;
 
 -- ----------------------------------------------------------------------------
--- 8. POLÍTICAS RLS ESTRICTAS MULTIEMPRESA (A1)
+-- 8. POLÍTICAS RLS
 -- ----------------------------------------------------------------------------
-
--- Habilitar RLS en todas las tablas
 alter table public.companies enable row level security;
 alter table public.profiles enable row level security;
 alter table public.categories enable row level security;
@@ -413,7 +400,7 @@ alter table public.purchases enable row level security;
 alter table public.plan_requests enable row level security;
 alter table public.assistant_usage enable row level security;
 
--- Limpieza preventiva de políticas anteriores
+-- Limpiar políticas previas
 do $$
 declare
   pol record;
@@ -428,16 +415,13 @@ begin
 end $$;
 
 -- 8.1 COMPANIES
--- Super Admin ve y gestiona todas las empresas
 create policy "companies_superadmin_all" on public.companies
   for all using (public.is_platform_admin())
   with check (public.is_platform_admin());
 
--- Miembros ven los datos de su propia empresa
 create policy "companies_member_select" on public.companies
   for select using (id = public.current_company_id());
 
--- Admins de empresa actualizan solo su empresa
 create policy "companies_admin_update" on public.companies
   for update using (
     id = public.current_company_id() and
@@ -446,24 +430,20 @@ create policy "companies_admin_update" on public.companies
   with check (id = public.current_company_id());
 
 -- 8.2 PROFILES
--- Super Admin ve todos los perfiles
 create policy "profiles_superadmin_all" on public.profiles
   for all using (public.is_platform_admin())
   with check (public.is_platform_admin());
 
--- Miembros de empresa ven a sus compañeros
 create policy "profiles_member_select" on public.profiles
   for select using (
     id = auth.uid() or
     (company_id is not null and company_id = public.current_company_id())
   );
 
--- Cada usuario actualiza su propio perfil (nombre, avatar)
 create policy "profiles_self_update" on public.profiles
   for update using (id = auth.uid())
   with check (id = auth.uid());
 
--- Admins de empresa pueden actualizar el perfil de sus colaboradores
 create policy "profiles_company_admin_update" on public.profiles
   for update using (
     company_id is not null and
@@ -471,59 +451,46 @@ create policy "profiles_company_admin_update" on public.profiles
     exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
   );
 
--- 8.3 CATEGORIES
+-- 8.3 TABLAS DE NEGOCIO AISLADAS POR EMPRESA
 create policy "categories_isolation" on public.categories
   for all using (company_id = public.current_company_id())
   with check (company_id = public.current_company_id());
 
--- 8.4 SUPPLIERS
 create policy "suppliers_isolation" on public.suppliers
   for all using (company_id = public.current_company_id())
   with check (company_id = public.current_company_id());
 
--- 8.5 CLIENTS
 create policy "clients_isolation" on public.clients
   for all using (company_id = public.current_company_id())
   with check (company_id = public.current_company_id());
 
--- 8.6 PRODUCTS
 create policy "products_isolation" on public.products
   for all using (company_id = public.current_company_id())
   with check (company_id = public.current_company_id());
 
--- 8.7 INVENTORY_MOVEMENTS
 create policy "movements_isolation" on public.inventory_movements
   for all using (company_id = public.current_company_id())
   with check (company_id = public.current_company_id());
 
--- 8.8 SALES
 create policy "sales_isolation" on public.sales
   for all using (company_id = public.current_company_id())
   with check (company_id = public.current_company_id());
 
--- 8.9 PURCHASES
 create policy "purchases_isolation" on public.purchases
   for all using (company_id = public.current_company_id())
   with check (company_id = public.current_company_id());
 
--- 8.10 ASSISTANT_USAGE
 create policy "assistant_usage_isolation" on public.assistant_usage
   for all using (company_id = public.current_company_id())
   with check (company_id = public.current_company_id());
 
--- 8.11 PLAN_REQUESTS
--- Super Admin gestiona todas las solicitudes
+-- 8.4 PLAN_REQUESTS
 create policy "plan_requests_superadmin" on public.plan_requests
   for all using (public.is_platform_admin())
   with check (public.is_platform_admin());
 
--- Empresas ven y crean sus propias solicitudes
 create policy "plan_requests_member" on public.plan_requests
   for select using (company_id = public.current_company_id());
 
 create policy "plan_requests_insert" on public.plan_requests
   for insert with check (company_id = public.current_company_id());
-
--- ============================================================================
--- FIN DE LA MIGRACIÓN
--- ============================================================================

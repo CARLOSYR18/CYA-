@@ -3,15 +3,16 @@ import { createClient } from '@supabase/supabase-js'
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-// A8: Protección estricta: en producción se requiere Supabase configurado obligatoriamente
-// El modo demo solo es admisible en desarrollo local o si se activa explícitamente VITE_DEMO_MODE=true
 const hasValidConfig = Boolean(url && anonKey && !url.includes('TU_PROYECTO'))
 const explicitDemoMode = import.meta.env.VITE_DEMO_MODE === 'true'
 
+// En producción, si faltan las variables y no se especificó VITE_DEMO_MODE=true, bloquear modo demo inseguro
 if (!hasValidConfig && import.meta.env.PROD && !explicitDemoMode) {
-  console.error(
-    'CRÍTICO: Variables VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY no encontradas en producción. Por seguridad se prohíbe caer en modo demo con contraseñas en texto plano.'
-  )
+  const errMsg = 'Error de Configuración: Falta VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY en el entorno de producción. Por seguridad, la aplicación no arranca en modo demo.'
+  console.error(errMsg)
+  if (typeof window !== 'undefined') {
+    window.__CYA_CONFIG_ERROR__ = errMsg
+  }
 }
 
 export const isSupabaseConfigured = hasValidConfig

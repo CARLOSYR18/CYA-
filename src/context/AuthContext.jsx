@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
           setUser({
             id: session.user.id,
             email: session.user.email,
-            role: isSuper ? 'superadmin' : (meta.role || 'empleado'),
+            role: 'empleado', // El rol definitivo se carga estrictamente desde profiles.role
             is_platform_admin: isSuper,
             company_id: compId,
             avatar_url: meta.avatar_url || null
@@ -93,8 +93,8 @@ export function AuthProvider({ children }) {
             return {
               id: session.user.id,
               email: session.user.email,
-              role: isSuper ? 'superadmin' : (meta.role || prev?.role || 'empleado'),
-              is_platform_admin: isSuper || prev?.is_platform_admin === true,
+              role: prev?.role || 'empleado',
+              is_platform_admin: Boolean(prev?.is_platform_admin) || isSuper,
               company_id: isSuper ? null : (prev?.company_id || compId),
               avatar_url: meta.avatar_url || prev?.avatar_url || null,
               ...(prev || {})
@@ -151,32 +151,22 @@ export function AuthProvider({ children }) {
     const isSuper = isPlatformAdminEmail(authUser.email)
 
     try {
-      // 1. Usar maybeSingle() para obtener perfil de Supabase
+      // 1. Obtener perfil estrictamente desde la tabla protegida profiles en Supabase
       const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle()
       if (error) {
         console.warn('Aviso profiles query:', error.message)
       }
 
-      const isPlatformAdminUser = isSuper || Boolean(data?.is_platform_admin)
-      let companyId = isPlatformAdminUser ? null : (data?.company_id || null)
+      // isPlatformAdmin sale exclusivamente de la columna protegida profiles.is_platform_admin o variable de entorno
+      const isPlatformAdminUser = Boolean(data?.is_platform_admin) || isSuper
+      const companyId = isPlatformAdminUser ? null : (data?.company_id || null)
 
-      // 2. Si es superadmin, garantizar que no pertenezca a una sola empresa ni se degrade
-      if (isPlatformAdminUser) {
-        companyId = null
-        clearCompanyCache()
-        supabase
-          .from('profiles')
-          .update({ company_id: null, role: 'superadmin', is_platform_admin: true })
-          .eq('id', authUser.id)
-          .catch(() => {})
-      }
-
-      const metadata = authUser?.user_metadata || {}
-      // A2: El rol proviene estrictamente de la tabla protegida profiles en la base de datos
+      // El rol proviene estrictamente de profiles.role
       const userRole = isPlatformAdminUser
-        ? 'superadmin'
+        ? 'admin' // Para la UI de plataforma o superadmin según esquema
         : (data?.role || 'empleado')
 
+      const metadata = authUser?.user_metadata || {}
       const profile = {
         id: authUser.id,
         email: authUser.email,
@@ -215,7 +205,7 @@ export function AuthProvider({ children }) {
         id: authUser.id,
         email: authUser.email,
         full_name: isSuper ? 'Carlos Yamacacho' : (metadata.full_name || authUser.email.split('@')[0]),
-        role: isSuper ? 'superadmin' : 'empleado',
+        role: 'empleado',
         is_platform_admin: isSuper,
         company_id: null,
         avatar_url: metadata.avatar_url || null
@@ -267,7 +257,7 @@ export function AuthProvider({ children }) {
         const initialUser = {
           id: data.user.id,
           email: data.user.email,
-          role: isSuper ? 'superadmin' : (meta.role || 'empleado'),
+          role: 'empleado', // Se define de forma estricta desde profiles.role en loadProfile
           is_platform_admin: isSuper,
           company_id: compId,
           avatar_url: meta.avatar_url || null
@@ -349,44 +339,30 @@ export function AuthProvider({ children }) {
     return { needsEmailConfirmation: false }
   }
 
-  // Crea la empresa y la vincula al usuario actual como admin de forma segura (RPC / Fallback)
+  // Crea la empresa y la vincula al usuario actual mediante la RPC segura create_company
   async function completeOnboarding({ name, ruc, address, phone, logo_url }) {
-    if (!user) throw new Error('Debes iniciar sesión primero')
+    if (!user) throw new Error('Debes iniciar sesión primero.')
 
-    // A6: Intentar creación segura mediante RPC atómica en Postgres
-    try {
-      const { data: rpcComp, error: rpcErr } = await supabase.rpc('create_company', {
-        p_name: name,
-        p_ruc: ruc || null,
-        p_address: address || null,
-        p_phone: phone || null,
-        p_logo_url: logo_url || null,
-      })
-      if (!rpcErr && rpcComp?.id) {
-        setCompanyCache(rpcComp.id)
-        setUser({ ...user, company_id: rpcComp.id, role: 'admin' })
-        return rpcComp
-      }
-    } catch (e) {
-      console.warn('RPC create_company fallback a consulta directa:', e)
+    const { data: rpcComp, error: rpcErr } = await supabase.rpc('create_company', {
+      p_name: name.trim(),
+      p_ruc: ruc?.trim() || null,
+      p_address: address?.trim() || null,
+      p_phone: phone?.trim() || null,
+      p_logo_url: logo_url || null,
+    })
+
+    if (rpcErr) {
+      console.error('Error al ejecutar RPC create_company:', rpcErr)
+      throw new Error(rpcErr.message || 'Error al crear la empresa en el servidor.')
     }
 
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .insert({ name, ruc: ruc || null, address: address || null, phone: phone || null, logo_url: logo_url || null })
-      .select()
-      .single()
-    if (companyError) throw companyError
+    if (!rpcComp?.id) {
+      throw new Error('No se recibió la confirmación de la empresa creada.')
+    }
 
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ company_id: company.id, role: 'admin' })
-      .eq('id', user.id)
-    if (profileError) throw profileError
-
-    setCompanyCache(company.id)
-    setUser({ ...user, company_id: company.id, role: 'admin' })
-    return company
+    setCompanyCache(rpcComp.id)
+    setUser({ ...user, company_id: rpcComp.id, role: 'admin' })
+    return rpcComp
   }
 
   async function logout() {

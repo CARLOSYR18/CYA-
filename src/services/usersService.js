@@ -314,63 +314,22 @@ export const usersService = {
       saveLocalCollaborator(localRecord)
 
       // A6: Vincular al colaborador a la empresa mediante RPC segura en Postgres
-      try {
-        const { data: rpcProfile, error: rpcErr } = await supabase.rpc('add_user_to_my_company', {
-          p_user_id: newUserId,
-          p_full_name: cleanName,
-          p_role: role,
-          p_active: active
-        })
-        if (!rpcErr && rpcProfile) {
-          saveLocalCollaborator(rpcProfile)
-          return rpcProfile
-        }
-      } catch (e) {
-        console.warn('RPC add_user_to_my_company fallback a upsert:', e)
+      // La RPC valida que el perfil haya sido creado recientemente (< 15 min) y pertenezca al llamador
+      const { data: rpcProfile, error: rpcErr } = await supabase.rpc('add_user_to_my_company', {
+        p_user_id: newUserId,
+        p_full_name: cleanName,
+        p_role: role,
+        p_active: active
+      })
+
+      if (rpcErr) {
+        console.error('Error en add_user_to_my_company:', rpcErr)
+        throw new Error(rpcErr.message || 'No se pudo vincular el colaborador a la empresa.')
       }
 
-      // Actualizar o insertar el perfil con rol y empresa usando la sesión del admin actual
-      try {
-        let { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: newUserId,
-            email: cleanEmail,
-            full_name: cleanName,
-            role,
-            active,
-            ...(companyId ? { company_id: companyId } : {})
-          })
-          .select()
-          .maybeSingle()
-
-        if (profileError) {
-          // Reintentar sin company_id si la columna no existe en la tabla profiles
-          const { data: retryProfile, error: retryErr } = await supabase
-            .from('profiles')
-            .upsert({
-              id: newUserId,
-              email: cleanEmail,
-              full_name: cleanName,
-              role,
-              active,
-            })
-            .select()
-            .maybeSingle()
-
-          if (!retryErr && retryProfile) {
-            profile = retryProfile
-          } else {
-            console.warn('Perfil registrado localmente; sincronización en base de datos pendiente:', profileError)
-          }
-        }
-
-        if (profile) {
-          saveLocalCollaborator(profile)
-          return profile
-        }
-      } catch (err) {
-        console.warn('Aviso al guardar perfil remoto:', err)
+      if (rpcProfile) {
+        saveLocalCollaborator(rpcProfile)
+        return rpcProfile
       }
 
       return localRecord
