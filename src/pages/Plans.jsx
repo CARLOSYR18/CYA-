@@ -227,7 +227,7 @@ export default function Plans() {
     }
   }
 
-  const companyPhone = company?.phone || '+51987654321'
+  const companyPhone = company?.phone || '+51940557521'
   const cleanPhone = companyPhone.replace(/\D/g, '')
 
   return (
@@ -737,7 +737,7 @@ export default function Plans() {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="p-2.5 bg-white rounded-xl border border-slate-200">
                     <span className="font-bold text-purple-700 block">Yape / Plin</span>
-                    <span className="font-mono font-bold text-slate-900 text-sm">987 654 321</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">940557521</span>
                   </div>
                   <div className="p-2.5 bg-white rounded-xl border border-slate-200">
                     <span className="font-bold text-blue-700 block">BCP Soles</span>
