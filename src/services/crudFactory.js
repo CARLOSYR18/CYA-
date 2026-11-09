@@ -18,6 +18,19 @@ export function invalidateCache(table) {
   if (!table) {
     memoryCache.clear()
     inFlightRequests.clear()
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const key = sessionStorage.key(i)
+          if (key && key.startsWith('cya_cache_')) {
+            sessionStorage.removeItem(key)
+          }
+        }
+      }
+    } catch {}
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cya_cache_invalidated', { detail: { table: null } }))
+    }
     return
   }
   for (const k of Array.from(memoryCache.keys())) {
@@ -69,6 +82,10 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
           return sessionStorage.getItem('cya_cached_company_id') || localStorage.getItem('cya_cached_company_id') || null
         } catch { return null }
       })()
+
+      // Si Supabase está conectado pero no hay empresa activa, no servir datos cacheados
+      if (isSupabaseConfigured && !cId) return null
+
       const cacheKey = `${table}_${cId || 'global'}`
 
       const mem = memoryCache.get(cacheKey)
@@ -206,22 +223,11 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
         console.warn(`Error en consulta remota ${table}:`, err)
       }
 
-      // Si la consulta remota falló o agotó el tiempo de espera, recurrir a caché o localDb
+      // Si la consulta remota falló o agotó el tiempo de espera, recurrir a caché en memoria de esta empresa
       if (data === null) {
         const cached = memoryCache.get(cacheKey)
         if (cached?.data && cached.data.length > 0) return cached.data
-        const local = localDb.getTable(table)
-        if (local && local.length > 0) return local
         return []
-      }
-
-      // Si Supabase devolvió 0 registros porque la tabla remota aún no ha sido poblada,
-      // apoyarse en los registros de demostración locales para evitar pantallas en blanco
-      if (Array.isArray(data) && data.length === 0) {
-        const local = localDb.getTable(table)
-        if (local && local.length > 0) {
-          data = local
-        }
       }
 
       const payload = { data: data || [], timestamp: Date.now() }

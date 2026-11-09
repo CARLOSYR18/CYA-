@@ -275,6 +275,7 @@ export function AuthProvider({ children }) {
         if (currentUserIdRef.current !== data.user.id) {
           clearStoredCompany()
           clearCompanyCache()
+          invalidateCache()
         }
         currentUserIdRef.current = data.user.id
         setProfileLoaded(false)
@@ -388,6 +389,7 @@ export function AuthProvider({ children }) {
     }
 
     setCompanyCache(rpcComp.id)
+    invalidateCache()
     setUser({ ...user, company_id: rpcComp.id, role: 'admin' })
     setProfileLoaded(true)
     return rpcComp

@@ -159,13 +159,15 @@ export const usersService = {
       }
     }
 
-    // Obtener colaboradores guardados en almacenamiento local que correspondan a esta empresa
-    let localUsers = getLocalCollaborators()
-      .filter(u => !isPlatformAdminEmail(u?.email))
-      .filter(u => !companyId || !u.company_id || u.company_id === companyId)
+    // Obtener colaboradores guardados en almacenamiento local solo en modo offline
+    let localUsers = isSupabaseConfigured
+      ? []
+      : getLocalCollaborators()
+          .filter(u => !isPlatformAdminEmail(u?.email))
+          .filter(u => !companyId || !u.company_id || u.company_id === companyId)
 
-    // Si tanto remotos como locales registrados están vacíos, cargar de localDb (seedData)
-    if (remoteUsers.length === 0 && localUsers.length === 0) {
+    // Solo en modo local offline (sin Supabase conectado), poblar con perfiles de demostración
+    if (!isSupabaseConfigured && remoteUsers.length === 0 && localUsers.length === 0) {
       const seedProfiles = (localDb.getTable('profiles') || []).filter(u => !isPlatformAdminEmail(u?.email))
       localUsers = seedProfiles
     }
