@@ -47,6 +47,11 @@ alter table public.profiles add column if not exists company_id uuid references 
 alter table public.profiles add column if not exists is_platform_admin boolean not null default false;
 alter table public.profiles add column if not exists avatar_url text;
 
+-- Asegurar restricción estricta de roles autorizados
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles
+  add constraint profiles_role_check check (role in ('admin', 'empleado', 'vendedor'));
+
 -- ----------------------------------------------------------------------------
 -- 3. TABLAS DE NEGOCIO CON company_id
 -- ----------------------------------------------------------------------------
@@ -217,6 +222,14 @@ begin
 end;
 $$ language plpgsql security definer stable;
 
+-- Helper: ¿el usuario actual es admin activo de su empresa?
+create or replace function public.is_company_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce(
+    (select role = 'admin' from public.profiles
+      where id = auth.uid() and active is not false), false)
+$$;
+
 -- ----------------------------------------------------------------------------
 -- 5. TRIGGER: NUEVO USUARIO
 -- ----------------------------------------------------------------------------
@@ -247,71 +260,59 @@ create trigger on_auth_user_created
 -- 6. TRIGGERS DE GUARDIA CONTRA ESCALADA
 -- ----------------------------------------------------------------------------
 create or replace function public.guard_profiles_update()
-returns trigger
-security invoker
-as $$
+returns trigger language plpgsql as $$
 begin
-  -- Si la modificación proviene de un contexto interno/RPC o superuser del sistema, permitir
   if current_user not in ('authenticated', 'anon') then
     return new;
   end if;
 
-  if public.is_platform_admin() then
-    return new;
-  end if;
-
-  -- Nadie puede otorgarse is_platform_admin
   if new.is_platform_admin is distinct from old.is_platform_admin then
-    raise exception 'Solo un administrador de plataforma puede modificar is_platform_admin.';
+    raise exception 'No autorizado: is_platform_admin no se puede modificar' using errcode = '42501';
   end if;
 
-  -- Un usuario normal no puede cambiarse su propio rol o empresa directamente vía API
-  if auth.uid() = old.id and old.company_id is not null then
-    if new.role is distinct from old.role or new.company_id is distinct from old.company_id or new.active is distinct from old.active then
-      raise exception 'No puedes alterar tu propio rol, empresa o estado de cuenta.';
+  if new.company_id is distinct from old.company_id then
+    raise exception 'No autorizado: la empresa solo cambia mediante funciones del sistema' using errcode = '42501';
+  end if;
+
+  if new.role is distinct from old.role or new.active is distinct from old.active then
+    if not (public.is_platform_admin()
+            or (public.is_company_admin() and old.id <> auth.uid())) then
+      raise exception 'No autorizado: no puedes cambiar rol o estado' using errcode = '42501';
     end if;
   end if;
 
   return new;
-end;
-$$ language plpgsql;
+end $$;
 
 drop trigger if exists trg_guard_profiles_update on public.profiles;
 create trigger trg_guard_profiles_update
   before update on public.profiles
-  for each row execute procedure public.guard_profiles_update();
+  for each row execute function public.guard_profiles_update();
 
 create or replace function public.guard_companies_update()
-returns trigger
-security invoker
-as $$
+returns trigger language plpgsql as $$
+declare k text;
 begin
-  -- Si la modificación proviene de un contexto interno/RPC o superuser del sistema, permitir
   if current_user not in ('authenticated', 'anon') then
     return new;
   end if;
-
   if public.is_platform_admin() then
     return new;
   end if;
-
-  if new.plan is distinct from old.plan or
-     new.plan_period is distinct from old.plan_period or
-     new.plan_price is distinct from old.plan_price or
-     new.plan_started_at is distinct from old.plan_started_at or
-     new.plan_expires_at is distinct from old.plan_expires_at or
-     new.active is distinct from old.active then
-    raise exception 'Los planes y estado de la empresa solo pueden ser autorizados por la Plataforma.';
-  end if;
-
+  foreach k in array array['plan','plan_period','plan_price','plan_started_at','plan_expires_at','active']
+  loop
+    if to_jsonb(new) -> k is distinct from to_jsonb(old) -> k then
+      raise exception 'No autorizado: "%" solo lo cambia el administrador de la plataforma', k
+        using errcode = '42501';
+    end if;
+  end loop;
   return new;
-end;
-$$ language plpgsql;
+end $$;
 
 drop trigger if exists trg_guard_companies_update on public.companies;
 create trigger trg_guard_companies_update
   before update on public.companies
-  for each row execute procedure public.guard_companies_update();
+  for each row execute function public.guard_companies_update();
 
 -- ----------------------------------------------------------------------------
 -- 7. FUNCIONES RPC ATÓMICAS (SECURITY DEFINER)
@@ -359,45 +360,41 @@ create or replace function public.add_user_to_my_company(
   p_full_name text,
   p_role text default 'empleado',
   p_active boolean default true
-)
-returns jsonb as $$
+) returns jsonb
+language plpgsql security definer set search_path = public as $$
 declare
-  v_caller_comp uuid := public.current_company_id();
-  v_caller_role text;
-  v_target_profile public.profiles%rowtype;
+  v_company uuid := public.current_company_id();
+  v_profile public.profiles%rowtype;
 begin
-  if v_caller_comp is null then
-    raise exception 'No perteneces a ninguna empresa activa.';
+  if v_company is null then
+    raise exception 'No perteneces a ninguna empresa activa.' using errcode = '42501';
   end if;
-
-  select role into v_caller_role from public.profiles where id = auth.uid();
-  if v_caller_role <> 'admin' and not public.is_platform_admin() then
-    raise exception 'Solo un administrador puede vincular colaboradores a su empresa.';
+  if not public.is_company_admin() then
+    raise exception 'Solo un administrador puede vincular colaboradores.' using errcode = '42501';
   end if;
-
   if p_role not in ('admin', 'empleado', 'vendedor') then
     raise exception 'Rol no autorizado.';
   end if;
 
-  -- Se restringe la vinculación a perfiles creados en los últimos 15 minutos
-  -- y que no pertenezcan ya a otra empresa
   update public.profiles
-  set full_name = trim(p_full_name),
-      role = p_role,
-      active = p_active,
-      company_id = v_caller_comp
-  where id = p_user_id
-    and (company_id is null or company_id = v_caller_comp)
-    and created_at >= (now() - interval '15 minutes')
-  returning * into v_target_profile;
+     set full_name = coalesce(nullif(trim(p_full_name), ''), full_name),
+         role = p_role,
+         active = coalesce(p_active, true),
+         company_id = v_company
+   where id = p_user_id
+     and is_platform_admin = false
+     and (
+       (company_id is null and created_at >= now() - interval '15 minutes')
+       or company_id = v_company
+     )
+  returning * into v_profile;
 
   if not found then
-    raise exception 'El usuario no existe, expiró la ventana de vinculación de 15 minutos o ya pertenece a otra empresa.';
+    raise exception 'No se pudo vincular al usuario (ya pertenece a otra empresa, pasaron más de 15 minutos o no existe).'
+      using errcode = '42501';
   end if;
-
-  return to_jsonb(v_target_profile);
-end;
-$$ language plpgsql security definer;
+  return to_jsonb(v_profile);
+end $$;
 
 -- ----------------------------------------------------------------------------
 -- 8. POLÍTICAS RLS
@@ -508,4 +505,12 @@ create policy "plan_requests_member" on public.plan_requests
 
 create policy "plan_requests_insert" on public.plan_requests
   for insert with check (company_id = public.current_company_id());
+
+-- ----------------------------------------------------------------------------
+-- 9. PERMISOS DE EJECUCIÓN (REVOKE / GRANT)
+-- ----------------------------------------------------------------------------
+revoke all on function public.create_company(text, text, text, text, text) from public, anon;
+revoke all on function public.add_user_to_my_company(uuid, text, text, boolean) from public, anon;
+grant execute on function public.create_company(text, text, text, text, text) to authenticated;
+grant execute on function public.add_user_to_my_company(uuid, text, text, boolean) to authenticated;
 
