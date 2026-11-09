@@ -1,22 +1,15 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { localDb } from '../lib/localDb'
 import { clearCompanyCache, setCompanyCache } from '../lib/companyContext'
 import { isPlatformAdminEmail, purgeSuperAdminFromLocalCollaborators } from '../lib/superAdmin'
 import { invalidateCache } from '../services/crudFactory'
+import { clearStoredCompany } from '../services/companySettingsService'
 import AuthOverlay from '../components/ui/AuthOverlay'
 import LogoutConfirmModal from '../components/ui/LogoutConfirmModal'
 
 const AuthContext = createContext(null)
 const SESSION_KEY = 'inventory_erp_session'
-
-function getCachedCompanyId() {
-  try {
-    return sessionStorage.getItem('cya_cached_company_id') || localStorage.getItem('cya_cached_company_id') || null
-  } catch {
-    return null
-  }
-}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -24,6 +17,7 @@ export function AuthProvider({ children }) {
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [authTransition, setAuthTransition] = useState(null)
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
+  const currentUserIdRef = useRef(null)
 
   useEffect(() => {
     let isMounted = true
@@ -42,23 +36,30 @@ export function AuthProvider({ children }) {
         if (!isMounted) return
         const session = data?.session
         if (session?.user) {
+          if (currentUserIdRef.current !== session.user.id) {
+            currentUserIdRef.current = session.user.id
+            setProfileLoaded(false)
+            clearStoredCompany()
+          }
           const isSuper = isPlatformAdminEmail(session.user.email)
           const meta = session.user.user_metadata || {}
-          const compId = isSuper ? null : (meta.company_id || getCachedCompanyId() || null)
+          // El company_id sale estrictamente desde profiles (no del caché)
           setUser({
             id: session.user.id,
             email: session.user.email,
-            role: 'empleado', // El rol definitivo se carga estrictamente desde profiles.role
+            role: 'empleado',
             is_platform_admin: isSuper,
-            company_id: compId,
+            company_id: null,
             avatar_url: meta.avatar_url || null
           })
           if (isSuper) clearCompanyCache()
-          else if (compId) setCompanyCache(compId)
 
           // Cargar perfil en segundo plano sin bloquear
           loadProfile(session.user).catch(() => {})
         } else {
+          currentUserIdRef.current = null
+          clearStoredCompany()
+          clearCompanyCache()
           setProfileLoaded(true)
         }
         setLoading(false)
@@ -77,17 +78,25 @@ export function AuthProvider({ children }) {
         if (!isMounted) return
 
         if (event === 'SIGNED_OUT' || !session) {
+          currentUserIdRef.current = null
           setUser(null)
           clearCompanyCache()
+          clearStoredCompany()
           setLoading(false)
           setProfileLoaded(false)
           return
         }
 
         if (session?.user) {
+          if (currentUserIdRef.current !== session.user.id) {
+            currentUserIdRef.current = session.user.id
+            setProfileLoaded(false)
+            clearStoredCompany()
+            clearCompanyCache()
+          }
+
           const isSuper = isPlatformAdminEmail(session.user.email)
           const meta = session.user.user_metadata || {}
-          const compId = isSuper ? null : (meta.company_id || getCachedCompanyId() || null)
 
           setUser((prev) => {
             return {
@@ -95,13 +104,12 @@ export function AuthProvider({ children }) {
               email: session.user.email,
               role: prev?.role || 'empleado',
               is_platform_admin: Boolean(prev?.is_platform_admin) || isSuper,
-              company_id: isSuper ? null : (prev?.company_id || compId),
+              company_id: isSuper ? null : (prev?.company_id || null),
               avatar_url: meta.avatar_url || prev?.avatar_url || null,
               ...(prev || {})
             }
           })
           if (isSuper) clearCompanyCache()
-          else if (compId) setCompanyCache(compId)
           setLoading(false)
 
           // Cargar perfil desacoplado para liberar el lock interno de Supabase
@@ -148,6 +156,12 @@ export function AuthProvider({ children }) {
       return null
     }
 
+    if (currentUserIdRef.current && currentUserIdRef.current !== authUser.id) {
+      clearStoredCompany()
+      clearCompanyCache()
+    }
+    currentUserIdRef.current = authUser.id
+
     const isSuper = isPlatformAdminEmail(authUser.email)
 
     try {
@@ -160,6 +174,14 @@ export function AuthProvider({ children }) {
       // isPlatformAdmin sale exclusivamente de la columna protegida profiles.is_platform_admin o variable de entorno
       const isPlatformAdminUser = Boolean(data?.is_platform_admin) || isSuper
       const companyId = isPlatformAdminUser ? null : (data?.company_id || null)
+
+      // Si el perfil no tiene company_id, limpiar datos y caché residuales
+      if (!companyId) {
+        clearStoredCompany()
+        clearCompanyCache()
+      } else {
+        setCompanyCache(companyId)
+      }
 
       // El rol proviene estrictamente de profiles.role
       const userRole = isPlatformAdminUser
@@ -181,9 +203,6 @@ export function AuthProvider({ children }) {
       }
 
       setUser(profile)
-      if (isPlatformAdminUser) clearCompanyCache()
-      else if (profile.company_id) setCompanyCache(profile.company_id)
-      else clearCompanyCache()
 
       // Precarga silenciosa en segundo plano solo si pertenece a una empresa
       if (profile.company_id) {
@@ -196,10 +215,11 @@ export function AuthProvider({ children }) {
         }, 300)
       }
 
-      setProfileLoaded(true)
       return profile
     } catch (err) {
       console.warn('Aviso cargando perfil:', err)
+      clearStoredCompany()
+      clearCompanyCache()
       const metadata = authUser?.user_metadata || {}
       const fallback = {
         id: authUser.id,
@@ -211,9 +231,10 @@ export function AuthProvider({ children }) {
         avatar_url: metadata.avatar_url || null
       }
       setUser(fallback)
-      if (isSuper) clearCompanyCache()
-      setProfileLoaded(true)
       return fallback
+    } finally {
+      // Asegurar que profileLoaded SIEMPRE termine en true
+      setProfileLoaded(true)
     }
   }
 
@@ -251,20 +272,25 @@ export function AuthProvider({ children }) {
       })
 
       if (data?.user) {
+        if (currentUserIdRef.current !== data.user.id) {
+          clearStoredCompany()
+          clearCompanyCache()
+        }
+        currentUserIdRef.current = data.user.id
+        setProfileLoaded(false)
+
         const meta = data.user.user_metadata || {}
         const isSuper = isPlatformAdminEmail(data.user.email)
-        const compId = isSuper ? null : (meta.company_id || getCachedCompanyId() || null)
         const initialUser = {
           id: data.user.id,
           email: data.user.email,
-          role: 'empleado', // Se define de forma estricta desde profiles.role en loadProfile
+          role: 'empleado',
           is_platform_admin: isSuper,
-          company_id: compId,
+          company_id: null,
           avatar_url: meta.avatar_url || null
         }
         setUser(initialUser)
         if (isSuper) clearCompanyCache()
-        else if (initialUser.company_id) setCompanyCache(initialUser.company_id)
 
         // Cargar perfil completo con timeout de 2.5s para asegurar datos de empresa antes de entrar
         try {
@@ -322,6 +348,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
     if (isSuper) clearCompanyCache()
     setUser(session)
+    setProfileLoaded(true)
     await new Promise((r) => setTimeout(r, 650))
     setAuthTransition(null)
   }
@@ -362,6 +389,7 @@ export function AuthProvider({ children }) {
 
     setCompanyCache(rpcComp.id)
     setUser({ ...user, company_id: rpcComp.id, role: 'admin' })
+    setProfileLoaded(true)
     return rpcComp
   }
 
@@ -376,13 +404,16 @@ export function AuthProvider({ children }) {
       if (isSupabaseConfigured) await supabase.auth.signOut()
       else localStorage.removeItem(SESSION_KEY)
     } finally {
-      // B6: Limpieza profunda de memoria, caché de sesión y llaves de tenant
+      // Limpieza profunda de memoria, caché de sesión, llaves de tenant y datos de empresa
       invalidateCache()
       try {
         sessionStorage.clear()
         localStorage.removeItem(SESSION_KEY)
       } catch {}
       clearCompanyCache()
+      clearStoredCompany()
+      currentUserIdRef.current = null
+      setProfileLoaded(false)
       setUser(null)
       setTimeout(() => {
         setAuthTransition(null)
@@ -485,6 +516,7 @@ export function AuthProvider({ children }) {
       value={{
         user,
         loading,
+        profileLoaded,
         authTransition,
         setAuthTransition,
         login,

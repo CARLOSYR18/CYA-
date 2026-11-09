@@ -45,7 +45,7 @@ const getWhatsAppUrl = (phone, name) => {
   const cleaned = cleanPhone(phone)
   if (!cleaned) return null
   const fullNumber = cleaned.length === 9 ? `51${cleaned}` : cleaned
-  const text = encodeURIComponent(`Hola ${name || ''}, te saludamos de Cleanig Service. ¿Podrías brindarnos información sobre nuestras compras/pedidos?`)
+  const text = encodeURIComponent(`Hola ${name || ''}, te saludamos de parte de la empresa. ¿Podrías brindarnos información sobre nuestras compras/pedidos?`)
   return `https://wa.me/${fullNumber}?text=${text}`
 }
 

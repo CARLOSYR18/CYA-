@@ -152,7 +152,7 @@ export default function InventoryMovements() {
         name: 'Asistente IA',
         role: 'bot',
         initials: 'IA',
-        email: 'asistente@cleanig.ai',
+        email: 'asistente@erp.com',
         isAi: true
       }
     }

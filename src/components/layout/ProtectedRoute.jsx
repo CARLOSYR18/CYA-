@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { companySettingsService } from '../../services/companySettingsService'
+import { isSupabaseConfigured } from '../../lib/supabaseClient'
 
 export default function ProtectedRoute({ children, adminOnly = false, platformAdminOnly = false }) {
-  const { user, loading, isAdmin, needsOnboarding, isPlatformAdmin } = useAuth()
+  const { user, loading, profileLoaded, isAdmin, needsOnboarding, isPlatformAdmin } = useAuth()
   const location = useLocation()
   const [companyActive, setCompanyActive] = useState(true)
 
@@ -14,7 +15,7 @@ export default function ProtectedRoute({ children, adminOnly = false, platformAd
     }
   }, [user])
 
-  if (loading) {
+  if (loading || (isSupabaseConfigured && user && !profileLoaded)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white/90 dark:bg-[#0c0d12]/92 backdrop-blur-md p-4 animate-fade-in select-none">
         <div className="relative mb-4 flex items-center justify-center">

@@ -41,45 +41,56 @@ function saveStoredCompany(data) {
   } catch {}
 }
 
+export function clearStoredCompany() {
+  try {
+    localStorage.removeItem(COMPANY_CACHE_KEY)
+    localStorage.removeItem(EXTRA_SETTINGS_KEY)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cya_company_updated', { detail: null }))
+    }
+  } catch {}
+}
+
 export const companySettingsService = {
+  clearStoredCompany() {
+    clearStoredCompany()
+  },
+
   getCached() {
     return getStoredCompany()
   },
 
   async get(options = {}) {
-    const extra = getCachedExtraSettings()
-    const cached = getStoredCompany()
     const forceRefresh = options?.forceRefresh === true
 
-    // Retorno en 0ms si ya tenemos la empresa en almacenamiento local
-    if (cached && !forceRefresh) {
-      // Revalidación silenciosa en segundo plano
-      if (isSupabaseConfigured && supabase) {
-        getCurrentCompanyId().then((companyId) => {
-          if (!companyId) return
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const companyId = await getCurrentCompanyId().catch(() => null)
+        if (!companyId) {
+          // Si el usuario no tiene company_id, devuelve null (no el caché)
+          return null
+        }
+
+        const extra = getCachedExtraSettings()
+        const cached = getStoredCompany()
+
+        // Solo retornar caché si corresponde exactamente a la empresa activa
+        if (cached && cached.id === companyId && !forceRefresh) {
+          // Revalidación silenciosa en segundo plano
           supabase.from('companies').select('*').eq('id', companyId).maybeSingle().then(({ data, error }) => {
             if (!error && data) {
               paymentMethodsService.hydrateFromCompany({ ...data, ...extra })
               saveStoredCompany({ ...extra, ...data })
             }
           }).catch(() => {})
-        }).catch(() => {})
-      }
-      return { ...extra, ...cached }
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const companyId = await getCurrentCompanyId().catch(() => null)
-        if (!companyId) {
-          const fallback = cached || { name: 'CYA Store', ruc: '20608912345', address: 'Lima, Perú', phone: '+51 987 654 321', logo_url: '', ...extra }
-          paymentMethodsService.hydrateFromCompany(fallback)
-          return fallback
+          return { ...extra, ...cached }
         }
+
         const { data, error } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle()
         if (error) {
           console.warn('Aviso al obtener configuración de empresa:', error.message)
-          if (cached) return { ...extra, ...cached }
+          if (cached && cached.id === companyId) return { ...extra, ...cached }
+          return null
         }
         if (data) {
           paymentMethodsService.hydrateFromCompany({ ...data, ...extra })
@@ -87,11 +98,14 @@ export const companySettingsService = {
           saveStoredCompany(full)
           return full
         }
+        return null
       } catch (err) {
         console.warn('Error conectando a empresas en Supabase:', err)
-        if (cached) return { ...extra, ...cached }
+        return null
       }
     }
+
+    const extra = getCachedExtraSettings()
     const rows = localDb.getTable('company_settings')
     const current = rows[0] || { name: 'CYA Store', ruc: '20608912345', address: 'Lima, Perú', phone: '+51 987 654 321', logo_url: '' }
     paymentMethodsService.hydrateFromCompany({ ...current, ...extra })

@@ -36,9 +36,14 @@ export async function getCurrentCompanyId() {
             console.warn('Aviso profile company_id:', error.message)
             return null
           }
-          if (data?.company_id) {
-            setCompanyCache(data.company_id)
-            return data.company_id
+          if (data) {
+            if (data.company_id) {
+              setCompanyCache(data.company_id)
+              return data.company_id
+            } else {
+              clearCompanyCache()
+              return null
+            }
           }
           return null
         } catch {
@@ -49,7 +54,7 @@ export async function getCurrentCompanyId() {
       // Timeout estricto de 2.5s para no bloquear la aplicación bajo ninguna circunstancia
       const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 2500))
       const result = await Promise.race([fetchPromise, timeoutPromise])
-      return result || cachedCompanyId
+      return result !== undefined ? result : null
     } catch {
       return cachedCompanyId
     } finally {

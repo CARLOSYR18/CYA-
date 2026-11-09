@@ -807,10 +807,10 @@ export default function NewPurchase() {
               <div className="overflow-y-auto p-5 flex-1 space-y-4">
                 <div className="text-center pb-3 border-b border-slate-100 dark:border-zinc-800">
                   <h4 className="font-extrabold text-sm text-slate-900 dark:text-white uppercase tracking-wider">
-                    {company?.name || 'CLEANIG SERVICE'}
+                    {company?.name || 'Mi Empresa'}
                   </h4>
                   <p className="text-xs text-slate-500 font-mono">
-                    RUC: {company?.ruc || '82181289381'}
+                    RUC: {company?.ruc || '-'}
                   </p>
                   <span className={`inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-bold ${
                     createdPurchase.status === 'recibido'

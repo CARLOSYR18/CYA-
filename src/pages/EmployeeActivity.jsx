@@ -191,7 +191,7 @@ export default function EmployeeActivity() {
       if (isAiMovement) {
         matchedUser = {
           name: 'Asistente IA',
-          email: 'asistente@cleanig.ai',
+          email: 'asistente@erp.com',
           role: 'bot',
           initials: 'IA',
           isAi: true
