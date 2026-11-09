@@ -106,7 +106,7 @@ export default function Assistant() {
 
   // Cargar configuración de la empresa, productos y clientes para boletas
   useEffect(() => {
-    if (!user || location.pathname === '/login') return
+    if (!user || !user.company_id || location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/onboarding') return
     companySettingsService.get().then(setCompany).catch(() => { })
     productsService.list().then(setProducts).catch(() => { })
     clientsService.list().then(setClients).catch(() => { })
@@ -114,7 +114,7 @@ export default function Assistant() {
 
   // Secuencia de animación de entrada: se muestra en tamaño real y luego se encoge a bolita (solo desktop)
   useEffect(() => {
-    if (!user || location.pathname === '/login') return
+    if (!user || !user.company_id || location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/onboarding') return
     if (typeof window !== 'undefined' && window.innerWidth < 768) return
     // Tras 3.2 segundos en tamaño real, inicia la transición a bolita
     const timer = setTimeout(() => {
@@ -380,6 +380,9 @@ export default function Assistant() {
     e.preventDefault()
     handleSend()
   }
+
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/onboarding'
+  if (!user || !user.company_id || isAuthPage) return null
 
   const isLarge = introState === 'showcase'
 

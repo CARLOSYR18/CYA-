@@ -18,12 +18,12 @@ export default function Onboarding() {
   const { user, completeOnboarding } = useAuth()
   const navigate = useNavigate()
 
-  // Si el usuario ya cuenta con empresa o no es administrador, redirigir directo al Dashboard principal
+  // Si el usuario ya cuenta con empresa registrada, redirigir directo al Dashboard
   useEffect(() => {
-    if (user?.company_id || (user && user.role !== 'admin')) {
+    if (user?.company_id) {
       navigate('/', { replace: true })
     }
-  }, [user, navigate])
+  }, [user?.company_id, navigate])
 
   const [name, setName] = useState('')
   const [ruc, setRuc] = useState('')

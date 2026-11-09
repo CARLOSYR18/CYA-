@@ -30,11 +30,11 @@ import CompanySettings from './pages/CompanySettings'
 import Plans from './pages/Plans'
 import PlatformAdmin from './pages/PlatformAdmin'
 import Profile from './pages/Profile'
+import Onboarding from './pages/Onboarding'
 import NotFound from './pages/NotFound'
 
 // Infrequent pages loaded on demand
 const SignUp = lazy(() => import('./pages/SignUp'))
-const Onboarding = lazy(() => import('./pages/Onboarding'))
 
 export default function App() {
   return (

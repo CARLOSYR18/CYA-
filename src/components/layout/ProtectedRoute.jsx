@@ -45,9 +45,14 @@ export default function ProtectedRoute({ children, adminOnly = false, platformAd
   if (needsOnboarding && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />
   }
+
+  if (!needsOnboarding && location.pathname === '/onboarding') {
+    return <Navigate to="/" replace />
+  }
+
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />
 
-  if (!companyActive && !isPlatformAdmin) {
+  if (!companyActive && !isPlatformAdmin && location.pathname !== '/onboarding') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base-bg text-center px-4">
         <div>
