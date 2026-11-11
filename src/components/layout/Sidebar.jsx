@@ -85,7 +85,8 @@ function saveModules(modules) {
 
 export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) {
   const { user, logout, requestLogout, isAdmin, isPlatformAdmin } = useAuth()
-  const [company, setCompany] = useState(() => companySettingsService.getCached())
+  const [company, setCompany] = useState(() => companySettingsService.getCached(user?.company_id))
+  const [logoError, setLogoError] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -131,14 +132,24 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
   }
 
   useEffect(() => {
-    companySettingsService.get().then(c => { if (c) setCompany(c) }).catch(() => {})
+    setLogoError(false)
+  }, [company?.logo_url])
+
+  useEffect(() => {
+    const cached = companySettingsService.getCached(user?.company_id)
+    if (cached) setCompany(cached)
+    companySettingsService.get().then(c => {
+      if (c) setCompany(c)
+    }).catch(() => {})
     const handleCompanyChange = (e) => {
       if (e.detail) setCompany(e.detail)
-      else companySettingsService.get().then(c => { if (c) setCompany(c) }).catch(() => {})
+      else companySettingsService.get().then(c => {
+        if (c) setCompany(c)
+      }).catch(() => {})
     }
     window.addEventListener('cya_company_updated', handleCompanyChange)
     return () => window.removeEventListener('cya_company_updated', handleCompanyChange)
-  }, [])
+  }, [user?.company_id])
 
   const handleLogout = (e) => {
     e?.stopPropagation?.()
@@ -263,26 +274,47 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         <div className={`h-[68px] flex items-center ${effectiveCollapsed ? 'justify-center px-2' : 'justify-between px-4'} border-b border-white/[0.08] shrink-0 bg-[#061838]/80 backdrop-blur-sm z-10`}>
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className={`h-10 ${effectiveCollapsed ? 'w-10' : 'min-w-[40px] max-w-[50px]'} rounded-xl overflow-hidden bg-white/95 shrink-0 flex items-center justify-center border border-white/20 shadow-md p-1`}
-              title={isPlatformAdmin ? 'CYA SaaS Platform' : (company?.name || 'CYA ERP')}
+              className={`h-10 ${effectiveCollapsed ? 'w-10' : 'min-w-[40px] max-w-[50px]'} rounded-xl overflow-hidden ${!isPlatformAdmin && !company ? 'bg-white/10 animate-pulse' : 'bg-white/95'} shrink-0 flex items-center justify-center border border-white/20 shadow-md p-1`}
+              title={isPlatformAdmin ? 'CYA SaaS Platform' : (company?.name || '')}
             >
-              <img
-                src={isPlatformAdmin ? '/logo-cya-badge.png' : (company?.logo_url || '/logo.png')}
-                alt={isPlatformAdmin ? 'CYA Platform' : (company?.name || 'CYA')}
-                className="max-h-full max-w-full w-auto h-auto object-contain"
-                onError={(e) => {
-                  e.currentTarget.src = '/logo-cya-badge.png'
-                }}
-              />
+              {isPlatformAdmin ? (
+                <img
+                  src="/logo-cya-badge.png"
+                  alt="CYA Platform"
+                  className="max-h-full max-w-full w-auto h-auto object-contain"
+                />
+              ) : !company ? (
+                <div className="w-5 h-5 rounded-md bg-white/20" />
+              ) : company.logo_url && !logoError ? (
+                <img
+                  src={company.logo_url}
+                  alt={company.name || 'Logo'}
+                  className="max-h-full max-w-full w-auto h-auto object-contain"
+                  onError={() => setLogoError(true)}
+                />
+              ) : (
+                <span className="font-display font-extrabold text-sm text-[#072563] tracking-tight">
+                  {(company.name || 'E').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+                </span>
+              )}
             </div>
             {!effectiveCollapsed && (
               <div className="min-w-0">
-                <p className="font-display font-bold text-white text-[14.5px] leading-tight truncate">
-                  {isPlatformAdmin ? 'CYA PLATFORM' : (company?.name || 'CYA ERP')}
-                </p>
-                <p className="text-[10.5px] text-blue-300 font-semibold uppercase tracking-wider mt-0.5 truncate">
-                  {isPlatformAdmin ? 'SUPER ADMIN GLOBAL' : (company?.ruc ? `RUC: ${company.ruc}` : 'ERP')}
-                </p>
+                {!isPlatformAdmin && !company ? (
+                  <div className="space-y-1.5 py-0.5">
+                    <div className="h-3.5 w-28 rounded bg-white/15 animate-pulse" />
+                    <div className="h-2.5 w-20 rounded bg-white/10 animate-pulse" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="font-display font-bold text-white text-[14.5px] leading-tight truncate">
+                      {isPlatformAdmin ? 'CYA PLATFORM' : (company?.name || 'Mi Empresa')}
+                    </p>
+                    <p className="text-[10.5px] text-blue-300 font-semibold uppercase tracking-wider mt-0.5 truncate">
+                      {isPlatformAdmin ? 'SUPER ADMIN GLOBAL' : (company?.ruc ? `RUC: ${company.ruc}` : 'ERP')}
+                    </p>
+                  </>
+                )}
               </div>
             )}
           </div>

@@ -56,8 +56,26 @@ export const companySettingsService = {
     clearStoredCompany()
   },
 
-  getCached() {
-    return getStoredCompany()
+  setCached(data) {
+    if (!data) return
+    saveStoredCompany(data)
+  },
+
+  getCached(expectedCompanyId = null) {
+    const cached = getStoredCompany()
+    if (!cached) return null
+    if (isSupabaseConfigured) {
+      let activeId = expectedCompanyId
+      if (!activeId) {
+        try {
+          activeId = sessionStorage.getItem('cya_cached_company_id') || localStorage.getItem('cya_cached_company_id') || null
+        } catch {
+          activeId = null
+        }
+      }
+      if (!activeId || cached.id !== activeId) return null
+    }
+    return { ...getCachedExtraSettings(), ...cached }
   },
 
   async get(options = {}) {

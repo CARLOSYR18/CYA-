@@ -75,7 +75,7 @@ export default function Assistant() {
     typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition)
   const [generatingReceipt, setGeneratingReceipt] = useState(false)
   const [receiptModalData, setReceiptModalData] = useState(null)
-  const [company, setCompany] = useState(null)
+  const [company, setCompany] = useState(() => companySettingsService.getCached(user?.company_id))
   const [products, setProducts] = useState([])
   const [clients, setClients] = useState([])
   const [saleFlow, setSaleFlow] = useState(newSaleFlowState())
@@ -107,9 +107,17 @@ export default function Assistant() {
   // Cargar configuración de la empresa, productos y clientes para boletas
   useEffect(() => {
     if (!user || !user.company_id || location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/onboarding') return
-    companySettingsService.get().then(setCompany).catch(() => { })
+    const cached = companySettingsService.getCached(user.company_id)
+    if (cached) setCompany(cached)
+    companySettingsService.get().then(c => { if (c) setCompany(c) }).catch(() => { })
     productsService.list().then(setProducts).catch(() => { })
     clientsService.list().then(setClients).catch(() => { })
+
+    const handleCompanyUpdate = (e) => {
+      if (e.detail) setCompany(e.detail)
+    }
+    window.addEventListener('cya_company_updated', handleCompanyUpdate)
+    return () => window.removeEventListener('cya_company_updated', handleCompanyUpdate)
   }, [user, location.pathname])
 
   // Secuencia de animación de entrada: se muestra en tamaño real y luego se encoge a bolita (solo desktop)

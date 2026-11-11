@@ -50,16 +50,23 @@ function DashboardContent() {
   const [categories, setCategories] = useState(() => categoriesService.getCached?.() || [])
   const [clients, setClients] = useState(() => clientsService.getCached?.() || [])
   const [movements, setMovements] = useState(() => inventoryMovementsService.getCached?.() || [])
-  const [company, setCompany] = useState(() => companySettingsService.getCached?.())
+  const [company, setCompany] = useState(() => companySettingsService.getCached?.(user?.company_id))
+  const [logoError, setLogoError] = useState(false)
   const [loading, setLoading] = useState(() => !salesService.hasCache?.() && !productsService.hasCache?.())
 
   useEffect(() => {
+    setLogoError(false)
+  }, [company?.logo_url])
+
+  useEffect(() => {
+    const cached = companySettingsService.getCached?.(user?.company_id)
+    if (cached) setCompany(cached)
     const handleCompanyUpdate = (e) => {
       if (e.detail) setCompany(e.detail)
     }
     window.addEventListener('cya_company_updated', handleCompanyUpdate)
     return () => window.removeEventListener('cya_company_updated', handleCompanyUpdate)
-  }, [])
+  }, [user?.company_id])
 
   // Interactive UI States (Default: Sol Peruano 'S/')
   const [currency, setCurrency] = useState(() => {
@@ -793,31 +800,41 @@ function DashboardContent() {
               <Menu size={19} />
             </button>
 
-            <div className="h-10 min-w-[40px] max-w-[64px] rounded-2xl overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-2xs shrink-0 p-1">
-              {company?.logo_url ? (
+            <div className={`h-10 min-w-[40px] max-w-[64px] rounded-2xl overflow-hidden ${!company ? 'bg-slate-200/70 dark:bg-zinc-800 animate-pulse' : 'bg-white dark:bg-zinc-800'} border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-2xs shrink-0 p-1`}>
+              {!company ? (
+                <div className="w-5 h-5 rounded-md bg-slate-300/60 dark:bg-zinc-700" />
+              ) : company.logo_url && !logoError ? (
                 <img
                   src={company.logo_url}
                   alt={company.name || 'Logo'}
                   className="max-h-full max-w-full w-auto h-auto object-contain"
-                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  onError={() => setLogoError(true)}
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-tr from-[#5550F2] to-[#7974FF] flex items-center justify-center rounded-xl">
-                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 6C4 4.89543 4.89543 4 6 4H10C11.1046 4 12 4.89543 12 6V18C12 19.1046 11.1046 20 10 20H6C4.89543 20 4 19.1046 4 18V6Z" fill="white" fillOpacity="0.95"/>
-                    <path d="M14 10C14 8.89543 14.8954 8 16 8H18C19.1046 8 20 8.89543 20 10V18C20 19.1046 19.1046 20 18 20H16C14.8954 20 14 19.1046 14 18V10Z" fill="white" fillOpacity="0.65"/>
-                  </svg>
+                  <span className="text-xs font-black text-white tracking-tight">
+                    {(company.name || 'E').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+                  </span>
                 </div>
               )}
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="font-black text-sm sm:text-[16px] text-slate-900 dark:text-white tracking-tight truncate max-w-[140px] sm:max-w-none">
-                  {company?.name || 'CYA STORE'}
-                </span>
-                <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-white/10 dark:text-slate-200 border border-indigo-200/50 dark:border-white/10 shrink-0">ERP</span>
-              </div>
-              <p className="hidden sm:block text-[10.5px] text-slate-400 font-medium leading-none mt-0.5">Control de Inventario & Ventas</p>
+              {!company ? (
+                <div className="space-y-1.5 py-0.5">
+                  <div className="h-4 w-32 rounded bg-slate-200 dark:bg-zinc-800 animate-pulse" />
+                  <div className="h-2.5 w-24 rounded bg-slate-100 dark:bg-zinc-800/70 animate-pulse" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="font-black text-sm sm:text-[16px] text-slate-900 dark:text-white tracking-tight truncate max-w-[140px] sm:max-w-none">
+                      {company.name || 'Mi Empresa'}
+                    </span>
+                    <span className="text-[9.5px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-white/10 dark:text-slate-200 border border-indigo-200/50 dark:border-white/10 shrink-0">ERP</span>
+                  </div>
+                  <p className="hidden sm:block text-[10.5px] text-slate-400 font-medium leading-none mt-0.5">Control de Inventario & Ventas</p>
+                </>
+              )}
             </div>
           </div>
 
@@ -1012,16 +1029,19 @@ function DashboardContent() {
                 className="flex items-center cursor-pointer focus:outline-none"
               >
                 <div className="h-9 min-w-[36px] max-w-[50px] px-1 rounded-xl overflow-hidden ring-2 ring-indigo-500/25 hover:ring-indigo-500 transition-all shadow-2xs bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 flex items-center justify-center">
-                  {(company?.logo_url || user?.avatar_url) ? (
+                  {((company?.logo_url && !logoError) || user?.avatar_url) ? (
                     <img
-                      src={company?.logo_url || user?.avatar_url}
+                      src={(company?.logo_url && !logoError) ? company.logo_url : user.avatar_url}
                       alt={company?.name || 'Usuario'}
                       className="max-h-full max-w-full w-auto h-auto object-contain"
-                      onError={(e) => { e.currentTarget.style.display = 'none' }}
+                      onError={(e) => {
+                        if (company?.logo_url && !logoError) setLogoError(true)
+                        else e.currentTarget.style.display = 'none'
+                      }}
                     />
                   ) : (
                     <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase font-display">
-                      {user?.full_name ? user.full_name.charAt(0) : (user?.email?.charAt(0).toUpperCase() || 'C')}
+                      {company?.name?.charAt(0) || user?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase() || 'E'}
                     </span>
                   )}
                 </div>

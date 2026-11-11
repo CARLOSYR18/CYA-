@@ -19,7 +19,7 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
   const { isDark, toggleTheme } = useTheme()
   
   // Company settings & logo
-  const [company, setCompany] = useState(() => companySettingsService.getCached())
+  const [company, setCompany] = useState(() => companySettingsService.getCached(user?.company_id))
   const [imgError, setImgError] = useState(false)
 
   // User menu state
@@ -48,6 +48,15 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
   const color = avatarColor(displayName || user?.email || '')
 
   useEffect(() => {
+    setImgError(false)
+  }, [avatarUrl])
+
+  useEffect(() => {
+    const cached = companySettingsService.getCached(user?.company_id)
+    if (cached) {
+      setCompany(cached)
+      setImgError(false)
+    }
     companySettingsService.get().then(c => {
       if (c) {
         setCompany(c)
@@ -71,7 +80,7 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
 
     window.addEventListener('cya_company_updated', handleCompanyUpdate)
     return () => window.removeEventListener('cya_company_updated', handleCompanyUpdate)
-  }, [])
+  }, [user?.company_id])
 
   const loadNotifs = async () => {
     try {

@@ -4,12 +4,24 @@ import { localDb } from '../lib/localDb'
 import { clearCompanyCache, setCompanyCache } from '../lib/companyContext'
 import { isPlatformAdminEmail, purgeSuperAdminFromLocalCollaborators } from '../lib/superAdmin'
 import { invalidateCache } from '../services/crudFactory'
-import { clearStoredCompany } from '../services/companySettingsService'
+import { clearStoredCompany, companySettingsService } from '../services/companySettingsService'
 import AuthOverlay from '../components/ui/AuthOverlay'
 import LogoutConfirmModal from '../components/ui/LogoutConfirmModal'
 
 const AuthContext = createContext(null)
 const SESSION_KEY = 'inventory_erp_session'
+const LAST_USER_KEY = 'cya_last_user_id'
+
+function getLastUserId() {
+  try { return localStorage.getItem(LAST_USER_KEY) || null } catch { return null }
+}
+
+function setLastUserId(id) {
+  try {
+    if (id) localStorage.setItem(LAST_USER_KEY, id)
+    else localStorage.removeItem(LAST_USER_KEY)
+  } catch {}
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -36,11 +48,19 @@ export function AuthProvider({ children }) {
         if (!isMounted) return
         const session = data?.session
         if (session?.user) {
+          const prevStoredId = getLastUserId()
+          const userChanged = (currentUserIdRef.current && currentUserIdRef.current !== session.user.id)
+            || (prevStoredId && prevStoredId !== session.user.id)
+          if (userChanged) {
+            clearStoredCompany()
+            clearCompanyCache()
+            invalidateCache()
+          }
           if (currentUserIdRef.current !== session.user.id) {
             currentUserIdRef.current = session.user.id
             setProfileLoaded(false)
-            clearStoredCompany()
           }
+          setLastUserId(session.user.id)
           const isSuper = isPlatformAdminEmail(session.user.email)
           const meta = session.user.user_metadata || {}
           // El company_id sale estrictamente desde profiles (no del caché)
@@ -58,6 +78,7 @@ export function AuthProvider({ children }) {
           loadProfile(session.user).catch(() => {})
         } else {
           currentUserIdRef.current = null
+          setLastUserId(null)
           clearStoredCompany()
           clearCompanyCache()
           setProfileLoaded(true)
@@ -79,6 +100,7 @@ export function AuthProvider({ children }) {
 
         if (event === 'SIGNED_OUT' || !session) {
           currentUserIdRef.current = null
+          setLastUserId(null)
           setUser(null)
           clearCompanyCache()
           clearStoredCompany()
@@ -88,12 +110,19 @@ export function AuthProvider({ children }) {
         }
 
         if (session?.user) {
+          const prevStoredId = getLastUserId()
+          const userChanged = (currentUserIdRef.current && currentUserIdRef.current !== session.user.id)
+            || (prevStoredId && prevStoredId !== session.user.id)
+          if (userChanged) {
+            clearStoredCompany()
+            clearCompanyCache()
+            invalidateCache()
+          }
           if (currentUserIdRef.current !== session.user.id) {
             currentUserIdRef.current = session.user.id
             setProfileLoaded(false)
-            clearStoredCompany()
-            clearCompanyCache()
           }
+          setLastUserId(session.user.id)
 
           const isSuper = isPlatformAdminEmail(session.user.email)
           const meta = session.user.user_metadata || {}
@@ -181,6 +210,14 @@ export function AuthProvider({ children }) {
         clearCompanyCache()
       } else {
         setCompanyCache(companyId)
+        const cachedComp = companySettingsService.getCached(companyId)
+        if (!cachedComp || cachedComp.id !== companyId) {
+          clearStoredCompany()
+          await Promise.race([
+            companySettingsService.get({ forceRefresh: true }).catch(() => null),
+            new Promise((r) => setTimeout(r, 2000))
+          ])
+        }
       }
 
       // El rol proviene estrictamente de profiles.role
@@ -211,7 +248,7 @@ export function AuthProvider({ children }) {
           import('../services/salesService').then(m => m.salesService.list().catch(() => {})).catch(() => {})
           import('../services/categoriesService').then(m => m.categoriesService.list().catch(() => {})).catch(() => {})
           import('../services/clientsService').then(m => m.clientsService.list().catch(() => {})).catch(() => {})
-          import('../services/companySettingsService').then(m => m.companySettingsService.get().catch(() => {})).catch(() => {})
+          companySettingsService.get().catch(() => {})
         }, 300)
       }
 
@@ -272,12 +309,16 @@ export function AuthProvider({ children }) {
       })
 
       if (data?.user) {
-        if (currentUserIdRef.current !== data.user.id) {
+        const prevStoredId = getLastUserId()
+        const userChanged = (currentUserIdRef.current && currentUserIdRef.current !== data.user.id)
+          || (prevStoredId && prevStoredId !== data.user.id)
+        if (userChanged) {
           clearStoredCompany()
           clearCompanyCache()
           invalidateCache()
         }
         currentUserIdRef.current = data.user.id
+        setLastUserId(data.user.id)
         setProfileLoaded(false)
 
         const meta = data.user.user_metadata || {}
@@ -397,6 +438,7 @@ export function AuthProvider({ children }) {
     }
 
     setCompanyCache(rpcComp.id)
+    companySettingsService.setCached(rpcComp)
     invalidateCache()
     setUser({ ...user, company_id: rpcComp.id, role: 'admin' })
     setProfileLoaded(true)
@@ -420,6 +462,7 @@ export function AuthProvider({ children }) {
         sessionStorage.clear()
         localStorage.removeItem(SESSION_KEY)
       } catch {}
+      setLastUserId(null)
       clearCompanyCache()
       clearStoredCompany()
       currentUserIdRef.current = null
