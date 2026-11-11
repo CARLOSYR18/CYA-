@@ -10,6 +10,18 @@ const tableSupportsCompanyId = new Map() // table -> boolean
 // 60 segundos de frescura total en memoria
 const CACHE_TTL_MS = 60 * 1000
 
+/**
+ * Detecta exclusivamente si un error de Postgres/PostgREST indica que la tabla
+ * no posee la columna `company_id`, evitando confundir otros errores de esquema o RLS.
+ */
+function isMissingCompanyIdError(err) {
+  const msg = (err?.message || '').toLowerCase()
+  return (
+    msg.includes('company_id') &&
+    (msg.includes('does not exist') || msg.includes('schema cache') || msg.includes('could not find'))
+  )
+}
+
 function getStorageKey(table, companyId) {
   return `cya_cache_${table}_${companyId || 'global'}`
 }
@@ -193,17 +205,20 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
 
         const { data, error } = await query
         if (error) {
-          // Si falló por falta de columna company_id, reintentar sin filtro
-          tableSupportsCompanyId.set(table, false)
-          const { data: fallbackData, error: fallbackErr } = await supabase
-            .from(table)
-            .select('*')
-            .order(orderBy, { ascending })
-          if (fallbackErr) {
-            console.warn(`Aviso consulta remota ${table}:`, fallbackErr.message)
-            return null
+          if (company_id && hasCompId !== false && isMissingCompanyIdError(error)) {
+            tableSupportsCompanyId.set(table, false)
+            const { data: fallbackData, error: fallbackErr } = await supabase
+              .from(table)
+              .select('*')
+              .order(orderBy, { ascending })
+            if (fallbackErr) {
+              console.warn(`Aviso consulta remota ${table}:`, fallbackErr.message)
+              return null
+            }
+            return fallbackData || []
           }
-          return fallbackData || []
+          console.warn(`Aviso consulta remota ${table}:`, error.message)
+          return null
         }
 
         if (hasCompId === undefined && company_id) {
@@ -248,7 +263,7 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
         const insertData = (company_id && hasCompId !== false) ? { ...payload, company_id } : payload
 
         let res = await supabase.from(table).insert(insertData).select().single()
-        if (res.error && hasCompId !== false && company_id) {
+        if (res.error && hasCompId !== false && company_id && isMissingCompanyIdError(res.error)) {
           tableSupportsCompanyId.set(table, false)
           res = await supabase.from(table).insert(payload).select().single()
         }

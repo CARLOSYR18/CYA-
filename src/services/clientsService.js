@@ -1,6 +1,15 @@
 import { createCrudService } from './crudFactory'
 
 const base = createCrudService('clients', { orderBy: 'name', ascending: true })
+let clientsSupportsNotes = null
+
+function isMissingNotesColumnError(err) {
+  const msg = (err?.message || '').toLowerCase()
+  return (
+    msg.includes('notes') &&
+    (msg.includes('schema cache') || msg.includes('does not exist') || msg.includes('could not find') || msg.includes('column'))
+  )
+}
 
 export const clientsService = {
   ...base,
@@ -15,17 +24,18 @@ export const clientsService = {
       contact_name: payload.contact_name || null,
     }
 
-    try {
-      if (payload.notes) {
+    if (payload.notes && clientsSupportsNotes !== false) {
+      try {
         return await base.create({ ...cleanPayload, notes: payload.notes })
+      } catch (err) {
+        if (isMissingNotesColumnError(err)) {
+          clientsSupportsNotes = false
+          return await base.create(cleanPayload)
+        }
+        throw err
       }
-      return await base.create(cleanPayload)
-    } catch (err) {
-      if (err.message && (err.message.includes("'notes'") || err.message.includes('column "notes"'))) {
-        return await base.create(cleanPayload)
-      }
-      throw err
     }
+    return await base.create(cleanPayload)
   },
 
   async update(id, payload) {
@@ -39,17 +49,18 @@ export const clientsService = {
     if (payload.address !== undefined) cleanPayload.address = payload.address || null
     if (payload.contact_name !== undefined) cleanPayload.contact_name = payload.contact_name || null
 
-    try {
-      if (payload.notes !== undefined) {
+    if (payload.notes !== undefined && clientsSupportsNotes !== false) {
+      try {
         return await base.update(id, { ...cleanPayload, notes: payload.notes })
+      } catch (err) {
+        if (isMissingNotesColumnError(err)) {
+          clientsSupportsNotes = false
+          return await base.update(id, cleanPayload)
+        }
+        throw err
       }
-      return await base.update(id, cleanPayload)
-    } catch (err) {
-      if (err.message && (err.message.includes("'notes'") || err.message.includes('column "notes"'))) {
-        return await base.update(id, cleanPayload)
-      }
-      throw err
     }
+    return await base.update(id, cleanPayload)
   },
 
   // Busca un cliente por nombre (y teléfono si se da); si no existe, lo crea.

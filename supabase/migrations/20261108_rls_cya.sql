@@ -89,6 +89,7 @@ create table if not exists public.clients (
   created_at timestamptz not null default now()
 );
 alter table public.clients add column if not exists company_id uuid references public.companies(id) on delete cascade;
+alter table public.clients add column if not exists notes text;
 
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
