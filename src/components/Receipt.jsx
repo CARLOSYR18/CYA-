@@ -8,6 +8,12 @@ const money = (n) =>
   `S/ ${(Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 const TicketBody = forwardRef(function TicketBody({ sale, client, products, company }, ref) {
+  const [logoError, setLogoError] = useState(false)
+
+  useEffect(() => {
+    setLogoError(false)
+  }, [company?.logo_url])
+
   const productName = (id) => products?.find((p) => p.id === id)?.name || id
   const productSku = (id) => products?.find((p) => p.id === id)?.sku || ''
   const safeItems = Array.isArray(sale?.items)
@@ -25,7 +31,8 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
 
   const clientName = client?.name || sale?.client_name || 'CLIENTE PARTICULAR'
   const clientPhone = client?.phone || sale?.client_phone || ''
-  const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
+  const companyDisplayName = company?.name || 'Mi Empresa'
+  const companyInitials = companyDisplayName.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'E'
 
   return (
     <div
@@ -36,15 +43,19 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
       {/* ─── Company Header con Logo Oficial ─── */}
       <div className="text-center pb-3 border-b border-dashed border-slate-300">
         <div className="min-h-[44px] max-h-16 max-w-[220px] mx-auto mb-2 flex items-center justify-center">
-          <img
-            src={company?.logo_url || '/logo.png'}
-            alt={companyDisplayName}
-            className="max-h-16 max-w-full w-auto h-auto object-contain"
-            crossOrigin="anonymous"
-            onError={(e) => {
-              e.currentTarget.src = '/logo-cya-badge.png'
-            }}
-          />
+          {company?.logo_url && !logoError ? (
+            <img
+              src={company.logo_url}
+              alt={companyDisplayName}
+              className="max-h-16 max-w-full w-auto h-auto object-contain"
+              crossOrigin="anonymous"
+              onError={() => setLogoError(true)}
+            />
+          ) : (
+            <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center font-extrabold text-sm tracking-tight">
+              {companyInitials}
+            </div>
+          )}
         </div>
         <h3 className="font-extrabold text-sm tracking-tight text-slate-900 uppercase">
           {companyDisplayName}
@@ -191,7 +202,7 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
 })
 
 export default function Receipt({ sale, client, products, company: propCompany }) {
-  const [company, setCompany] = useState(propCompany || null)
+  const [company, setCompany] = useState(() => propCompany || companySettingsService.getCached?.() || null)
   const [copied, setCopied] = useState(false)
   const [sharing, setSharing] = useState(false)
   const visibleTicketRef = useRef(null)
@@ -218,7 +229,7 @@ export default function Receipt({ sale, client, products, company: propCompany }
   const total = Math.max(subtotal - discount, 0)
   const ticketCode = `B001-${sale?.id ? sale.id.toString().slice(-6).toUpperCase() : '000001'}`
   const clientName = client?.name || sale?.client_name || 'Cliente'
-  const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
+  const companyDisplayName = company?.name || 'Mi Empresa'
 
   const shareText = `*${companyDisplayName}* 🧾
 *Comprobante:* ${ticketCode}

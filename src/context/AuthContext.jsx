@@ -30,6 +30,7 @@ export function AuthProvider({ children }) {
   const [authTransition, setAuthTransition] = useState(null)
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
   const currentUserIdRef = useRef(null)
+  const inFlightProfileRef = useRef({ userId: null, promise: null })
 
   useEffect(() => {
     let isMounted = true
@@ -64,13 +65,17 @@ export function AuthProvider({ children }) {
           const isSuper = isPlatformAdminEmail(session.user.email)
           const meta = session.user.user_metadata || {}
           // El company_id sale estrictamente desde profiles (no del caché)
-          setUser({
-            id: session.user.id,
-            email: session.user.email,
-            role: 'empleado',
-            is_platform_admin: isSuper,
-            company_id: null,
-            avatar_url: meta.avatar_url || null
+          // Si onAuthStateChange ya cargó el perfil del mismo usuario, preservarlo para no pisar company_id
+          setUser((prev) => {
+            if (prev && prev.id === session.user.id) return prev
+            return {
+              id: session.user.id,
+              email: session.user.email,
+              role: 'empleado',
+              is_platform_admin: isSuper,
+              company_id: null,
+              avatar_url: meta.avatar_url || null
+            }
           })
           if (isSuper) clearCompanyCache()
 
@@ -128,14 +133,15 @@ export function AuthProvider({ children }) {
           const meta = session.user.user_metadata || {}
 
           setUser((prev) => {
+            const sameUser = prev?.id === session.user.id
             return {
               id: session.user.id,
               email: session.user.email,
-              role: prev?.role || 'empleado',
-              is_platform_admin: Boolean(prev?.is_platform_admin) || isSuper,
-              company_id: isSuper ? null : (prev?.company_id || null),
-              avatar_url: meta.avatar_url || prev?.avatar_url || null,
-              ...(prev || {})
+              role: sameUser ? (prev.role || 'empleado') : 'empleado',
+              is_platform_admin: sameUser ? (Boolean(prev.is_platform_admin) || isSuper) : isSuper,
+              company_id: isSuper ? null : (sameUser ? (prev.company_id || null) : null),
+              avatar_url: meta.avatar_url || (sameUser ? prev.avatar_url : null) || null,
+              ...(sameUser ? prev : {})
             }
           })
           if (isSuper) clearCompanyCache()
@@ -185,94 +191,106 @@ export function AuthProvider({ children }) {
       return null
     }
 
-    if (currentUserIdRef.current && currentUserIdRef.current !== authUser.id) {
-      clearStoredCompany()
-      clearCompanyCache()
+    if (inFlightProfileRef.current.userId === authUser.id && inFlightProfileRef.current.promise) {
+      return inFlightProfileRef.current.promise
     }
-    currentUserIdRef.current = authUser.id
 
-    const isSuper = isPlatformAdminEmail(authUser.email)
-
-    try {
-      // 1. Obtener perfil estrictamente desde la tabla protegida profiles en Supabase
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle()
-      if (error) {
-        console.warn('Aviso profiles query:', error.message)
-      }
-
-      // isPlatformAdmin sale exclusivamente de la columna protegida profiles.is_platform_admin o variable de entorno
-      const isPlatformAdminUser = Boolean(data?.is_platform_admin) || isSuper
-      const companyId = isPlatformAdminUser ? null : (data?.company_id || null)
-
-      // Si el perfil no tiene company_id, limpiar datos y caché residuales
-      if (!companyId) {
+    const run = (async () => {
+      if (currentUserIdRef.current && currentUserIdRef.current !== authUser.id) {
         clearStoredCompany()
         clearCompanyCache()
-      } else {
-        setCompanyCache(companyId)
-        const cachedComp = companySettingsService.getCached(companyId)
-        if (!cachedComp || cachedComp.id !== companyId) {
-          clearStoredCompany()
-          await Promise.race([
-            companySettingsService.get({ forceRefresh: true }).catch(() => null),
-            new Promise((r) => setTimeout(r, 2000))
-          ])
+      }
+      currentUserIdRef.current = authUser.id
+
+      const isSuper = isPlatformAdminEmail(authUser.email)
+
+      try {
+        // 1. Obtener perfil estrictamente desde la tabla protegida profiles en Supabase
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle()
+        if (error) {
+          console.warn('Aviso profiles query:', error.message)
         }
+
+        // isPlatformAdmin sale exclusivamente de la columna protegida profiles.is_platform_admin o variable de entorno
+        const isPlatformAdminUser = Boolean(data?.is_platform_admin) || isSuper
+        const companyId = isPlatformAdminUser ? null : (data?.company_id || null)
+
+        // Si el perfil no tiene company_id, limpiar datos y caché residuales
+        if (!companyId) {
+          clearStoredCompany()
+          clearCompanyCache()
+        } else {
+          setCompanyCache(companyId)
+          const cachedComp = companySettingsService.getCached(companyId)
+          if (!cachedComp || cachedComp.id !== companyId) {
+            clearStoredCompany()
+            await Promise.race([
+              companySettingsService.get({ forceRefresh: true }).catch(() => null),
+              new Promise((r) => setTimeout(r, 4000))
+            ])
+          }
+        }
+
+        // El rol proviene estrictamente de profiles.role
+        const userRole = isPlatformAdminUser
+          ? 'admin' // Para la UI de plataforma o superadmin según esquema
+          : (data?.role || 'empleado')
+
+        const metadata = authUser?.user_metadata || {}
+        const profile = {
+          id: authUser.id,
+          email: authUser.email,
+          full_name: isPlatformAdminUser
+            ? (data?.full_name || 'Carlos Yamacacho')
+            : (data?.full_name || metadata.full_name || authUser.email.split('@')[0]),
+          role: userRole,
+          is_platform_admin: isPlatformAdminUser,
+          company_id: companyId,
+          avatar_url: data?.avatar_url || metadata.avatar_url || null,
+          active: data?.active !== false
+        }
+
+        setUser(profile)
+
+        // Precarga silenciosa en segundo plano solo si pertenece a una empresa
+        if (profile.company_id) {
+          setTimeout(() => {
+            import('../services/productsService').then(m => m.productsService.list().catch(() => {})).catch(() => {})
+            import('../services/salesService').then(m => m.salesService.list().catch(() => {})).catch(() => {})
+            import('../services/categoriesService').then(m => m.categoriesService.list().catch(() => {})).catch(() => {})
+            import('../services/clientsService').then(m => m.clientsService.list().catch(() => {})).catch(() => {})
+            companySettingsService.get().catch(() => {})
+          }, 300)
+        }
+
+        return profile
+      } catch (err) {
+        console.warn('Aviso cargando perfil:', err)
+        clearStoredCompany()
+        clearCompanyCache()
+        const metadata = authUser?.user_metadata || {}
+        const fallback = {
+          id: authUser.id,
+          email: authUser.email,
+          full_name: isSuper ? 'Carlos Yamacacho' : (metadata.full_name || authUser.email.split('@')[0]),
+          role: 'empleado',
+          is_platform_admin: isSuper,
+          company_id: null,
+          avatar_url: metadata.avatar_url || null
+        }
+        setUser(fallback)
+        return fallback
+      } finally {
+        if (inFlightProfileRef.current.userId === authUser.id) {
+          inFlightProfileRef.current = { userId: null, promise: null }
+        }
+        // Asegurar que profileLoaded SIEMPRE termine en true
+        setProfileLoaded(true)
       }
+    })()
 
-      // El rol proviene estrictamente de profiles.role
-      const userRole = isPlatformAdminUser
-        ? 'admin' // Para la UI de plataforma o superadmin según esquema
-        : (data?.role || 'empleado')
-
-      const metadata = authUser?.user_metadata || {}
-      const profile = {
-        id: authUser.id,
-        email: authUser.email,
-        full_name: isPlatformAdminUser
-          ? (data?.full_name || 'Carlos Yamacacho')
-          : (data?.full_name || metadata.full_name || authUser.email.split('@')[0]),
-        role: userRole,
-        is_platform_admin: isPlatformAdminUser,
-        company_id: companyId,
-        avatar_url: data?.avatar_url || metadata.avatar_url || null,
-        active: data?.active !== false
-      }
-
-      setUser(profile)
-
-      // Precarga silenciosa en segundo plano solo si pertenece a una empresa
-      if (profile.company_id) {
-        setTimeout(() => {
-          import('../services/productsService').then(m => m.productsService.list().catch(() => {})).catch(() => {})
-          import('../services/salesService').then(m => m.salesService.list().catch(() => {})).catch(() => {})
-          import('../services/categoriesService').then(m => m.categoriesService.list().catch(() => {})).catch(() => {})
-          import('../services/clientsService').then(m => m.clientsService.list().catch(() => {})).catch(() => {})
-          companySettingsService.get().catch(() => {})
-        }, 300)
-      }
-
-      return profile
-    } catch (err) {
-      console.warn('Aviso cargando perfil:', err)
-      clearStoredCompany()
-      clearCompanyCache()
-      const metadata = authUser?.user_metadata || {}
-      const fallback = {
-        id: authUser.id,
-        email: authUser.email,
-        full_name: isSuper ? 'Carlos Yamacacho' : (metadata.full_name || authUser.email.split('@')[0]),
-        role: 'empleado',
-        is_platform_admin: isSuper,
-        company_id: null,
-        avatar_url: metadata.avatar_url || null
-      }
-      setUser(fallback)
-      return fallback
-    } finally {
-      // Asegurar que profileLoaded SIEMPRE termine en true
-      setProfileLoaded(true)
-    }
+    inFlightProfileRef.current = { userId: authUser.id, promise: run }
+    return run
   }
 
   async function login(email, password) {

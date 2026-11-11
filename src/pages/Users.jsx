@@ -37,7 +37,7 @@ export default function Users() {
 
   const [users, setUsers] = useState(() => usersService.getCached?.() || [])
   const [loading, setLoading] = useState(() => !usersService.hasCache?.())
-  const [company, setCompany] = useState(() => companySettingsService.getCached?.() || null)
+  const [company, setCompany] = useState(() => companySettingsService.getCached?.(currentAuthUser?.company_id) || null)
 
   // Filters & State
   const [search, setSearch] = useState('')

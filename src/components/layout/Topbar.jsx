@@ -56,6 +56,8 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
     if (cached) {
       setCompany(cached)
       setImgError(false)
+    } else if (!user?.company_id) {
+      setCompany(null)
     }
     companySettingsService.get().then(c => {
       if (c) {
@@ -68,6 +70,8 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
       if (e.detail) {
         setCompany(e.detail)
         setImgError(false)
+      } else if (e.detail === null) {
+        setCompany(null)
       } else {
         companySettingsService.get().then(c => {
           if (c) {

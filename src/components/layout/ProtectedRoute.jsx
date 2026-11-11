@@ -12,8 +12,10 @@ export default function ProtectedRoute({ children, adminOnly = false, platformAd
   useEffect(() => {
     if (user?.company_id) {
       companySettingsService.get().then((c) => setCompanyActive(c?.active !== false)).catch(() => {})
+    } else {
+      setCompanyActive(true)
     }
-  }, [user])
+  }, [user?.company_id])
 
   if (loading || (isSupabaseConfigured && user && !profileLoaded)) {
     return (

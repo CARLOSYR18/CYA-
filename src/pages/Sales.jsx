@@ -50,7 +50,7 @@ export default function Sales() {
   const [sales, setSales] = useState(() => salesService.getCached?.() || [])
   const [products, setProducts] = useState(() => productsService.getCached?.() || [])
   const [clients, setClients] = useState(() => clientsService.getCached?.() || [])
-  const [company, setCompany] = useState(() => companySettingsService.getCached?.() || null)
+  const [company, setCompany] = useState(() => companySettingsService.getCached?.(user?.company_id) || null)
   const [sellers, setSellers] = useState(() => usersService.getCached?.() || [])
   const [loading, setLoading] = useState(() => !salesService.hasCache?.())
 

@@ -81,10 +81,10 @@ export default function Assistant() {
   const [saleFlow, setSaleFlow] = useState(newSaleFlowState())
   const [stockFlowState, setStockFlowState] = useState(null)
 
-  const companyDisplayName = (company?.name && company.name !== 'CYA') ? company.name : 'CYA STORE'
-  const assistantName = company?.name && company.name !== 'CYA'
+  const companyDisplayName = company?.name || (user?.is_platform_admin ? 'CYA STORE' : 'Mi Empresa')
+  const assistantName = company?.name
     ? `Asistente ${company.name}`
-    : 'Asistente CYA'
+    : (user?.is_platform_admin ? 'Asistente CYA' : 'Asistente Virtual')
 
   // Intro animation states: 'showcase' (tamaño grande + bienvenida) -> 'minimizing' -> 'idle' (bolita)
   const [introState, setIntroState] = useState(() => {
@@ -106,7 +106,10 @@ export default function Assistant() {
 
   // Cargar configuración de la empresa, productos y clientes para boletas
   useEffect(() => {
-    if (!user || !user.company_id || location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/onboarding') return
+    if (!user || !user.company_id || location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/onboarding') {
+      if (!user?.company_id) setCompany(null)
+      return
+    }
     const cached = companySettingsService.getCached(user.company_id)
     if (cached) setCompany(cached)
     companySettingsService.get().then(c => { if (c) setCompany(c) }).catch(() => { })
@@ -115,6 +118,7 @@ export default function Assistant() {
 
     const handleCompanyUpdate = (e) => {
       if (e.detail) setCompany(e.detail)
+      else if (e.detail === null) setCompany(null)
     }
     window.addEventListener('cya_company_updated', handleCompanyUpdate)
     return () => window.removeEventListener('cya_company_updated', handleCompanyUpdate)

@@ -138,11 +138,13 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
   useEffect(() => {
     const cached = companySettingsService.getCached(user?.company_id)
     if (cached) setCompany(cached)
+    else if (!user?.company_id) setCompany(null)
     companySettingsService.get().then(c => {
       if (c) setCompany(c)
     }).catch(() => {})
     const handleCompanyChange = (e) => {
       if (e.detail) setCompany(e.detail)
+      else if (e.detail === null) setCompany(null)
       else companySettingsService.get().then(c => {
         if (c) setCompany(c)
       }).catch(() => {})
