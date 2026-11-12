@@ -38,6 +38,7 @@ export function getInitials(name, isAi = false) {
 
 export function getRoleLabel(role, isAi = false) {
   if (isAi || role === 'bot') return 'IA Bot'
+  if (role === 'superadmin') return 'Super Admin'
   if (role === 'admin') return 'Administrador (Dueño)'
   if (role === 'vendedor') return 'Vendedor'
   return 'Empleado'

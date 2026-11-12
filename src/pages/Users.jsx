@@ -5,7 +5,8 @@ import {
   Mail, Lock, ToggleLeft, ToggleRight, Check, FileSpreadsheet,
   ArrowUpDown, LayoutGrid, List, AlertCircle, CheckCircle2,
   Sparkles, Crown, ArrowRight, ShieldAlert, Key, Home, TrendingUp,
-  PieChart, Shield, RefreshCw, Copy, Award, CheckCircle, Users as UsersIcon
+  PieChart, Shield, RefreshCw, Copy, Award, CheckCircle, Users as UsersIcon,
+  FileText, CheckSquare, XCircle, Eye
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
@@ -25,6 +26,65 @@ const AVATAR_PALETTES = [
   { bg: 'from-cyan-600 to-blue-600', text: 'text-white' },
 ]
 
+const RBAC_MODULES = [
+  {
+    module: 'Plataforma SaaS & Planes',
+    description: 'Gestión global de planes Free / Pro / Enterprise, vencimientos y cobros',
+    superAdmin: { access: 'Control Total', type: 'full', detail: 'Aprobar, cambiar planes y vigencias de todas las empresas' },
+    admin: { access: 'Solo Solicitud', type: 'partial', detail: 'Solicitar cambio a Plan Pro y adjuntar comprobante' },
+    empleado: { access: 'Bloqueado', type: 'none', detail: 'Sin visibilidad ni acceso a planes de suscripción' }
+  },
+  {
+    module: 'Gestión de Empresas & RUC',
+    description: 'Alta de empresas, identidad comercial, datos tributarios SUNAT y logotipo',
+    superAdmin: { access: 'Control Global', type: 'full', detail: 'Supervisar, activar o suspender cualquier empresa' },
+    admin: { access: 'Gestión Propia', type: 'full', detail: 'Configurar RUC, logo, dirección fiscal y datos de su empresa' },
+    empleado: { access: 'Bloqueado', type: 'none', detail: 'Solo visualización informativa en boletas de venta' }
+  },
+  {
+    module: 'Usuarios & Colaboradores',
+    description: 'Creación de cuentas, asignación de roles, activación y desvinculación',
+    superAdmin: { access: 'Auditoría Maestra', type: 'full', detail: 'Auditoría global de accesos y seguridad multiempresa' },
+    admin: { access: 'Gestión de Equipo', type: 'full', detail: 'Crear colaboradores, activar/inactivar y desvincular de su empresa' },
+    empleado: { access: 'Bloqueado', type: 'none', detail: 'No puede ver configuración de usuarios ni cambiar roles' }
+  },
+  {
+    module: 'Punto de Venta (POS) & Ventas',
+    description: 'Caja diaria, emisión de boletas/facturas, cobranzas y clientes',
+    superAdmin: { access: 'Auditoría Global', type: 'view', detail: 'Lectura de transacciones de plataforma' },
+    admin: { access: 'Control Total', type: 'full', detail: 'Emisión, anulaciones, ventas a crédito y arqueos de caja' },
+    empleado: { access: 'Operativo POS', type: 'full', detail: 'Registro de ventas, consulta de catálogo y emisión rápida' }
+  },
+  {
+    module: 'Compras & Proveedores',
+    description: 'Órdenes de compra a proveedores, costos de adquisición y abastecimiento',
+    superAdmin: { access: 'Auditoría Global', type: 'view', detail: 'Inspección de abastecimiento global' },
+    admin: { access: 'Control Total', type: 'full', detail: 'Registrar compras, recibir stock y administrar proveedores' },
+    empleado: { access: 'Bloqueado', type: 'none', detail: 'Oculto: no puede ver precios de compra ni proveedores' }
+  },
+  {
+    module: 'Inventario & Libro Kardex',
+    description: 'Control de existencias, ajustes de stock (+/-), mermas y alertas',
+    superAdmin: { access: 'Auditoría Global', type: 'view', detail: 'Supervisión de almacenes y kardex' },
+    admin: { access: 'Control Total', type: 'full', detail: 'Ajustes de stock (+/-), mermas, edición de costos y alertas mínimas' },
+    empleado: { access: 'Solo Consulta', type: 'view', detail: 'Consulta de existencias disponibles al realizar ventas' }
+  },
+  {
+    module: 'Finanzas, Márgenes & Reportes',
+    description: 'Utilidad neta, margen comercial, reportes ejecutivos e ingresos',
+    superAdmin: { access: 'Métricas SaaS', type: 'full', detail: 'Ingresos globales y analítica de empresas activas' },
+    admin: { access: 'Control Total', type: 'full', detail: 'Reportes de utilidad neta, costos, balance y auditoría' },
+    empleado: { access: 'Bloqueado', type: 'none', detail: 'Oculto: sin acceso a márgenes ni reportes financieros' }
+  },
+  {
+    module: 'Configuración Fiscal & Pagos',
+    description: 'Cuentas bancarias, QR Yape / Plin y formato de boleta térmica',
+    superAdmin: { access: 'Administración Central', type: 'full', detail: 'Configuración de pasarelas del sistema' },
+    admin: { access: 'Configuración Propia', type: 'full', detail: 'Carga de QR de cobro, números Yape/Plin y pie de boleta' },
+    empleado: { access: 'Bloqueado', type: 'none', detail: 'Sin permisos de modificación de datos de cobro' }
+  }
+]
+
 const getInitials = (name = '') => {
   const parts = name.trim().split(/\s+/)
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
@@ -42,11 +102,12 @@ export default function Users() {
 
   // Filters & State
   const [search, setSearch] = useState('')
-  const [segmentFilter, setSegmentFilter] = useState('ALL') // 'ALL' | 'ADMIN' | 'EMPLEADO' | 'ACTIVE' | 'INACTIVE'
+  const [segmentFilter, setSegmentFilter] = useState('ALL') // 'ALL' | 'SUPERADMIN' | 'ADMIN' | 'EMPLEADO' | 'ACTIVE' | 'INACTIVE'
   const [sortBy, setSortBy] = useState('name') // 'name' | 'role' | 'status'
   const [viewMode, setViewMode] = useState('table') // 'table' | 'grid'
   const [showMetrics, setShowMetrics] = useState(true)
   const [copiedEmail, setCopiedEmail] = useState(null)
+  const [rbacModalOpen, setRbacModalOpen] = useState(false)
 
   // Limits Modal
   const [limitModalOpen, setLimitModalOpen] = useState(false)
@@ -102,8 +163,9 @@ export default function Users() {
   /* ─── Global Executive Stats ─── */
   const stats = useMemo(() => {
     const totalUsers = users.length
-    const adminCount = users.filter((u) => u.role === 'admin').length
-    const employeeCount = users.filter((u) => u.role !== 'admin').length
+    const superAdminCount = users.filter((u) => u.role === 'superadmin' || u.is_platform_admin).length
+    const adminCount = users.filter((u) => u.role === 'admin' && !u.is_platform_admin).length
+    const employeeCount = users.filter((u) => u.role !== 'admin' && u.role !== 'superadmin' && !u.is_platform_admin).length
     const activeCount = users.filter((u) => u.active !== false).length
     const inactiveCount = totalUsers - activeCount
 
@@ -112,6 +174,7 @@ export default function Users() {
 
     return {
       totalUsers,
+      superAdminCount,
       adminCount,
       employeeCount,
       activeCount,
@@ -123,20 +186,24 @@ export default function Users() {
   /* ─── Donut Chart Calculations ─── */
   const donutData = useMemo(() => {
     const total = stats.totalUsers || 1
+    const pctSuperAdmin = Math.round((stats.superAdminCount / total) * 100)
     const pctAdmin = Math.round((stats.adminCount / total) * 100)
     const pctEmployee = Math.round((stats.employeeCount / total) * 100)
-    const pctInactive = Math.max(0, 100 - pctAdmin - pctEmployee)
+    const pctInactive = Math.max(0, 100 - pctSuperAdmin - pctAdmin - pctEmployee)
 
     const C = 2 * Math.PI * 40 // ~251.32
+    const superStroke = (pctSuperAdmin / 100) * C
     const adminStroke = (pctAdmin / 100) * C
     const empStroke = (pctEmployee / 100) * C
     const inactStroke = (pctInactive / 100) * C
 
     return {
+      pctSuperAdmin,
       pctAdmin,
       pctEmployee,
       pctInactive,
       C,
+      superStroke,
       adminStroke,
       empStroke,
       inactStroke
@@ -198,10 +265,12 @@ export default function Users() {
     }
 
     // 2. Segment Filter
-    if (segmentFilter === 'ADMIN') {
-      result = result.filter((u) => u.role === 'admin')
+    if (segmentFilter === 'SUPERADMIN') {
+      result = result.filter((u) => u.role === 'superadmin' || u.is_platform_admin)
+    } else if (segmentFilter === 'ADMIN') {
+      result = result.filter((u) => u.role === 'admin' && !u.is_platform_admin)
     } else if (segmentFilter === 'EMPLEADO') {
-      result = result.filter((u) => u.role !== 'admin')
+      result = result.filter((u) => u.role !== 'admin' && u.role !== 'superadmin' && !u.is_platform_admin)
     } else if (segmentFilter === 'ACTIVE') {
       result = result.filter((u) => u.active !== false)
     } else if (segmentFilter === 'INACTIVE') {
@@ -227,7 +296,7 @@ export default function Users() {
     const rows = filtered.map((u) => [
       `"${(u.full_name || '').replace(/"/g, '""')}"`,
       `"${u.email || ''}"`,
-      u.role === 'admin' ? 'Administrador' : 'Empleado',
+      u.role === 'superadmin' || u.is_platform_admin ? 'Super Admin' : u.role === 'admin' ? 'Administrador' : 'Empleado',
       u.active !== false ? 'Activo' : 'Inactivo'
     ])
 
@@ -534,12 +603,22 @@ export default function Users() {
                 <div className="relative w-36 h-36">
                   <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
                     <circle cx="50" cy="50" r="40" fill="transparent" stroke="#E2E8F0" strokeWidth="12" className="dark:stroke-zinc-800" />
+                    {/* Super Admin (Amber) */}
+                    {donutData.pctSuperAdmin > 0 && (
+                      <circle
+                        cx="50" cy="50" r="40" fill="transparent"
+                        stroke="#F59E0B" strokeWidth="12"
+                        strokeDasharray={`${donutData.superStroke} ${donutData.C}`}
+                        strokeDashoffset="0"
+                        strokeLinecap="round"
+                      />
+                    )}
                     {/* Admins (Purple) */}
                     <circle
                       cx="50" cy="50" r="40" fill="transparent"
                       stroke="#8B5CF6" strokeWidth="12"
                       strokeDasharray={`${donutData.adminStroke} ${donutData.C}`}
-                      strokeDashoffset="0"
+                      strokeDashoffset={-donutData.superStroke}
                       strokeLinecap="round"
                     />
                     {/* Empleados (Emerald) */}
@@ -547,7 +626,7 @@ export default function Users() {
                       cx="50" cy="50" r="40" fill="transparent"
                       stroke="#10B981" strokeWidth="12"
                       strokeDasharray={`${donutData.empStroke} ${donutData.C}`}
-                      strokeDashoffset={-donutData.adminStroke}
+                      strokeDashoffset={-(donutData.superStroke + donutData.adminStroke)}
                       strokeLinecap="round"
                     />
                     {/* Inactivos (Rose) */}
@@ -556,7 +635,7 @@ export default function Users() {
                         cx="50" cy="50" r="40" fill="transparent"
                         stroke="#F43F5E" strokeWidth="12"
                         strokeDasharray={`${donutData.inactStroke} ${donutData.C}`}
-                        strokeDashoffset={-(donutData.adminStroke + donutData.empStroke)}
+                        strokeDashoffset={-(donutData.superStroke + donutData.adminStroke + donutData.empStroke)}
                         strokeLinecap="round"
                       />
                     )}
@@ -573,15 +652,21 @@ export default function Users() {
               </div>
 
               {/* Legend with exact stats */}
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800 text-center">
-                <div className="p-2.5 rounded-xl bg-purple-50/60 dark:bg-purple-950/20">
-                  <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase block">Administradores</span>
+              <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800 text-center">
+                <div className="p-2 rounded-xl bg-amber-50/70 dark:bg-amber-950/20">
+                  <span className="text-[9.5px] font-bold text-amber-700 dark:text-amber-400 uppercase block truncate">Super Admin</span>
+                  <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
+                    {stats.superAdminCount} ({donutData.pctSuperAdmin}%)
+                  </span>
+                </div>
+                <div className="p-2 rounded-xl bg-purple-50/70 dark:bg-purple-950/20">
+                  <span className="text-[9.5px] font-bold text-purple-700 dark:text-purple-400 uppercase block truncate">Admins</span>
                   <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
                     {stats.adminCount} ({donutData.pctAdmin}%)
                   </span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20">
-                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase block">Empleados / Caja</span>
+                <div className="p-2 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20">
+                  <span className="text-[9.5px] font-bold text-emerald-700 dark:text-emerald-400 uppercase block truncate">Empleados</span>
                   <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
                     {stats.employeeCount} ({donutData.pctEmployee}%)
                   </span>
@@ -591,43 +676,82 @@ export default function Users() {
 
             {/* SEGURIDAD & MATRIZ DE PERMISOS ERP (7 COLS) */}
             <div className="lg:col-span-7 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-zinc-800">
                 <div className="flex items-center gap-2">
                   <Shield size={16} className="text-blue-600 dark:text-blue-400" />
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                     Matriz de Seguridad & Privilegios RBAC
                   </h3>
                 </div>
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                  <CheckCircle size={11} /> Políticas Activas
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRbacModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-2.5 py-1 rounded-xl border border-blue-200 dark:border-blue-800/60 transition cursor-pointer"
+                  >
+                    <Eye size={12} />
+                    <span>Ver Matriz Completa</span>
+                  </button>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle size={11} /> Políticas Activas
+                  </span>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 py-2">
-                {/* Admin Role Card */}
-                <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-zinc-800/40 border border-slate-200/70 dark:border-zinc-700 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800">
-                      <ShieldCheck size={14} /> Administrador
-                    </span>
-                    <span className="text-[10px] font-bold text-purple-600 uppercase">Acceso Total</span>
+              {/* 3 ROLES CARDS: Super Admin, Administrador, Empleado */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 py-2.5">
+                {/* Super Admin Role Card */}
+                <div className="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/60 space-y-1.5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700">
+                        <Crown size={12} className="text-amber-600 dark:text-amber-400" /> Super Admin
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">Plataforma SaaS</span>
+                    <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-snug mt-1">
+                      Control supremo: activación y cobro de planes Pro, supervisión multi-empresa, auditoría global y soporte técnico maestro.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-zinc-300 leading-snug">
-                    Control absoluto de ventas, compras, libro kardex, edición de catálogo, reportes de margen, configuración fiscal y gestión de cuentas.
-                  </p>
+                  <div className="pt-2 border-t border-amber-200/50 dark:border-amber-900/40 text-[10px] font-extrabold text-amber-700 dark:text-amber-300">
+                    Acceso irrestricto
+                  </div>
+                </div>
+
+                {/* Admin Role Card */}
+                <div className="p-3 rounded-xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/80 dark:border-purple-800/60 space-y-1.5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-700">
+                        <ShieldCheck size={12} className="text-purple-600 dark:text-purple-400" /> Administrador
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">Dueño de Empresa</span>
+                    <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-snug mt-1">
+                      Control absoluto de su empresa: ventas, compras, libro kardex, edición de catálogo, reportes de margen, configuración y colaboradores.
+                    </p>
+                  </div>
+                  <div className="pt-2 border-t border-purple-200/50 dark:border-purple-900/40 text-[10px] font-extrabold text-purple-700 dark:text-purple-300">
+                    Acceso total a su empresa
+                  </div>
                 </div>
 
                 {/* Empleado Role Card */}
-                <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-zinc-800/40 border border-slate-200/70 dark:border-zinc-700 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                      <User size={14} /> Empleado / Ventas
-                    </span>
-                    <span className="text-[10px] font-bold text-emerald-600 uppercase">Punto de Venta</span>
+                <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-800/60 space-y-1.5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-700">
+                        <User size={12} className="text-emerald-600 dark:text-emerald-400" /> Empleado
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">Punto de Venta</span>
+                    <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-snug mt-1">
+                      Operación diaria de caja: emisión de comprobantes (boleta/factura), registro de clientes y consulta de existencias disponibles.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-zinc-300 leading-snug">
-                    Operación de caja diaria, registro de comprobantes (boleta/factura), consulta rápida de stock y registro de clientes comerciales.
-                  </p>
+                  <div className="pt-2 border-t border-emerald-200/50 dark:border-emerald-900/40 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300">
+                    Punto de Venta / Caja
+                  </div>
                 </div>
               </div>
 
@@ -684,6 +808,19 @@ export default function Users() {
               >
                 Todos ({users.length})
               </button>
+              {stats.superAdminCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSegmentFilter('SUPERADMIN')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                    segmentFilter === 'SUPERADMIN'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40'
+                  }`}
+                >
+                  Super Admin ({stats.superAdminCount})
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setSegmentFilter('ADMIN')}
@@ -880,7 +1017,11 @@ export default function Users() {
 
                         {/* Role */}
                         <td className="py-4 px-4">
-                          {u.role === 'admin' ? (
+                          {u.role === 'superadmin' || u.is_platform_admin ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-700 shadow-xs">
+                              <Crown size={13} className="text-amber-600 dark:text-amber-400" /> Super Admin
+                            </span>
+                          ) : u.role === 'admin' ? (
                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 shadow-xs">
                               <ShieldCheck size={13} /> Administrador
                             </span>
@@ -1009,7 +1150,11 @@ export default function Users() {
                   {/* Card Footer: Role and Status */}
                   <div className="pt-3.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
                     <div>
-                      {u.role === 'admin' ? (
+                      {u.role === 'superadmin' || u.is_platform_admin ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-700">
+                          <Crown size={13} className="text-amber-600 dark:text-amber-400" /> Super Admin
+                        </span>
+                      ) : u.role === 'admin' ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
                           <ShieldCheck size={13} /> Admin
                         </span>
@@ -1139,6 +1284,147 @@ export default function Users() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* ═════════════════════════════════════════════════════════
+          7. FULL RBAC MATRIX BREAKDOWN MODAL (3 ROLES)
+         ═════════════════════════════════════════════════════════ */}
+      <Modal
+        open={rbacModalOpen}
+        onClose={() => setRbacModalOpen(false)}
+        title="Matriz Completa de Seguridad & Privilegios RBAC"
+        width="max-w-4xl"
+      >
+        <div className="space-y-4">
+          {/* Header Explanatory Banner */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <Shield size={20} />
+              </div>
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                  Jerarquía de Roles de Seguridad (3 Niveles)
+                </h4>
+                <p className="text-[11.5px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                  Separación estricta de responsabilidades protegida con Row-Level Security (RLS) en base de datos.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700">
+                Super Admin
+              </span>
+              <span className="text-slate-300 dark:text-zinc-600">&gt;</span>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-700">
+                Administrador
+              </span>
+              <span className="text-slate-300 dark:text-zinc-600">&gt;</span>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-700">
+                Empleado
+              </span>
+            </div>
+          </div>
+
+          {/* Matrix Table */}
+          <div className="border border-slate-200 dark:border-zinc-800 rounded-2xl overflow-hidden max-h-[60vh] overflow-y-auto no-scrollbar shadow-xs">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-zinc-800/95 backdrop-blur-sm border-b border-slate-200 dark:border-zinc-700">
+                <tr className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 dark:text-zinc-300">
+                  <th className="py-3 px-3.5 sm:w-1/4">Módulo ERP</th>
+                  <th className="py-3 px-3.5 sm:w-1/4 text-amber-700 dark:text-amber-400">
+                    <span className="inline-flex items-center gap-1">
+                      <Crown size={12} /> Super Admin
+                    </span>
+                  </th>
+                  <th className="py-3 px-3.5 sm:w-1/4 text-purple-700 dark:text-purple-400">
+                    <span className="inline-flex items-center gap-1">
+                      <ShieldCheck size={12} /> Administrador
+                    </span>
+                  </th>
+                  <th className="py-3 px-3.5 sm:w-1/4 text-emerald-700 dark:text-emerald-400">
+                    <span className="inline-flex items-center gap-1">
+                      <User size={12} /> Empleado / Ventas
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-zinc-800 bg-white dark:bg-[#141417]">
+                {RBAC_MODULES.map((item, idx) => {
+                  const renderBadge = (roleData) => {
+                    const isFull = roleData.type === 'full'
+                    const isPartial = roleData.type === 'partial'
+                    const isView = roleData.type === 'view'
+                    const isNone = roleData.type === 'none'
+
+                    let badgeClasses = 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-zinc-800 dark:text-zinc-300'
+                    let IconComponent = CheckCircle2
+
+                    if (isFull) {
+                      badgeClasses = 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                      IconComponent = CheckCircle2
+                    } else if (isPartial || isView) {
+                      badgeClasses = 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+                      IconComponent = Eye
+                    } else if (isNone) {
+                      badgeClasses = 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                      IconComponent = XCircle
+                    }
+
+                    return (
+                      <div className="space-y-1">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-extrabold border ${badgeClasses}`}>
+                          <IconComponent size={11} />
+                          <span>{roleData.access}</span>
+                        </span>
+                        <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-snug">
+                          {roleData.detail}
+                        </p>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <tr
+                      key={item.module}
+                      className={idx % 2 === 0 ? 'bg-transparent' : 'bg-slate-50/40 dark:bg-zinc-900/30'}
+                    >
+                      <td className="py-3 px-3.5 align-top font-bold text-slate-900 dark:text-white">
+                        <div className="font-extrabold">{item.module}</div>
+                        <div className="text-[10.5px] font-normal text-slate-400 dark:text-zinc-500 mt-0.5 leading-tight">
+                          {item.description}
+                        </div>
+                      </td>
+                      <td className="py-3 px-3.5 align-top">
+                        {renderBadge(item.superAdmin)}
+                      </td>
+                      <td className="py-3 px-3.5 align-top">
+                        {renderBadge(item.admin)}
+                      </td>
+                      <td className="py-3 px-3.5 align-top">
+                        {renderBadge(item.empleado)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer Controls */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-2 border-t border-slate-100 dark:border-zinc-800 text-xs">
+            <span className="text-slate-400 dark:text-zinc-500 text-[11px]">
+              Los roles solo pueden ser modificados por un Administrador de la empresa o Superadmin.
+            </span>
+            <button
+              type="button"
+              onClick={() => setRbacModalOpen(false)}
+              className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-zinc-100 hover:bg-slate-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold transition cursor-pointer shrink-0"
+            >
+              Entendido / Cerrar
+            </button>
+          </div>
+        </div>
       </Modal>
 
     </AppLayout>
