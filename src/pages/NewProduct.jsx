@@ -14,6 +14,7 @@ import { categoriesService } from '../services/categoriesService'
 import { suppliersService } from '../services/suppliersService'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
 import { companySettingsService } from '../services/companySettingsService'
+import { useAuth } from '../context/AuthContext'
 import { getLimits } from '../lib/planLimits'
 
 const fmt = (n) =>
@@ -38,6 +39,7 @@ const initialForm = {
 export default function NewProduct() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const { user } = useAuth()
   const isEditing = Boolean(id)
 
   const [form, setForm] = useState(initialForm)
@@ -257,11 +259,20 @@ export default function NewProduct() {
               type: delta > 0 ? 'entrada' : 'salida',
               quantity: Math.abs(delta),
               reason: 'Ajuste manual desde edición de producto',
+              user_id: user?.id || null,
             })
           }
         }
       } else {
-        await productsService.create(payload)
+        const created = await productsService.create(payload)
+        if (!form.is_kit && Number(payload.stock) > 0 && created?.id) {
+          await inventoryMovementsService.recordInitialStock({
+            product_id: created.id,
+            quantity: Number(payload.stock),
+            reason: 'Stock inicial al registrar producto',
+            user_id: user?.id || null,
+          }).catch((mErr) => console.warn('Aviso registrando movimiento inicial:', mErr))
+        }
       }
 
       setProcessingStep(3) // 100%

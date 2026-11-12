@@ -109,9 +109,12 @@ export const productsService = {
         .select()
         .single()
       if (error) throw error
+      base.invalidate()
       return data
     }
-    return localDb.update('products', productId, { stock: product.stock + delta })
+    const updated = localDb.update('products', productId, { stock: product.stock + delta })
+    base.invalidate()
+    return updated
   },
 
   async generateSku() {

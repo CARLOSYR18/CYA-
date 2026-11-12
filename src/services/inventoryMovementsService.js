@@ -7,12 +7,33 @@ export const inventoryMovementsService = {
   ...base,
 
   // type: 'entrada' | 'salida'
-  async register({ product_id, type, quantity, reason, reference }) {
+  async register({ product_id, type, quantity, reason, reference, user_id }) {
     if (quantity <= 0) throw new Error('La cantidad debe ser mayor a 0')
     const delta = type === 'entrada' ? quantity : -quantity
-    const movement = await base.create({ product_id, type, quantity, reason, reference: reference || null })
+    const payload = {
+      product_id,
+      type,
+      quantity,
+      reason,
+      reference: reference || null,
+      ...(user_id ? { user_id } : {}),
+    }
+    const movement = await base.create(payload)
     await productsService.adjustStock(product_id, delta)
     return movement
+  },
+
+  // Registra el movimiento inicial al crear un producto sin volver a sumar stock
+  async recordInitialStock({ product_id, quantity, reason = 'Stock inicial al registrar producto', reference = null, user_id = null }) {
+    if (!product_id || Number(quantity) <= 0) return null
+    return base.create({
+      product_id,
+      type: 'entrada',
+      quantity: Number(quantity),
+      reason,
+      reference,
+      ...(user_id ? { user_id } : {}),
+    })
   },
 
   // Borra el movimiento Y revierte su efecto sobre el stock.

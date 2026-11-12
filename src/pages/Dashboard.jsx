@@ -393,7 +393,7 @@ function DashboardContent() {
         const min = Number(p.min_stock) || 5
         const isOut = stock <= 0
         const isLow = stock <= min
-        const cat = categories.find(c => c.id === p.category_id)?.name || 'General'
+        const cat = categories.find(c => c.id === p.category_id)?.name || 'Sin categoría'
         const pct = Math.min(Math.round((stock / Math.max(min, 1)) * 100), 100)
         return { ...p, stock, min, isOut, isLow, cat, pct }
       })
@@ -417,7 +417,7 @@ function DashboardContent() {
 
     const list = Object.entries(map).map(([pid, data]) => {
       const prod = products.find(pr => pr.id === pid)
-      const cat = categories.find(c => c.id === prod?.category_id)?.name || 'General'
+      const cat = categories.find(c => c.id === prod?.category_id)?.name || 'Sin categoría'
       return {
         id: pid,
         name: prod?.name || `Producto #${pid}`,

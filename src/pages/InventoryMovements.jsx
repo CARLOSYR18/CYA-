@@ -114,17 +114,17 @@ export default function InventoryMovements() {
   const [editing, setEditing] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
 
-  async function loadAll() {
-    if (!inventoryMovementsService.hasCache?.()) setLoading(true)
+  async function loadAll(options = {}) {
+    if (!inventoryMovementsService.hasCache?.() && !options?.silent) setLoading(true)
     const safetyTimer = setTimeout(() => {
       setLoading(false)
     }, 2500)
 
     try {
       const [m, p, s, u] = await Promise.all([
-        inventoryMovementsService.list().catch(() => []),
-        productsService.list().catch(() => []),
-        salesService.list().catch(() => []),
+        inventoryMovementsService.list(options).catch(() => []),
+        productsService.list(options).catch(() => []),
+        salesService.list(options).catch(() => []),
         usersService.list().catch(() => [])
       ])
       setMovements(m || [])
@@ -139,6 +139,24 @@ export default function InventoryMovements() {
 
   useEffect(() => {
     loadAll()
+
+    const handleCacheInvalidated = (e) => {
+      const tbl = e?.detail?.table
+      if (!tbl || tbl === 'inventory_movements' || tbl === 'products' || tbl === 'sales' || tbl === 'purchases') {
+        loadAll({ forceRefresh: true, silent: true })
+      }
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadAll({ forceRefresh: true, silent: true })
+      }
+    }
+    window.addEventListener('cya_cache_invalidated', handleCacheInvalidated)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('cya_cache_invalidated', handleCacheInvalidated)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
 
   /* ─── Helper: Resolver el colaborador responsable de cada movimiento ─── */

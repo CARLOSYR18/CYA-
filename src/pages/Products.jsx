@@ -6,7 +6,7 @@ import {
   DollarSign, Package, Layers, Sparkles, Crown, ArrowRight,
   ZoomIn, ZoomOut, Download, FileSpreadsheet, ChevronRight,
   ChevronLeft, TrendingUp, Eye, Home, BarChart2, PieChart,
-  ShieldCheck, AlertCircle, ArrowUpDown
+  ShieldCheck, AlertCircle, ArrowUpDown, Building2
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
@@ -64,17 +64,17 @@ export default function Products() {
   const [lightboxProduct, setLightboxProduct] = useState(null)
   const [zoomScale, setZoomScale] = useState(1)
 
-  async function loadAll() {
-    if (!productsService.hasCache?.()) setLoading(true)
+  async function loadAll(options = {}) {
+    if (!productsService.hasCache?.() && !options?.silent) setLoading(true)
     const safetyTimer = setTimeout(() => {
       setLoading(false)
     }, 2500)
 
     try {
       const [p, c, s] = await Promise.all([
-        productsService.list().catch(() => []),
-        categoriesService.list().catch(() => []),
-        suppliersService.list().catch(() => [])
+        productsService.list(options).catch(() => []),
+        categoriesService.list(options).catch(() => []),
+        suppliersService.list(options).catch(() => [])
       ])
       setProducts(p || [])
       setCategories(c || [])
@@ -89,6 +89,24 @@ export default function Products() {
 
   useEffect(() => {
     loadAll()
+
+    const handleCacheInvalidated = (e) => {
+      const tbl = e?.detail?.table
+      if (!tbl || tbl === 'products' || tbl === 'categories' || tbl === 'suppliers' || tbl === 'inventory_movements') {
+        loadAll({ forceRefresh: true, silent: true })
+      }
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadAll({ forceRefresh: true, silent: true })
+      }
+    }
+    window.addEventListener('cya_cache_invalidated', handleCacheInvalidated)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('cya_cache_invalidated', handleCacheInvalidated)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
 
   /* ─── Computed Statistics ─── */
@@ -250,8 +268,13 @@ export default function Products() {
   const totalPages = Math.ceil(filtered.length / pageSize) || 1
 
   const catName = useCallback(
-    (id) => categories.find((c) => c.id === id)?.name || 'General',
+    (id) => categories.find((c) => c.id === id)?.name || 'Sin categoría',
     [categories]
+  )
+
+  const supName = useCallback(
+    (id) => suppliers.find((s) => s.id === id)?.name || 'Sin proveedor',
+    [suppliers]
   )
 
   /* ─── Delete Product ─── */
@@ -275,6 +298,7 @@ export default function Products() {
       'SKU / Código',
       'Nombre del Producto',
       'Categoría',
+      'Proveedor',
       'Stock Actual',
       'Unidad de Medida',
       'Precio de Costo (S/)',
@@ -292,6 +316,7 @@ export default function Products() {
         `"${(p.sku || '').replace(/"/g, '""')}"`,
         `"${(p.name || '').replace(/"/g, '""')}"`,
         `"${catName(p.category_id).replace(/"/g, '""')}"`,
+        `"${supName(p.supplier_id).replace(/"/g, '""')}"`,
         Number(p.stock) || 0,
         `"${p.unit || 'uds.'}"`,
         Number(p.cost_price || 0).toFixed(2),
@@ -1015,6 +1040,7 @@ export default function Products() {
                     ? Math.round(((p.sale_price - p.cost_price) / p.cost_price) * 100)
                     : null
                 const cat = catName(p.category_id)
+                const sup = supName(p.supplier_id)
 
                 return (
                   <div
@@ -1084,9 +1110,9 @@ export default function Products() {
                         )}
                       </div>
 
-                      {/* Category in uppercase tracking */}
-                      <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1">
-                        {cat}
+                      {/* Category & Supplier in uppercase tracking */}
+                      <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1 truncate" title={`${cat} · ${sup}`}>
+                        {cat} <span className="text-slate-300 dark:text-zinc-600">·</span> {sup}
                       </p>
 
                       {/* Product Name */}
@@ -1200,6 +1226,7 @@ export default function Products() {
                     ? Math.round(((p.sale_price - p.cost_price) / p.cost_price) * 100)
                     : null
                 const cat = catName(p.category_id)
+                const sup = supName(p.supplier_id)
 
                 return (
                   <div
@@ -1242,7 +1269,7 @@ export default function Products() {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 font-medium">
+                        <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500 dark:text-zinc-400 font-medium">
                           <span className="font-mono text-[11.5px] font-bold text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">
                             {p.sku}
                           </span>
@@ -1250,6 +1277,11 @@ export default function Products() {
                           <span className="inline-flex items-center gap-1 text-[11.5px]">
                             <Layers size={12} className="text-slate-400 shrink-0" />
                             <span>{cat}</span>
+                          </span>
+                          <span className="text-slate-300 dark:text-zinc-600">·</span>
+                          <span className="inline-flex items-center gap-1 text-[11.5px]">
+                            <Building2 size={12} className="text-slate-400 shrink-0" />
+                            <span>{sup}</span>
                           </span>
                         </div>
                       </div>
