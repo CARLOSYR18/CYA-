@@ -52,6 +52,7 @@ export default function Plans() {
 
   const effectivePlan = getEffectivePlan(company)
   const isPro = effectivePlan === 'pro'
+  const activePeriod = isPro ? (company?.plan_period || 'mensual') : 'free'
 
   // Datos dinámicos de los planes basados en PLAN_PRICING
   const plansData = {
@@ -194,10 +195,10 @@ export default function Plans() {
     ]
   }
 
-  // Manejador de solicitud de suscripción
+  // Manejador de solicitud de suscripción o cambio de plan
   async function handleSubscribe(plan) {
-    if (isPro) {
-      showToast('Ya cuentas con el Plan Pro activo.')
+    if (isPro && plan.periodKey === activePeriod) {
+      showToast(`Ya cuentas con el Plan Pro ${plan.name} activo.`)
       return
     }
 
@@ -219,6 +220,7 @@ export default function Plans() {
         label: pricing.label,
         months: pricing.months,
         price: pricing.price,
+        isChange: isPro,
       })
     } catch (err) {
       console.error('Error creando solicitud de plan:', err)
@@ -353,7 +355,10 @@ export default function Plans() {
               <>
                 <Crown size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0 fill-emerald-600 dark:fill-emerald-400" />
                 <span>
-                  Tu plan actual: <strong className="font-bold text-emerald-950 dark:text-emerald-200">Pro</strong>
+                  Tu plan actual:{' '}
+                  <strong className="font-bold text-emerald-950 dark:text-emerald-200">
+                    Pro {PLAN_PRICING[activePeriod]?.label || 'Mensual'} (S/ {PLAN_PRICING[activePeriod]?.price || 30})
+                  </strong>
                   {company?.plan_expires_at && (
                     <span className="font-normal text-emerald-800 dark:text-emerald-400 ml-1">
                       (vence el{' '}
@@ -396,22 +401,29 @@ export default function Plans() {
             const isPlanMensual = plan.periodKey === 'mensual'
             const isSubmitting = submittingPeriod === plan.periodKey
 
-            // Estado del botón según el plan actual
-            const isButtonActive = isPlanFree ? !isPro : isPro
+            // Solo es "Plan Activo" si coincide exactamente con el plan/período contratado por la empresa
+            const isThisPlanActive = isPro
+              ? plan.periodKey === activePeriod
+              : isPlanFree
 
             return (
               <div
                 key={plan.id}
                 className={`relative flex flex-col rounded-3xl bg-white dark:bg-[#141417] transition-all duration-200 h-full ${
-                  isPlanAnual
+                  isThisPlanActive
+                    ? 'border-2 border-emerald-500 dark:border-emerald-500 shadow-xl dark:shadow-emerald-950/30 ring-4 ring-emerald-500/15'
+                    : isPlanAnual
                     ? 'border-2 border-blue-600 dark:border-blue-500 shadow-[0_20px_45px_-10px_rgba(27,79,216,0.25)] ring-4 ring-blue-500/10 dark:ring-blue-500/20'
-                    : isButtonActive
-                    ? 'border-2 border-emerald-500 dark:border-emerald-500/80 shadow-lg dark:shadow-emerald-950/20'
                     : 'border border-slate-200 dark:border-[#27272a] shadow-sm hover:shadow-md dark:hover:border-[#3f3f46]'
                 }`}
               >
                 {/* Top Badge */}
-                {isPlanAnual ? (
+                {isThisPlanActive ? (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[10.5px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap z-20">
+                    <CheckCircle2 size={12} className="text-white fill-emerald-600" />
+                    <span>Tu Plan Activo</span>
+                  </div>
+                ) : isPlanAnual ? (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10.5px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap z-10">
                     <Crown size={11} className="text-amber-300 fill-amber-300" />
                     <span>Ahorro Máximo</span>
@@ -429,11 +441,6 @@ export default function Plans() {
                 ) : isPlanMensual ? (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-[#1f1f23] text-white text-[10px] font-extrabold uppercase tracking-widest px-3 py-0.5 rounded-full shadow-md flex items-center gap-1 whitespace-nowrap z-10 border border-transparent dark:border-[#27272a]">
                     <span>Flexible</span>
-                  </div>
-                ) : isButtonActive ? (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full shadow-md flex items-center gap-1 whitespace-nowrap z-10">
-                    <Check size={11} strokeWidth={3} />
-                    <span>Tu Plan</span>
                   </div>
                 ) : null}
 
@@ -537,33 +544,22 @@ export default function Plans() {
 
                   {/* CTA Button siempre al fondo */}
                   <div className="pt-3 border-t border-slate-200/60 dark:border-[#27272a] mt-auto">
-                    {isPlanFree ? (
-                      !isPro ? (
-                        <button
-                          type="button"
-                          disabled
-                          className="w-full py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-default"
-                        >
-                          <CheckCircle2 size={15} />
-                          Plan Activo
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled
-                          className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-[#1f1f23] text-slate-400 dark:text-zinc-400 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-default"
-                        >
-                          Plan Básico
-                        </button>
-                      )
-                    ) : isPro ? (
+                    {isThisPlanActive ? (
                       <button
                         type="button"
                         disabled
-                        className="w-full py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-not-allowed opacity-90"
+                        className="w-full py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 border-2 border-emerald-500/60 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-300 font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-default shadow-xs"
                       >
                         <CheckCircle2 size={15} />
-                        Plan activo
+                        Plan Activo
+                      </button>
+                    ) : isPlanFree ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-[#1f1f23] text-slate-400 dark:text-zinc-500 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-default"
+                      >
+                        Plan Básico (Free)
                       </button>
                     ) : (
                       <button
@@ -578,6 +574,11 @@ export default function Plans() {
                       >
                         {isSubmitting ? (
                           <span>Enviando…</span>
+                        ) : isPro ? (
+                          <>
+                            <span>Cambiar a este Plan</span>
+                            <ArrowRight size={13} />
+                          </>
                         ) : (
                           <>
                             <span>Suscribirme</span>
@@ -718,7 +719,7 @@ export default function Plans() {
                 <span>Solicitud Registrada</span>
               </div>
               <h3 className="font-display font-bold text-xl">
-                ¡Solicitud registrada con éxito!
+                {confirmationModal.isChange ? '¡Solicitud de cambio enviada!' : '¡Solicitud registrada con éxito!'}
               </h3>
               <p className="text-xs text-emerald-100 mt-1">
                 Plan Pro {confirmationModal.label} ({confirmationModal.months} mes{confirmationModal.months > 1 ? 'es' : ''}) • S/ {confirmationModal.price}.00
@@ -728,7 +729,9 @@ export default function Plans() {
             {/* Content */}
             <div className="p-6 space-y-4 text-xs text-slate-700">
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-semibold leading-relaxed text-center sm:text-left">
-                Solicitud enviada. Escríbenos por WhatsApp/Yape para confirmar tu pago y activaremos tu plan Pro en minutos.
+                {confirmationModal.isChange
+                  ? `Has solicitado cambiar tu suscripción a Pro ${confirmationModal.label}. Escríbenos por WhatsApp/Yape para confirmar tu pago y actualizaremos tu plan de inmediato.`
+                  : 'Solicitud enviada. Escríbenos por WhatsApp/Yape para confirmar tu pago y activaremos tu plan Pro en minutos.'}
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
