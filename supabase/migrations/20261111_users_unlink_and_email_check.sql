@@ -157,7 +157,7 @@ begin
    where id = p_user_id
      and is_platform_admin = false
      and (
-       (company_id is null and created_at >= now() - interval '15 minutes')
+       (company_id is null and active = true and created_at >= now() - interval '15 minutes')
        or company_id = v_company
      )
   returning * into v_profile;
@@ -180,3 +180,4 @@ grant execute on function public.remove_user_from_my_company(uuid) to authentica
 grant execute on function public.add_user_to_my_company(uuid, text, text, boolean) to authenticated;
 
 commit;
+

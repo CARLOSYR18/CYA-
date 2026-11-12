@@ -429,6 +429,9 @@ export function AuthProvider({ children }) {
       }
       throw error
     }
+    if (Array.isArray(data?.user?.identities) && data.user.identities.length === 0) {
+      throw new Error('Este correo ya tiene una cuenta registrada en el sistema. Inicia sesión con tu contraseña o recupera tu acceso.')
+    }
     if (!data.session) return { needsEmailConfirmation: true }
     await loadProfile(data.user)
     return { needsEmailConfirmation: false }
