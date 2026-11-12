@@ -1098,19 +1098,19 @@ export default function Users() {
         open={!!confirmDelete}
         onClose={() => { setDeleteError(''); setConfirmDelete(null) }}
         title="Quitar / Eliminar Usuario"
-        width="max-w-sm"
+        width="max-w-md"
       >
         {confirmDelete && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-600 dark:text-zinc-300">
+            <p className="text-sm text-slate-600 dark:text-zinc-300 break-words">
               ¿Estás seguro de que deseas quitar de tu empresa a{' '}
               <strong className="text-slate-900 dark:text-zinc-100">{getDisplayUserName(confirmDelete)}</strong>{' '}
-              <span className="text-xs font-mono text-slate-400">({confirmDelete.email})</span>?
+              <span className="text-xs font-mono text-slate-400 break-all">({confirmDelete.email})</span>?
             </p>
 
             <div className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-3">
               <ShieldAlert size={16} className="shrink-0 mt-0.5" />
-              <span>
+              <span className="min-w-0 break-words">
                 Esta acción desvinculará de inmediato a este usuario y revocará su acceso a tu empresa.
               </span>
             </div>
@@ -1118,7 +1118,7 @@ export default function Users() {
             {deleteError && (
               <div className="flex items-start gap-2 text-xs text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-xl p-3">
                 <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
-                <span className="font-semibold leading-relaxed">{deleteError}</span>
+                <span className="min-w-0 flex-1 font-semibold leading-relaxed break-words">{deleteError}</span>
               </div>
             )}
 
