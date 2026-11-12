@@ -208,6 +208,7 @@ export default function Plans() {
     setSubmittingPeriod(period)
     try {
       await planRequestsService.create({
+        requested_plan: 'pro',
         plan_period: period,
         price: pricing.price,
         status: 'pendiente',

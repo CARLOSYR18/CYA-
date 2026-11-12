@@ -7,19 +7,80 @@ const memoryCache = new Map() // key -> { data: Array, timestamp: number }
 const inFlightRequests = new Map() // key -> Promise
 const tableSupportsCompanyId = new Map() // table -> boolean
 
+const unsupportedColumnsByTable = new Map() // table -> Set<string>
+
 // 60 segundos de frescura total en memoria
 const CACHE_TTL_MS = 60 * 1000
+
+/**
+ * Extrae el nombre de la columna cuando Postgres o PostgREST reporta
+ * que una columna no existe en la tabla o en la caché de esquema.
+ */
+function extractMissingColumnName(err) {
+  const msg = err?.message || ''
+  const postgrestMatch = msg.match(/could not find the '([^']+)' column/i)
+  if (postgrestMatch) return postgrestMatch[1]
+  const pgMatch = msg.match(/column (?:"?[a-z0-9_]+"?\.)?"([^"]+)"(?: of relation "[^"]+")? does not exist/i)
+  if (pgMatch) return pgMatch[1]
+  return null
+}
 
 /**
  * Detecta exclusivamente si un error de Postgres/PostgREST indica que la tabla
  * no posee la columna `company_id`, evitando confundir otros errores de esquema o RLS.
  */
 function isMissingCompanyIdError(err) {
-  const msg = (err?.message || '').toLowerCase()
-  return (
-    msg.includes('company_id') &&
-    (msg.includes('does not exist') || msg.includes('schema cache') || msg.includes('could not find'))
-  )
+  return extractMissingColumnName(err) === 'company_id'
+}
+
+function markUnsupportedColumn(table, column) {
+  if (!column) return
+  let set = unsupportedColumnsByTable.get(table)
+  if (!set) {
+    set = new Set()
+    unsupportedColumnsByTable.set(table, set)
+  }
+  set.add(column)
+}
+
+function stripUnsupportedColumns(table, obj) {
+  if (!obj || typeof obj !== 'object') return obj
+  const unsupported = unsupportedColumnsByTable.get(table)
+  if (!unsupported || unsupported.size === 0) return obj
+  const cleaned = {}
+  for (const [k, v] of Object.entries(obj)) {
+    if (!unsupported.has(k)) cleaned[k] = v
+  }
+  return cleaned
+}
+
+async function executeWriteWithSchemaFallback(table, initialData, execFn, allowEmpty = false) {
+  let currentData = stripUnsupportedColumns(table, initialData)
+  if (allowEmpty && (!currentData || Object.keys(currentData).length === 0)) {
+    return { data: null, skipped: true }
+  }
+
+  let res = await execFn(currentData)
+  for (let attempt = 0; attempt < 8 && res.error; attempt++) {
+    const missingCol = extractMissingColumnName(res.error)
+    if (!missingCol || !Object.prototype.hasOwnProperty.call(currentData, missingCol)) {
+      break
+    }
+    if (missingCol === 'company_id') {
+      tableSupportsCompanyId.set(table, false)
+    } else {
+      markUnsupportedColumn(table, missingCol)
+    }
+    const next = { ...currentData }
+    delete next[missingCol]
+    currentData = next
+    if (allowEmpty && Object.keys(currentData).length === 0) {
+      return { data: null, skipped: true }
+    }
+    res = await execFn(currentData)
+  }
+  if (res.error) throw res.error
+  return { data: res.data, skipped: false }
 }
 
 function getStorageKey(table, companyId) {
@@ -259,18 +320,17 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
     async create(payload) {
       if (isSupabaseConfigured) {
         const company_id = await getCurrentCompanyId().catch(() => null)
-        const hasCompId = tableSupportsCompanyId.get(table)
-        const insertData = (company_id && hasCompId !== false) ? { ...payload, company_id } : payload
+        const initialData = (company_id && tableSupportsCompanyId.get(table) !== false)
+          ? { ...payload, company_id }
+          : payload
 
-        let res = await supabase.from(table).insert(insertData).select().single()
-        if (res.error && hasCompId !== false && company_id && isMissingCompanyIdError(res.error)) {
-          tableSupportsCompanyId.set(table, false)
-          res = await supabase.from(table).insert(payload).select().single()
-        }
-        if (res.error) throw res.error
-
+        const { data } = await executeWriteWithSchemaFallback(
+          table,
+          initialData,
+          (row) => supabase.from(table).insert(row).select().single()
+        )
         invalidateRelated(table)
-        return res.data
+        return data
       }
       const data = localDb.insert(table, payload)
       invalidateRelated(table)
@@ -279,8 +339,13 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
 
     async update(id, patch) {
       if (isSupabaseConfigured) {
-        const { data, error } = await supabase.from(table).update(patch).eq('id', id).select().single()
-        if (error) throw error
+        const { data, skipped } = await executeWriteWithSchemaFallback(
+          table,
+          patch,
+          (row) => supabase.from(table).update(row).eq('id', id).select().single(),
+          true
+        )
+        if (skipped) return { id, ...patch }
         invalidateRelated(table)
         return data
       }
