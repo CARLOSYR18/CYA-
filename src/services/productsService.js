@@ -3,6 +3,45 @@ import { localDb } from '../lib/localDb'
 import { createCrudService } from './crudFactory'
 
 const base = createCrudService('products', { orderBy: 'name', ascending: true })
+let storageUploadAvailable = null
+
+function fileToOptimizedDataUrl(file, maxDim = 800, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo de imagen'))
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onerror = () => resolve({ blob: file, dataUrl: e.target.result, mime: file.type || 'image/jpeg' })
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width)
+            width = maxDim
+          } else {
+            width = Math.round((width * maxDim) / height)
+            height = maxDim
+          }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+        const isTransparentType = file.type === 'image/png' || file.type === 'image/webp'
+        const mime = isTransparentType ? 'image/webp' : 'image/jpeg'
+        const dataUrl = canvas.toDataURL(mime, quality)
+        canvas.toBlob(
+          (blob) => resolve({ blob: blob || file, dataUrl, mime }),
+          mime,
+          quality
+        )
+      }
+      img.src = e.target.result
+    }
+    reader.readAsDataURL(file)
+  })
+}
 
 async function fetchRaw(productId) {
   if (isSupabaseConfigured) {
@@ -88,19 +127,33 @@ export const productsService = {
 
   async uploadImage(file) {
     if (!file) return null
-    if (isSupabaseConfigured) {
-      const ext = file.name.split('.').pop()
-      const path = `${crypto.randomUUID()}.${ext}`
-      const { error } = await supabase.storage.from('product-images').upload(path, file, { cacheControl: '3600', upsert: false })
-      if (error) throw error
-      const { data } = supabase.storage.from('product-images').getPublicUrl(path)
-      return data.publicUrl
+    if (!file.type?.startsWith('image/')) {
+      throw new Error('El archivo seleccionado no es una imagen válida')
     }
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
+
+    const { blob, dataUrl, mime } = await fileToOptimizedDataUrl(file)
+
+    if (isSupabaseConfigured && storageUploadAvailable !== false) {
+      try {
+        const ext = mime === 'image/webp' ? 'webp' : 'jpg'
+        const path = `${crypto.randomUUID()}.${ext}`
+        const { error } = await supabase.storage
+          .from('product-images')
+          .upload(path, blob, { cacheControl: '3600', upsert: false, contentType: mime })
+        if (!error) {
+          storageUploadAvailable = true
+          const { data } = supabase.storage.from('product-images').getPublicUrl(path)
+          if (data?.publicUrl) return data.publicUrl
+        } else {
+          storageUploadAvailable = false
+          console.warn('Bucket product-images no disponible, usando imagen optimizada:', error.message)
+        }
+      } catch (err) {
+        storageUploadAvailable = false
+        console.warn('Fallback de imagen de producto a DataURL:', err?.message || err)
+      }
+    }
+
+    return dataUrl
   },
 }
