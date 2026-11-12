@@ -19,6 +19,7 @@ import { usersService } from '../services/usersService'
 import { companySettingsService } from '../services/companySettingsService'
 import { paymentMethodsService } from '../services/paymentMethodsService'
 import { useAuth } from '../context/AuthContext'
+import { getDisplayUserName } from '../lib/userDisplay'
 
 const fmt = (n) =>
   `S/ ${(Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -310,7 +311,7 @@ export default function NewSale() {
         notes: finalNotes || null,
         serie: serie || 'B001',
         order_type: orderType || 'COMPRA VENTA',
-        seller_name: sellerName || user?.full_name || user?.email || 'Admin'
+        seller_name: sellerName || getDisplayUserName(user, 'Administrador')
       })
 
       setProcessingStep(3)

@@ -36,6 +36,7 @@ export const purchasesService = {
         quantity: item.quantity,
         reason: 'Compra a proveedor',
         reference: purchase.id,
+        user_id: purchase.user_id || null,
       })
     }
   },

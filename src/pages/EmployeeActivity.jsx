@@ -13,8 +13,10 @@ import Modal from '../components/ui/Modal'
 import { salesService } from '../services/salesService'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
 import { productsService } from '../services/productsService'
+import { purchasesService } from '../services/purchasesService'
 import { usersService } from '../services/usersService'
 import { useAuth } from '../context/AuthContext'
+import { getDisplayUserName, getInitials, getRoleLabel, resolveCompanyOwner } from '../lib/userDisplay'
 
 function formatMoney(amount, currency = 'S/') {
   return `${currency} ${(Number(amount) || 0).toLocaleString('es-PE', {
@@ -68,6 +70,7 @@ export default function EmployeeActivity() {
   const [sales, setSales] = useState(() => salesService.getCached?.() || [])
   const [movements, setMovements] = useState(() => inventoryMovementsService.getCached?.() || [])
   const [products, setProducts] = useState(() => productsService.getCached?.() || [])
+  const [purchases, setPurchases] = useState(() => purchasesService.getCached?.() || [])
   const [collaborators, setCollaborators] = useState(() => usersService.getCached?.() || [])
   const [loading, setLoading] = useState(() => !salesService.hasCache?.() && !inventoryMovementsService.hasCache?.())
 
@@ -87,8 +90,8 @@ export default function EmployeeActivity() {
   // Detail Modal
   const [detailItem, setDetailItem] = useState(null)
 
-  const loadAll = async () => {
-    if (!salesService.hasCache?.() && !inventoryMovementsService.hasCache?.()) {
+  const loadAll = async (options = {}) => {
+    if (!salesService.hasCache?.() && !inventoryMovementsService.hasCache?.() && !options?.silent) {
       setLoading(true)
     }
     const safetyTimer = setTimeout(() => {
@@ -96,15 +99,17 @@ export default function EmployeeActivity() {
     }, 2500)
 
     try {
-      const [s, m, p, u] = await Promise.all([
-        salesService.list().catch(() => []),
-        inventoryMovementsService.list().catch(() => []),
-        productsService.list().catch(() => []),
+      const [s, m, p, pur, u] = await Promise.all([
+        salesService.list(options).catch(() => []),
+        inventoryMovementsService.list(options).catch(() => []),
+        productsService.list(options).catch(() => []),
+        purchasesService.list(options).catch(() => []),
         usersService.list().catch(() => [])
       ])
       setSales(s || [])
       setMovements(m || [])
       setProducts(p || [])
+      setPurchases(pur || [])
       setCollaborators(u || [])
     } finally {
       clearTimeout(safetyTimer)
@@ -114,7 +119,30 @@ export default function EmployeeActivity() {
 
   useEffect(() => {
     loadAll()
+
+    const handleCacheInvalidated = (e) => {
+      const tbl = e?.detail?.table
+      if (!tbl || ['sales', 'inventory_movements', 'products', 'purchases'].includes(tbl)) {
+        loadAll({ forceRefresh: true, silent: true })
+      }
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadAll({ forceRefresh: true, silent: true })
+      }
+    }
+    window.addEventListener('cya_cache_invalidated', handleCacheInvalidated)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('cya_cache_invalidated', handleCacheInvalidated)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
+
+  const ownerAdmin = useMemo(
+    () => resolveCompanyOwner(collaborators, currentAuthUser),
+    [collaborators, currentAuthUser]
+  )
 
   // Product map helper
   const productMap = useMemo(() => {
@@ -139,9 +167,18 @@ export default function EmployeeActivity() {
         matchedUser = currentAuthUser
       }
 
-      const userName = matchedUser?.full_name || matchedUser?.email?.split('@')[0] || sale.seller_name || 'Administrador'
+      const sellerIsOwner =
+        !matchedUser &&
+        ownerAdmin.email &&
+        sale.seller_name?.toLowerCase() === ownerAdmin.email.toLowerCase()
+
+      const userRole = matchedUser?.role || (sellerIsOwner || !sale.seller_name || sale.seller_name.toLowerCase() === 'admin' ? 'admin' : 'empleado')
+      const userName = matchedUser
+        ? getDisplayUserName(matchedUser)
+        : sellerIsOwner
+        ? ownerAdmin.name
+        : getDisplayUserName({ full_name: sale.seller_name, email: sale.seller_name?.includes('@') ? sale.seller_name : '', role: userRole }, ownerAdmin.name)
       const userEmail = matchedUser?.email || (sale.seller_name?.includes('@') ? sale.seller_name : '')
-      const userRole = matchedUser?.role || 'admin'
 
       const totalAmount = salesService.saleTotal(sale)
       const pNum = sale.id ? String(sale.id).slice(-4).toUpperCase() : '0000'
@@ -205,20 +242,40 @@ export default function EmployeeActivity() {
                    (u.email && (sale.seller_name?.toLowerCase() === u.email.toLowerCase() || sale.notes?.toLowerCase().includes(u.email.toLowerCase()))) ||
                    (u.full_name && sale.seller_name?.toLowerCase() === u.full_name.toLowerCase())
           )
+          if (!matchedUser && sale.user_id && currentAuthUser && String(currentAuthUser.id) === String(sale.user_id)) {
+            matchedUser = currentAuthUser
+          }
+          if (!matchedUser && sale.seller_name) {
+            const isOwnerEmail = ownerAdmin.email && sale.seller_name.toLowerCase() === ownerAdmin.email.toLowerCase()
+            matchedUser = isOwnerEmail ? ownerAdmin : {
+              full_name: sale.seller_name,
+              email: sale.seller_name.includes('@') ? sale.seller_name : '',
+              role: 'empleado',
+            }
+          }
+        }
+      }
+
+      if (!matchedUser && !isAiMovement && mov.reference) {
+        const refClean = mov.reference.replace('#', '').trim().toLowerCase()
+        const purchase = purchases.find((p) => p.id && String(p.id).toLowerCase().includes(refClean))
+        if (purchase?.user_id) {
+          matchedUser = collaborators.find((u) => String(u.id) === String(purchase.user_id))
+          if (!matchedUser && currentAuthUser && String(currentAuthUser.id) === String(purchase.user_id)) {
+            matchedUser = currentAuthUser
+          }
         }
       }
 
       if (!matchedUser && mov.user_id) {
         matchedUser = collaborators.find((u) => String(u.id) === String(mov.user_id))
+        if (!matchedUser && currentAuthUser && String(currentAuthUser.id) === String(mov.user_id)) {
+          matchedUser = currentAuthUser
+        }
       }
 
       if (!matchedUser && !isAiMovement) {
-        matchedUser = {
-          name: 'Almacén Central',
-          email: '',
-          role: 'admin',
-          initials: 'AL'
-        }
+        matchedUser = ownerAdmin
       }
 
       const isEntry = mov.type === 'entrada'
@@ -238,43 +295,51 @@ export default function EmployeeActivity() {
         impactType: isEntry ? 'stock_positive' : 'stock_negative',
         createdAt: mov.created_at || new Date().toISOString(),
         status: 'completado',
-        user: {
-          id: matchedUser?.id || mov.user_id,
-          name: matchedUser?.name || matchedUser?.full_name || matchedUser?.email?.split('@')[0] || 'Almacén',
-          email: matchedUser?.email || '',
-          role: matchedUser?.role || 'empleado',
-          initials: (matchedUser?.name || matchedUser?.full_name || matchedUser?.email || 'AL').slice(0, 2).toUpperCase(),
-          isAi: matchedUser?.isAi
-        },
+        user: (() => {
+          const isAi = Boolean(matchedUser?.isAi || matchedUser?.role === 'bot')
+          const resolvedRole = isAi ? 'bot' : (matchedUser?.role || 'admin')
+          const displayName = isAi ? 'Asistente IA' : getDisplayUserName(matchedUser, ownerAdmin.name)
+          return {
+            id: matchedUser?.id || mov.user_id || null,
+            name: displayName,
+            email: matchedUser?.email || '',
+            role: resolvedRole,
+            initials: getInitials(displayName, isAi),
+            isAi
+          }
+        })(),
         raw: mov
       })
     })
 
     return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-  }, [sales, movements, collaborators, productMap, currentAuthUser])
+  }, [sales, movements, purchases, collaborators, productMap, currentAuthUser, ownerAdmin])
 
-  // KPI Calculations
+  // KPI Calculations (empleados separados del Administrador/Dueño)
   const stats = useMemo(() => {
-    const employeeActivities = unifiedActivities.filter((a) => a.user.role === 'empleado' || a.user.name.toLowerCase().includes('carlos') || a.user.email.toLowerCase().includes('cya'))
+    const employeeActivities = unifiedActivities.filter((a) => !a.user.isAi && a.user.role !== 'admin')
     const employeeSales = employeeActivities.filter((a) => a.category === 'VENTA')
     const totalSalesAmount = employeeSales.reduce((acc, s) => acc + (s.amount || 0), 0)
     const employeeMovements = employeeActivities.filter((a) => a.category === 'ENTRADA' || a.category === 'SALIDA')
     const employeeDispatches = employeeActivities.filter((a) => a.category === 'SALIDA')
     const employeeEntries = employeeActivities.filter((a) => a.category === 'ENTRADA')
 
-    // Find most active employee
+    // Find most active employee (solo entre empleados/vendedores, no el dueño/admin)
     const activityCountByUser = {}
-    unifiedActivities.forEach((a) => {
-      const key = a.user.name || a.user.email
-      activityCountByUser[key] = (activityCountByUser[key] || 0) + 1
+    employeeActivities.forEach((a) => {
+      const key = a.user.id || a.user.email || a.user.name
+      if (!activityCountByUser[key]) {
+        activityCountByUser[key] = { name: a.user.name, count: 0 }
+      }
+      activityCountByUser[key].count += 1
     })
 
-    let topEmployeeName = 'Carlos'
+    let topEmployeeName = 'Sin empleados activos'
     let topEmployeeCount = 0
-    Object.entries(activityCountByUser).forEach(([name, count]) => {
-      if (count > topEmployeeCount) {
-        topEmployeeCount = count
-        topEmployeeName = name
+    Object.values(activityCountByUser).forEach((entry) => {
+      if (entry.count > topEmployeeCount) {
+        topEmployeeCount = entry.count
+        topEmployeeName = entry.name
       }
     })
 
@@ -322,28 +387,30 @@ export default function EmployeeActivity() {
     }
   }, [unifiedActivities])
 
-  // Collaborator Ranking Leaderboard (Top 3)
+  // Collaborator Ranking Leaderboard (Top 3 empleados/vendedores; excluye al dueño/admin y al bot IA)
   const leaderboard = useMemo(() => {
     const map = {}
-    unifiedActivities.forEach((a) => {
-      const key = a.user.email || a.user.name
-      if (!map[key]) {
-        map[key] = {
-          user: a.user,
-          totalOps: 0,
-          salesAmount: 0,
-          salesCount: 0,
-          stockOps: 0
+    unifiedActivities
+      .filter((a) => !a.user.isAi && a.user.role !== 'admin')
+      .forEach((a) => {
+        const key = a.user.id || a.user.email || a.user.name
+        if (!map[key]) {
+          map[key] = {
+            user: a.user,
+            totalOps: 0,
+            salesAmount: 0,
+            salesCount: 0,
+            stockOps: 0
+          }
         }
-      }
-      map[key].totalOps += 1
-      if (a.category === 'VENTA') {
-        map[key].salesAmount += a.amount || 0
-        map[key].salesCount += 1
-      } else {
-        map[key].stockOps += 1
-      }
-    })
+        map[key].totalOps += 1
+        if (a.category === 'VENTA') {
+          map[key].salesAmount += a.amount || 0
+          map[key].salesCount += 1
+        } else {
+          map[key].stockOps += 1
+        }
+      })
 
     return Object.values(map)
       .sort((a, b) => b.totalOps - a.totalOps)
@@ -606,7 +673,7 @@ export default function EmployeeActivity() {
                   <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
                     Colaborador Más Activo
                   </span>
-                  <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1 tracking-tight truncate capitalize">
+                  <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1 tracking-tight truncate">
                     {stats.topEmployee.name || 'Sin registros'}
                   </p>
                 </div>
@@ -632,7 +699,7 @@ export default function EmployeeActivity() {
                   <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
                     Última Actividad en Vivo
                   </span>
-                  <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white mt-1 tracking-tight truncate capitalize">
+                  <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white mt-1 tracking-tight truncate">
                     {stats.latestAction ? stats.latestAction.user.name : 'Al día'}
                   </p>
                 </div>
@@ -775,7 +842,7 @@ export default function EmployeeActivity() {
                         </div>
 
                         <div className="min-w-0">
-                          <p className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate capitalize">
+                          <p className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                             {item.user.name}
                           </p>
                           <p className="text-[11px] text-slate-400 font-mono truncate">
@@ -804,7 +871,9 @@ export default function EmployeeActivity() {
               </div>
 
               <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-400">
-                <span>Total colaboradores registrados: <strong>{collaborators.length}</strong></span>
+                <span>
+                  Empleados: <strong>{collaborators.filter((c) => c.role !== 'admin').length}</strong> · Administrador: <strong>{Math.max(collaborators.filter((c) => c.role === 'admin').length, 1)}</strong>
+                </span>
                 <span className="text-indigo-600 dark:text-indigo-400 font-semibold cursor-pointer hover:underline" onClick={() => setSelectedUser('ALL')}>
                   Ver todos los registros →
                 </span>
@@ -851,11 +920,14 @@ export default function EmployeeActivity() {
                 className="bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 cursor-pointer"
               >
                 <option value="ALL">Todos los colaboradores</option>
-                {collaborators.map((c) => (
-                  <option key={c.id || c.email} value={c.email || c.full_name}>
-                    {c.full_name || c.email} ({c.role === 'admin' ? 'Administrador' : 'Empleado'})
-                  </option>
-                ))}
+                {collaborators.map((c) => {
+                  const displayName = getDisplayUserName(c)
+                  return (
+                    <option key={c.id || c.email} value={c.email || displayName}>
+                      {displayName} ({getRoleLabel(c.role)})
+                    </option>
+                  )
+                })}
               </select>
             </div>
 
@@ -1009,18 +1081,20 @@ export default function EmployeeActivity() {
                               {act.user.initials}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-extrabold text-slate-900 dark:text-white truncate capitalize text-xs sm:text-[13px]">
+                              <p className="font-extrabold text-slate-900 dark:text-white truncate text-xs sm:text-[13px]">
                                 {act.user.name}
                               </p>
                               <p className="text-[11px] text-slate-400 truncate font-mono">
                                 {act.user.email}
                               </p>
                               <span className={`inline-block mt-0.5 text-[9.5px] font-black px-2 py-0.5 rounded-md ${
-                                act.user.role === 'admin'
+                                act.user.isAi
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800'
+                                  : act.user.role === 'admin'
                                   ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800'
                                   : 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800'
                               }`}>
-                                {act.user.role === 'admin' ? 'Administrador' : 'Empleado'}
+                                {getRoleLabel(act.user.role, act.user.isAi)}
                               </span>
                             </div>
                           </div>
@@ -1202,7 +1276,7 @@ export default function EmployeeActivity() {
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-black bg-gradient-to-tr ${getAvatarGradient(act.user.name)} shrink-0`}>
                         {act.user.initials}
                       </div>
-                      <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 capitalize truncate max-w-[100px]">
+              <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate max-w-[100px]">
                         {act.user.name}
                       </span>
                     </div>
@@ -1313,14 +1387,14 @@ export default function EmployeeActivity() {
                   {detailItem.user.initials}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-black text-slate-900 dark:text-white text-sm capitalize">
+                  <p className="font-black text-slate-900 dark:text-white text-sm">
                     {detailItem.user.name}
                   </p>
                   <p className="text-xs text-slate-400 font-mono">
                     {detailItem.user.email}
                   </p>
-                  <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 capitalize">
-                    Rol: {detailItem.user.role === 'admin' ? 'Administrador' : 'Empleado'}
+                  <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                    Rol: {getRoleLabel(detailItem.user.role, detailItem.user.isAi)}
                   </p>
                 </div>
               </div>

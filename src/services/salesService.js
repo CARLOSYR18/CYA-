@@ -9,14 +9,19 @@ export const salesService = {
 
   subtotal(sale) {
     if (!sale?.items || !Array.isArray(sale.items)) return Number(sale?.subtotal) || 0
-    return sale.items.reduce((sum, it) => sum + (Number(it.quantity) || 1) * (Number(it.unit_price) || 0), 0)
+    return sale.items.reduce(
+      (sum, it) => sum + (Number(it.quantity) || 1) * (Number(it.unit_price ?? it.price) || 0),
+      0
+    )
   },
 
   saleTotal(sale) {
-    if (sale?.total != null && !isNaN(Number(sale.total))) return Number(sale.total)
     const subtotal = this.subtotal(sale)
     const discount = Number(sale?.discount || 0)
-    return Math.max(subtotal - discount, 0)
+    const computed = Math.max(subtotal - discount, 0)
+    const stored = sale?.total != null && !isNaN(Number(sale.total)) ? Number(sale.total) : null
+    if (stored != null && (stored > 0 || computed === 0)) return stored
+    return computed
   },
 
   normalizeSale(s) {
@@ -64,12 +69,18 @@ export const salesService = {
   async create({ client_name, client_phone, user_id, status, items, discount, due_date, notes }) {
     if (!items?.length) throw new Error('La venta necesita al menos un producto')
     const client = await clientsService.findOrCreateByName(client_name, client_phone)
+    const normalizedDiscount = Number(discount) || 0
+    const computedTotal = Math.max(
+      items.reduce((acc, i) => acc + Number(i.quantity || 0) * Number(i.unit_price ?? i.price ?? 0), 0) - normalizedDiscount,
+      0
+    )
     const sale = await base.create({
       client_id: client.id,
       user_id,
       status: status || 'pagado',
       items,
-      discount: Number(discount) || 0,
+      discount: normalizedDiscount,
+      total: computedTotal,
       due_date: due_date || null,
       notes: notes || null,
     })
@@ -80,6 +91,7 @@ export const salesService = {
         quantity: item.quantity,
         reason: 'Venta',
         reference: sale.id,
+        user_id: user_id || null,
       })
     }
     return { ...sale, client }

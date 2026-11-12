@@ -16,7 +16,10 @@ import EmptyState from '../components/ui/EmptyState'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
 import { productsService } from '../services/productsService'
 import { salesService } from '../services/salesService'
+import { purchasesService } from '../services/purchasesService'
 import { usersService } from '../services/usersService'
+import { useAuth } from '../context/AuthContext'
+import { getDisplayUserName, getInitials, getRoleLabel, resolveCompanyOwner } from '../lib/userDisplay'
 
 const fmtN = (n) => (Number(n) || 0).toLocaleString('es-PE')
 
@@ -66,6 +69,7 @@ function formatDateTime(dateStr) {
 export default function InventoryMovements() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user: currentAuthUser } = useAuth()
   const [notification, setNotification] = useState(null)
 
   useEffect(() => {
@@ -80,6 +84,7 @@ export default function InventoryMovements() {
   const [movements, setMovements] = useState(() => inventoryMovementsService.getCached?.() || [])
   const [products, setProducts] = useState(() => productsService.getCached?.() || [])
   const [sales, setSales] = useState(() => salesService.getCached?.() || [])
+  const [purchases, setPurchases] = useState(() => purchasesService.getCached?.() || [])
   const [collaborators, setCollaborators] = useState(() => usersService.getCached?.() || [])
   const [loading, setLoading] = useState(() => !inventoryMovementsService.hasCache?.())
 
@@ -121,15 +126,17 @@ export default function InventoryMovements() {
     }, 2500)
 
     try {
-      const [m, p, s, u] = await Promise.all([
+      const [m, p, s, pur, u] = await Promise.all([
         inventoryMovementsService.list(options).catch(() => []),
         productsService.list(options).catch(() => []),
         salesService.list(options).catch(() => []),
+        purchasesService.list(options).catch(() => []),
         usersService.list().catch(() => [])
       ])
       setMovements(m || [])
       setProducts(p || [])
       setSales(s || [])
+      setPurchases(pur || [])
       setCollaborators(u || [])
     } finally {
       clearTimeout(safetyTimer)
@@ -159,9 +166,14 @@ export default function InventoryMovements() {
     }
   }, [])
 
+  const ownerAdmin = useMemo(
+    () => resolveCompanyOwner(collaborators, currentAuthUser),
+    [collaborators, currentAuthUser]
+  )
+
   /* ─── Helper: Resolver el colaborador responsable de cada movimiento ─── */
   const getMovementResponsible = (m) => {
-    if (!m) return { name: 'Administrador', role: 'admin', initials: 'AD', email: '' }
+    if (!m) return ownerAdmin
 
     const refLow = (m.reference || '').toLowerCase()
     const rsnLow = (m.reason || '').toLowerCase()
@@ -175,15 +187,21 @@ export default function InventoryMovements() {
       }
     }
 
+    const resolveFromUserObj = (userObj) => {
+      const name = getDisplayUserName(userObj)
+      return {
+        name,
+        role: userObj.role || 'empleado',
+        initials: getInitials(name),
+        email: userObj.email || ''
+      }
+    }
+
     if (m.user_id) {
       const matched = collaborators.find((c) => String(c.id) === String(m.user_id))
-      if (matched) {
-        return {
-          name: matched.full_name || matched.email?.split('@')[0] || 'Colaborador',
-          role: matched.role || 'empleado',
-          initials: (matched.full_name || matched.email || 'EM').slice(0, 2).toUpperCase(),
-          email: matched.email
-        }
+      if (matched) return resolveFromUserObj(matched)
+      if (currentAuthUser && String(currentAuthUser.id) === String(m.user_id)) {
+        return resolveFromUserObj(currentAuthUser)
       }
     }
 
@@ -191,36 +209,41 @@ export default function InventoryMovements() {
       const refClean = m.reference.replace('#', '').trim().toLowerCase()
       const sale = sales.find((s) => s.id && String(s.id).toLowerCase().includes(refClean))
       if (sale) {
-        let matched = collaborators.find(
+        const matched = collaborators.find(
           (u) => (sale.user_id && String(u.id) === String(sale.user_id)) ||
                  (u.email && (sale.seller_name?.toLowerCase() === u.email.toLowerCase() || sale.notes?.toLowerCase().includes(u.email.toLowerCase()))) ||
                  (u.full_name && sale.seller_name?.toLowerCase() === u.full_name.toLowerCase())
         )
-        if (matched) {
-          return {
-            name: matched.full_name || matched.email?.split('@')[0],
-            role: matched.role || 'empleado',
-            initials: (matched.full_name || matched.email || 'EM').slice(0, 2).toUpperCase(),
-            email: matched.email
-          }
+        if (matched) return resolveFromUserObj(matched)
+        if (sale.user_id && currentAuthUser && String(currentAuthUser.id) === String(sale.user_id)) {
+          return resolveFromUserObj(currentAuthUser)
         }
         if (sale.seller_name) {
+          const isOwnerEmail = ownerAdmin.email && sale.seller_name.toLowerCase() === ownerAdmin.email.toLowerCase()
+          if (isOwnerEmail || sale.seller_name.toLowerCase() === 'admin' || sale.seller_name.toLowerCase() === 'administrador') {
+            return ownerAdmin
+          }
+          const name = getDisplayUserName({ full_name: sale.seller_name, email: sale.seller_name.includes('@') ? sale.seller_name : '' })
           return {
-            name: sale.seller_name,
+            name,
             role: 'empleado',
-            initials: sale.seller_name.slice(0, 2).toUpperCase(),
+            initials: getInitials(name),
             email: sale.seller_name.includes('@') ? sale.seller_name : ''
           }
         }
       }
+
+      const purchase = purchases.find((p) => p.id && String(p.id).toLowerCase().includes(refClean))
+      if (purchase?.user_id) {
+        const matched = collaborators.find((c) => String(c.id) === String(purchase.user_id))
+        if (matched) return resolveFromUserObj(matched)
+        if (currentAuthUser && String(currentAuthUser.id) === String(purchase.user_id)) {
+          return resolveFromUserObj(currentAuthUser)
+        }
+      }
     }
 
-    return {
-      name: 'Almacén / Sistema',
-      role: 'admin',
-      initials: 'AL',
-      email: ''
-    }
+    return ownerAdmin
   }
 
   /* ─── Metrics Computations ─── */
@@ -1578,7 +1601,7 @@ export default function InventoryMovements() {
                                 {resp.name}
                               </p>
                               <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
-                                {resp.role === 'admin' ? 'Administrador' : resp.isAi ? 'IA Bot' : 'Colaborador'}
+                                {getRoleLabel(resp.role, resp.isAi)}
                               </span>
                             </div>
                           </div>

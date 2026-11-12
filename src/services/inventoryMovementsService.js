@@ -1,7 +1,19 @@
 import { createCrudService } from './crudFactory'
 import { productsService } from './productsService'
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 
 const base = createCrudService('inventory_movements', { orderBy: 'created_at', ascending: false })
+
+async function resolveCurrentUserId(explicitUserId) {
+  if (explicitUserId) return explicitUserId
+  if (!isSupabaseConfigured || !supabase) return null
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.user?.id || null
+  } catch {
+    return null
+  }
+}
 
 export const inventoryMovementsService = {
   ...base,
@@ -10,13 +22,14 @@ export const inventoryMovementsService = {
   async register({ product_id, type, quantity, reason, reference, user_id }) {
     if (quantity <= 0) throw new Error('La cantidad debe ser mayor a 0')
     const delta = type === 'entrada' ? quantity : -quantity
+    const resolvedUserId = await resolveCurrentUserId(user_id)
     const payload = {
       product_id,
       type,
       quantity,
       reason,
       reference: reference || null,
-      ...(user_id ? { user_id } : {}),
+      ...(resolvedUserId ? { user_id: resolvedUserId } : {}),
     }
     const movement = await base.create(payload)
     await productsService.adjustStock(product_id, delta)
@@ -26,13 +39,14 @@ export const inventoryMovementsService = {
   // Registra el movimiento inicial al crear un producto sin volver a sumar stock
   async recordInitialStock({ product_id, quantity, reason = 'Stock inicial al registrar producto', reference = null, user_id = null }) {
     if (!product_id || Number(quantity) <= 0) return null
+    const resolvedUserId = await resolveCurrentUserId(user_id)
     return base.create({
       product_id,
       type: 'entrada',
       quantity: Number(quantity),
       reason,
       reference,
-      ...(user_id ? { user_id } : {}),
+      ...(resolvedUserId ? { user_id: resolvedUserId } : {}),
     })
   },
 
