@@ -201,7 +201,7 @@ export const usersService = {
         id: currentAuthId,
         email: currentAuthEmail,
         full_name: authData?.user?.user_metadata?.full_name || currentAuthEmail,
-        role: 'admin',
+        role: authData?.user?.role || 'superadmin',
         active: true,
         company_id: companyId,
       })

@@ -306,8 +306,8 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
               <span className="text-[13px] text-slate-800 dark:text-slate-200 font-semibold truncate max-w-[130px]">
                 {displayName}
               </span>
-              {isPlatformAdmin ? (
-                <span className="text-[9px] font-extrabold text-purple-700 bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300 px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">
+              {user?.role === 'superadmin' || isPlatformAdmin ? (
+                <span className="text-[9px] font-extrabold text-amber-800 bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 px-1.5 py-0.5 rounded uppercase tracking-wider w-fit">
                   SUPER ADMIN
                 </span>
               ) : (
@@ -345,7 +345,7 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
                   <UserCircle size={15} /> Mi Perfil y Cuenta
                 </button>
 
-                {isPlatformAdmin ? (
+                {isPlatformAdmin && !user?.company_id ? (
                   <button
                     onClick={() => {
                       setUserOpen(false)
@@ -355,7 +355,7 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
                   >
                     <ShieldAlert size={14} className="text-purple-600 dark:text-purple-400" /> Panel Plataforma
                   </button>
-                ) : user?.role === 'admin' ? (
+                ) : (user?.role === 'admin' || user?.role === 'superadmin' || isPlatformAdmin) ? (
                   <button
                     onClick={() => {
                       setUserOpen(false)

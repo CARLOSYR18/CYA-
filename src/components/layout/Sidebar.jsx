@@ -172,8 +172,8 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
     .join('')
     .toUpperCase() || 'CD'
 
-  const userRole = isPlatformAdmin
-    ? 'Super Administrador'
+  const userRole = (user?.role === 'superadmin' || isPlatformAdmin)
+    ? 'Super Admin'
     : (isAdmin ? 'Administrador' : (user?.role === 'vendedor' ? 'Vendedor' : 'Colaborador'))
 
   // En móvil (cuando el sidebar se abre como drawer), siempre mostrar versión completa
@@ -328,8 +328,8 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
 
         {/* Navigation list with hidden native scrollbar */}
         <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-1.5 no-scrollbar overscroll-contain z-10">
-          {/* Navegación Exclusiva para Super Administrador de la Plataforma */}
-          {isPlatformAdmin ? (
+          {/* Navegación Exclusiva para Super Administrador de la Plataforma (sin empresa asignada) */}
+          {isPlatformAdmin && !user?.company_id ? (
             <div className="space-y-1.5 animate-fade-in">
               <NavLink
                 to="/admin-plataforma"

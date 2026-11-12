@@ -213,7 +213,8 @@ export function AuthProvider({ children }) {
 
         // isPlatformAdmin sale exclusivamente de la columna protegida profiles.is_platform_admin o variable de entorno
         const isPlatformAdminUser = Boolean(data?.is_platform_admin) || isSuper
-        const companyId = isPlatformAdminUser ? null : (data?.company_id || null)
+        // Conservar company_id del usuario si existe
+        const companyId = data?.company_id || null
 
         // Si el perfil no tiene company_id, limpiar datos y caché residuales
         if (!companyId) {
@@ -232,9 +233,7 @@ export function AuthProvider({ children }) {
         }
 
         // El rol proviene estrictamente de profiles.role
-        const userRole = isPlatformAdminUser
-          ? 'admin' // Para la UI de plataforma o superadmin según esquema
-          : (data?.role || 'empleado')
+        const userRole = data?.role || (isPlatformAdminUser ? 'superadmin' : 'empleado')
 
         const metadata = authUser?.user_metadata || {}
         const profile = {
@@ -461,7 +460,7 @@ export function AuthProvider({ children }) {
     setCompanyCache(rpcComp.id)
     companySettingsService.setCached(rpcComp)
     invalidateCache()
-    setUser({ ...user, company_id: rpcComp.id, role: 'admin' })
+    setUser({ ...user, company_id: rpcComp.id, role: 'superadmin' })
     setProfileLoaded(true)
     return rpcComp
   }
@@ -611,7 +610,7 @@ export function AuthProvider({ children }) {
         loginWithMagicLink,
         updateProfile,
         updatePassword,
-        isAdmin: user?.role === 'admin' || isSuperAdminUser,
+        isAdmin: user?.role === 'admin' || user?.role === 'superadmin' || isSuperAdminUser,
         isPlatformAdmin: isSuperAdminUser,
       }}
     >

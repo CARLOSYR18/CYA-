@@ -1073,7 +1073,7 @@ function DashboardContent() {
                     >
                       <User size={13} /> Mi Perfil y Cuenta
                     </button>
-                    {user?.role === 'admin' && (
+                    {(user?.role === 'admin' || user?.role === 'superadmin' || isPlatformAdmin) && (
                       <button
                         onClick={() => {
                           setUserDropdownOpen(false)

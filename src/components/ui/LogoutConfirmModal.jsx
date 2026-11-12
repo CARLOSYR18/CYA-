@@ -78,7 +78,7 @@ export default function LogoutConfirmModal({ open, onClose, onConfirm, user }) {
                 </p>
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 shrink-0">
-                {user.role === 'admin' ? 'Administrador' : 'Empleado'}
+                {user.role === 'superadmin' || user.is_platform_admin ? 'Super Admin' : user.role === 'admin' ? 'Administrador' : 'Empleado'}
               </span>
             </div>
           )}
