@@ -213,29 +213,108 @@ export const usersService = {
     )
   },
 
+  async checkEmailAvailability(email, excludeUserId = null) {
+    const cleanEmail = String(email || '').trim().toLowerCase()
+    if (!cleanEmail) return { available: true }
+
+    if (isPlatformAdminEmail(cleanEmail)) {
+      return {
+        available: false,
+        reason: 'platform_admin',
+        message: `El correo "${cleanEmail}" pertenece al Administrador Principal de la plataforma (Super Admin). No puede agregarse como colaborador de ninguna empresa.`
+      }
+    }
+
+    if (!isSupabaseConfigured) {
+      const existingLocalProfiles = localDb.getTable('profiles') || []
+      const matchLocal = [...existingLocalProfiles, ...getLocalCollaborators()].find(
+        (p) => p?.email && p.email.toLowerCase().trim() === cleanEmail && (!excludeUserId || String(p.id) !== String(excludeUserId))
+      )
+      if (matchLocal) {
+        return {
+          available: false,
+          reason: matchLocal.is_platform_admin ? 'platform_admin' : 'existing_account',
+          message: matchLocal.is_platform_admin
+            ? 'Este correo pertenece al Administrador Principal de la plataforma (Super Admin) y no puede registrarse en una empresa.'
+            : `El correo "${cleanEmail}" ya tiene una cuenta registrada en el sistema. Usa un correo nuevo para este colaborador.`
+        }
+      }
+      return { available: true }
+    }
+
+    try {
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('check_email_registered', {
+        p_email: cleanEmail
+      })
+
+      if (!rpcErr && rpcData) {
+        if (rpcData.is_platform_admin) {
+          return {
+            available: false,
+            reason: 'platform_admin',
+            message: 'Este correo pertenece al Administrador Principal de la plataforma (Super Admin), quien gestiona planes y empresas. No puede agregarse como colaborador.'
+          }
+        }
+        if (rpcData.in_current_company && !excludeUserId) {
+          return {
+            available: false,
+            reason: 'same_company',
+            message: `El correo "${cleanEmail}" ya está registrado como colaborador en tu empresa.`
+          }
+        }
+        if (rpcData.exists && !excludeUserId) {
+          return {
+            available: false,
+            reason: 'existing_account',
+            message: `El correo "${cleanEmail}" ya tiene una cuenta creada en el sistema (otra empresa o cuenta principal). No puedes agregar usuarios que ya tienen cuenta; utiliza un correo nuevo.`
+          }
+        }
+        return { available: true }
+      }
+
+      // Si la RPC aún no se ejecutó en Supabase, consultar perfiles visibles por RLS
+      const errMsg = (rpcErr?.message || '').toLowerCase()
+      const rpcMissing = rpcErr?.code === 'PGRST202' || rpcErr?.code === '42883' || errMsg.includes('does not exist') || errMsg.includes('could not find the function')
+      if (!rpcMissing && rpcErr) {
+        console.warn('Aviso al validar disponibilidad de correo:', rpcErr.message)
+      }
+    } catch (err) {
+      console.warn('Aviso en checkEmailAvailability:', err)
+    }
+
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id, email, is_platform_admin')
+      .eq('email', cleanEmail)
+      .maybeSingle()
+
+    if (existingProfile && (!excludeUserId || String(existingProfile.id) !== String(excludeUserId))) {
+      return {
+        available: false,
+        reason: existingProfile.is_platform_admin ? 'platform_admin' : 'same_company',
+        message: existingProfile.is_platform_admin
+          ? 'Este correo pertenece al Super Admin de la plataforma y no puede agregarse como colaborador.'
+          : 'Este correo ya está registrado en tu empresa. No se puede crear un usuario duplicado.'
+      }
+    }
+
+    return { available: true, fallbackOnly: true }
+  },
+
   /**
    * Crea un usuario en el sistema.
-   * Con Supabase: crea el usuario en auth.users mediante un cliente aislado
-   * (sin sobrescribir la sesión del admin) y sincroniza su perfil con el rol y empresa.
-   * Además respalda el registro en almacenamiento local para disponibilidad inmediata.
+   * Con Supabase: valida que el correo no pertenezca a ninguna cuenta existente
+   * ni al Super Admin, crea el usuario en auth.users mediante un cliente aislado
+   * y lo vincula de forma segura a la empresa actual.
    */
   async create({ email, password, full_name, role = 'empleado', active = true }) {
     const cleanEmail = email.trim().toLowerCase()
     const cleanName = full_name.trim()
 
-    // 0. BLINDAJE CRÍTICO: Bloquear registro o asignación de Super Admin como colaborador de empresa
-    if (isPlatformAdminEmail(cleanEmail)) {
-      throw new Error(
-        `PROTECCIÓN DE SEGURIDAD: El correo "${cleanEmail}" pertenece a la Administración General de la Plataforma (Super Admin). Está estrictamente prohibido registrarlo como colaborador de una empresa.`
-      )
-    }
-
-    // Validar en local si ya existe para evitar sobrescrituras no deseadas
-    const existingLocalProfiles = localDb.getTable('profiles') || []
-    const alreadyExistsInLocal = existingLocalProfiles.some(p => p.email && p.email.toLowerCase().trim() === cleanEmail)
-    const alreadyExistsInLocalCollab = getLocalCollaborators().some(p => p.email && p.email.toLowerCase().trim() === cleanEmail)
-    if (alreadyExistsInLocal || alreadyExistsInLocalCollab) {
-      throw new Error(`El correo "${cleanEmail}" ya se encuentra registrado en el sistema. No se puede sobrescribir una cuenta existente.`)
+    // 0. VALIDACIÓN GLOBAL ESTRICTA: Bloquear Super Admin y cualquier cuenta ya creada
+    const availability = await this.checkEmailAvailability(cleanEmail)
+    if (!availability.available) {
+      throw new Error(availability.message)
     }
 
     if (isSupabaseConfigured) {
@@ -244,17 +323,6 @@ export const usersService = {
       }
 
       const companyId = await getCurrentCompanyId().catch(() => null)
-
-      // 1. Validar si el correo ya existe en cualquier empresa o perfil del sistema
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id, email, company_id')
-        .eq('email', cleanEmail)
-        .maybeSingle()
-
-      if (existingProfile) {
-        throw new Error('Este correo ya está registrado en el sistema. No se puede registrar un usuario duplicado ni cambiar su cuenta.')
-      }
 
       const url = import.meta.env.VITE_SUPABASE_URL
       const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -280,16 +348,18 @@ export const usersService = {
         },
       })
 
-      // Si Supabase devuelve identities vacío, el usuario ya existía en Authentication
-      if (!authError && authData?.user?.identities && authData.user.identities.length === 0) {
-        throw new Error('Este correo ya tiene una cuenta independiente registrada. Utiliza un correo nuevo para este colaborador.')
+      // Si Supabase devuelve identities vacío, o una cuenta antigua (>5 min), el usuario ya existía en Authentication
+      const createdAtMs = authData?.user?.created_at ? new Date(authData.user.created_at).getTime() : null
+      const isOldAccount = createdAtMs && (Date.now() - createdAtMs > 5 * 60 * 1000)
+      if (!authError && authData?.user && ((Array.isArray(authData.user.identities) && authData.user.identities.length === 0) || isOldAccount)) {
+        throw new Error('Este correo ya tiene una cuenta registrada en el sistema. No puedes agregar usuarios ya existentes; utiliza un correo nuevo para este colaborador.')
       }
 
       if (authError) {
         const raw = authError.message || ''
         const msg = raw.toLowerCase()
-        if (msg.includes('already registered') || msg.includes('user already exists')) {
-          throw new Error('Este correo electrónico ya está registrado. Por favor utiliza otro correo.')
+        if (msg.includes('already registered') || msg.includes('user already exists') || msg.includes('email_exists') || msg.includes('already been registered')) {
+          throw new Error('Este correo ya tiene una cuenta registrada en el sistema. No puedes agregar usuarios ya existentes; utiliza un correo nuevo.')
         }
         if (msg.includes('password should contain') || msg.includes('at least one character') || msg.includes('characters')) {
           throw new Error('La contraseña no es válida: debe contener al menos 6 caracteres, incluyendo una letra mayúscula (A-Z), una minúscula (a-z) y un número (0-9). Ejemplo: Carlos123')
@@ -312,11 +382,8 @@ export const usersService = {
         ...(companyId ? { company_id: companyId } : {})
       }
 
-      // Guardar inmediatamente en la persistencia local
-      saveLocalCollaborator(localRecord)
-
       // A6: Vincular al colaborador a la empresa mediante RPC segura en Postgres
-      // La RPC valida que el perfil haya sido creado recientemente (< 15 min) y pertenezca al llamador
+      // La RPC valida que el perfil haya sido creado recientemente (< 15 min) y no sea Super Admin ni de otra empresa
       const { data: rpcProfile, error: rpcErr } = await supabase.rpc('add_user_to_my_company', {
         p_user_id: newUserId,
         p_full_name: cleanName,
@@ -331,9 +398,12 @@ export const usersService = {
 
       if (rpcProfile) {
         saveLocalCollaborator(rpcProfile)
+        invalidateUsersCache()
         return rpcProfile
       }
 
+      saveLocalCollaborator(localRecord)
+      invalidateUsersCache()
       return localRecord
     }
 
@@ -349,6 +419,7 @@ export const usersService = {
       active,
     })
     saveLocalCollaborator(createdLocal)
+    invalidateUsersCache()
     return createdLocal
   },
 
@@ -356,35 +427,70 @@ export const usersService = {
     if (patch?.email && isPlatformAdminEmail(patch.email)) {
       throw new Error('PROTECCIÓN DE SEGURIDAD: No se puede asignar el correo del Super Admin a un usuario.')
     }
-    saveLocalCollaborator({ id, ...patch })
     if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .update(patch)
-          .eq('id', id)
-          .select()
-          .maybeSingle()
-        if (!error && data) {
-          saveLocalCollaborator(data)
-          return data
-        }
-      } catch (err) {
-        console.warn('Aviso al actualizar perfil:', err)
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .maybeSingle()
+      if (error) {
+        throw new Error(error.message || 'No se pudo actualizar el colaborador en Supabase.')
+      }
+      if (data) {
+        saveLocalCollaborator(data)
+        invalidateUsersCache()
+        return data
       }
     }
+    saveLocalCollaborator({ id, ...patch })
     return baseService.update(id, patch)
   },
 
   async remove(id) {
-    removeLocalCollaborator(id)
     if (isSupabaseConfigured) {
-      try {
-        await supabase.from('profiles').delete().eq('id', id)
-      } catch (err) {
-        console.warn('Aviso al eliminar perfil:', err)
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('remove_user_from_my_company', {
+        p_user_id: id
+      })
+
+      if (!rpcErr) {
+        removeLocalCollaborator(id)
+        invalidateUsersCache()
+        baseService.invalidate()
+        return rpcData
       }
+
+      const errMsg = (rpcErr.message || '').toLowerCase()
+      const rpcMissing =
+        rpcErr.code === 'PGRST202' ||
+        rpcErr.code === '42883' ||
+        errMsg.includes('could not find the function') ||
+        errMsg.includes('does not exist')
+
+      if (!rpcMissing) {
+        throw new Error(rpcErr.message || 'No se pudo desvincular al usuario de tu empresa.')
+      }
+
+      // Fallback si la RPC aún no fue ejecutada en Supabase
+      const { data: deletedRows, error: delErr } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', id)
+        .select('id')
+
+      if (delErr || !deletedRows || deletedRows.length === 0) {
+        throw new Error(
+          'Supabase bloqueó quitar este usuario por las políticas de seguridad (RLS). Ejecuta la migración "supabase/migrations/20261111_users_unlink_and_email_check.sql" en el SQL Editor de Supabase y vuelve a intentarlo.'
+        )
+      }
+
+      removeLocalCollaborator(id)
+      invalidateUsersCache()
+      baseService.invalidate()
+      return deletedRows[0]
     }
+
+    removeLocalCollaborator(id)
     return baseService.remove(id)
   },
 }

@@ -51,11 +51,13 @@ export default function NewUser() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingStep, setProcessingStep] = useState(0) // 1: 35%, 2: 75%, 3: 100%
 
-  // Plan limits
+  // Plan limits & email validation
   const [limitReached, setLimitReached] = useState(false)
   const [limitMsg, setLimitMsg] = useState('')
   const [companyInfo, setCompanyInfo] = useState(null)
   const [allUsersCount, setAllUsersCount] = useState(0)
+  const [existingUsers, setExistingUsers] = useState([])
+  const [emailCheck, setEmailCheck] = useState({ status: 'idle', message: '' })
 
   // Detección de cambios sin guardar en el usuario
   const isDirty = useMemo(() => {
@@ -89,6 +91,7 @@ export default function NewUser() {
         ])
 
         setAllUsersCount((usersList || []).length)
+        setExistingUsers(usersList || [])
         setCompanyInfo(company)
 
         if (!isEditing) {
@@ -122,6 +125,63 @@ export default function NewUser() {
 
     initData()
   }, [id, isEditing])
+
+  // Validación en tiempo real de correo: bloquea cuentas ya creadas y Super Admin
+  useEffect(() => {
+    if (isEditing) {
+      setEmailCheck({ status: 'idle', message: '' })
+      return
+    }
+
+    const cleanEmail = form.email.trim().toLowerCase()
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setEmailCheck({ status: 'idle', message: '' })
+      return
+    }
+
+    if (isPlatformAdminEmail(cleanEmail)) {
+      setEmailCheck({
+        status: 'blocked',
+        message: 'Este correo pertenece al Administrador Principal de la plataforma (Super Admin) y no puede registrarse como colaborador.'
+      })
+      return
+    }
+
+    const duplicateInCompany = existingUsers.some(
+      (u) => u?.email && u.email.toLowerCase().trim() === cleanEmail
+    )
+    if (duplicateInCompany) {
+      setEmailCheck({
+        status: 'blocked',
+        message: `El correo "${cleanEmail}" ya está registrado en tu empresa.`
+      })
+      return
+    }
+
+    let cancelled = false
+    setEmailCheck({ status: 'checking', message: '' })
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await usersService.checkEmailAvailability(cleanEmail)
+        if (cancelled) return
+        if (!res.available) {
+          setEmailCheck({ status: 'blocked', message: res.message })
+        } else if (!res.fallbackOnly) {
+          setEmailCheck({ status: 'available', message: 'Correo disponible para registrar nuevo colaborador.' })
+        } else {
+          setEmailCheck({ status: 'idle', message: '' })
+        }
+      } catch {
+        if (!cancelled) setEmailCheck({ status: 'idle', message: '' })
+      }
+    }, 350)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [form.email, isEditing, existingUsers])
 
   const avatarStyle = useMemo(() => {
     const hash = (form.full_name || 'U').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
@@ -158,6 +218,13 @@ export default function NewUser() {
     }
 
     if (!isEditing) {
+      const check = await usersService.checkEmailAvailability(cleanEmail)
+      if (!check.available) {
+        setEmailCheck({ status: 'blocked', message: check.message })
+        setError(check.message)
+        return
+      }
+
       const pwd = form.password?.trim() || ''
       if (pwd.length < 6) {
         setError('La contraseña debe tener mínimo 6 caracteres.')
@@ -347,16 +414,32 @@ export default function NewUser() {
                       required
                       className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white placeholder:text-slate-400 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-50"
                     />
-                    {isPlatformAdminEmail(form.email) && (
+                    {(isPlatformAdminEmail(form.email) || emailCheck.status === 'blocked') && (
                       <div className="mt-2 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 rounded-xl text-red-700 dark:text-red-300 text-xs flex items-start gap-2.5 animate-fade-in">
                         <ShieldAlert size={16} className="shrink-0 text-red-600 dark:text-red-400 mt-0.5" />
                         <div>
-                          <p className="font-bold">Cuenta de Super Administrador de la Plataforma</p>
+                          <p className="font-bold">
+                            {isPlatformAdminEmail(form.email)
+                              ? 'Cuenta de Super Administrador de la Plataforma'
+                              : 'Cuenta ya registrada — Registro bloqueado'}
+                          </p>
                           <p className="text-[11px] mt-0.5 text-red-600/90 dark:text-red-300/80">
-                            Este correo administra el sistema global SaaS y maneja los planes de todas las empresas. No puede ser registrado como colaborador ni pertenecer a una empresa individual.
+                            {emailCheck.message || 'Este correo administra el sistema global SaaS y maneja los planes de todas las empresas. No puede ser registrado como colaborador ni pertenecer a una empresa individual.'}
                           </p>
                         </div>
                       </div>
+                    )}
+                    {!isEditing && emailCheck.status === 'checking' && (
+                      <p className="mt-1.5 text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                        <RefreshCw size={12} className="animate-spin" />
+                        Verificando si el correo ya tiene cuenta creada…
+                      </p>
+                    )}
+                    {!isEditing && emailCheck.status === 'available' && (
+                      <p className="mt-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle2 size={13} />
+                        {emailCheck.message}
+                      </p>
                     )}
                   </div>
 
@@ -611,7 +694,15 @@ export default function NewUser() {
                 {/* PRIMARY SUBMIT BUTTON */}
                 <button
                   type="submit"
-                  disabled={isProcessing || !form.full_name.trim() || !form.email.trim() || limitReached || isPlatformAdminEmail(form.email)}
+                  disabled={
+                    isProcessing ||
+                    !form.full_name.trim() ||
+                    !form.email.trim() ||
+                    limitReached ||
+                    isPlatformAdminEmail(form.email) ||
+                    emailCheck.status === 'blocked' ||
+                    emailCheck.status === 'checking'
+                  }
                   className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isProcessing ? (

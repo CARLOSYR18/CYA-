@@ -14,6 +14,7 @@ import { usersService } from '../services/usersService'
 import { companySettingsService } from '../services/companySettingsService'
 import { getLimits } from '../lib/planLimits'
 import { useAuth } from '../context/AuthContext'
+import { getDisplayUserName } from '../lib/userDisplay'
 
 const AVATAR_PALETTES = [
   { bg: 'from-blue-600 to-indigo-700', text: 'text-white' },
@@ -51,9 +52,11 @@ export default function Users() {
   const [limitModalOpen, setLimitModalOpen] = useState(false)
   const [limitMessage, setLimitMessage] = useState('')
 
-  // Delete modal
+  // Delete modal & error banners
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [actionError, setActionError] = useState('')
 
   // Toast / feedback message after creating/updating from /usuarios/nuevo or /usuarios/editar/:id
   const [successToast, setSuccessToast] = useState(
@@ -71,15 +74,15 @@ export default function Users() {
     }
   }, [successToast])
 
-  async function loadAll() {
-    if (!usersService.hasCache?.()) setLoading(true)
+  async function loadAll(options = {}) {
+    if (!usersService.hasCache?.() && !options?.silent) setLoading(true)
     const safetyTimer = setTimeout(() => {
       setLoading(false)
     }, 2500)
 
     try {
       const [usersList, comp] = await Promise.all([
-        usersService.list().catch(() => []),
+        usersService.list(options).catch(() => []),
         companySettingsService.get().catch(() => null)
       ])
       setUsers(usersList || [])
@@ -163,6 +166,7 @@ export default function Users() {
   /* ─── Toggle Active State ─── */
   async function toggleActive(u, e) {
     if (e) e.stopPropagation()
+    setActionError('')
     try {
       const nextActive = u.active === false ? true : false
       await usersService.update(u.id, { active: nextActive })
@@ -171,6 +175,7 @@ export default function Users() {
       )
     } catch (err) {
       console.error('Error al alternar estado del usuario:', err)
+      setActionError(err?.message || 'No se pudo actualizar el estado del usuario.')
     }
   }
 
@@ -240,12 +245,17 @@ export default function Users() {
   async function handleDelete() {
     if (!confirmDelete) return
     setDeleting(true)
+    setDeleteError('')
+    setActionError('')
+    const removedName = getDisplayUserName(confirmDelete)
     try {
       await usersService.remove(confirmDelete.id)
       setConfirmDelete(null)
-      loadAll()
+      setSuccessToast(`Usuario "${removedName}" desvinculado y eliminado de tu empresa.`)
+      await loadAll({ forceRefresh: true })
     } catch (err) {
       console.error(err)
+      setDeleteError(err?.message || 'No se pudo quitar al usuario de tu empresa.')
     } finally {
       setDeleting(false)
     }
@@ -267,6 +277,21 @@ export default function Users() {
             <button
               onClick={() => setSuccessToast('')}
               className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 p-1 cursor-pointer"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
+
+        {actionError && (
+          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-xs animate-slide-up">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle size={18} className="text-rose-600 dark:text-rose-400 shrink-0" />
+              <span>{actionError}</span>
+            </div>
+            <button
+              onClick={() => setActionError('')}
+              className="text-rose-600 dark:text-rose-400 hover:text-rose-800 p-1 cursor-pointer"
             >
               <X size={15} />
             </button>
@@ -815,10 +840,15 @@ export default function Users() {
                             </div>
                             <div>
                               <p className="font-extrabold text-slate-900 dark:text-white text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5 leading-snug">
-                                <span>{u.full_name || 'Sin nombre registrado'}</span>
+                                <span>{getDisplayUserName(u)}</span>
                                 {isSelf && (
                                   <span className="text-[10px] font-extrabold px-1.5 py-0.5 bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-md">
                                     Tú
+                                  </span>
+                                )}
+                                {u.is_platform_admin && (
+                                  <span className="text-[10px] font-extrabold px-1.5 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 rounded-md">
+                                    Super Admin
                                   </span>
                                 )}
                               </p>
@@ -898,9 +928,9 @@ export default function Users() {
                               <Pencil size={15} />
                             </button>
                             <button
-                              onClick={() => setConfirmDelete(u)}
+                              onClick={() => { setDeleteError(''); setConfirmDelete(u) }}
                               disabled={isSelf}
-                              title={isSelf ? 'No puedes eliminar tu propia cuenta' : 'Eliminar usuario'}
+                              title={isSelf ? 'No puedes eliminar tu propia cuenta' : 'Quitar usuario de esta empresa'}
                               className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-zinc-800 dark:hover:text-rose-400 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               <Trash2 size={15} />
@@ -947,7 +977,7 @@ export default function Users() {
                             onClick={() => navigate(`/usuarios/editar/${u.id}`)}
                             className="font-extrabold text-slate-900 dark:text-white text-base leading-snug truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors cursor-pointer"
                           >
-                            {u.full_name || 'Sin nombre'}
+                            {getDisplayUserName(u)}
                           </h3>
                           <p className="text-xs text-slate-400 dark:text-zinc-500 truncate mt-0.5 font-mono">
                             {u.email}
@@ -965,9 +995,9 @@ export default function Users() {
                           <Pencil size={15} />
                         </button>
                         <button
-                          onClick={() => setConfirmDelete(u)}
+                          onClick={() => { setDeleteError(''); setConfirmDelete(u) }}
                           disabled={isSelf}
-                          title={isSelf ? 'No puedes eliminar tu propia cuenta' : 'Eliminar usuario'}
+                          title={isSelf ? 'No puedes eliminar tu propia cuenta' : 'Quitar usuario de esta empresa'}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <Trash2 size={15} />
@@ -1066,27 +1096,35 @@ export default function Users() {
          ═════════════════════════════════════════════════════════ */}
       <Modal
         open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        title="Eliminar Usuario"
+        onClose={() => { setDeleteError(''); setConfirmDelete(null) }}
+        title="Quitar / Eliminar Usuario"
         width="max-w-sm"
       >
         {confirmDelete && (
           <div className="space-y-4">
             <p className="text-sm text-slate-600 dark:text-zinc-300">
-              ¿Estás seguro de que deseas eliminar la cuenta de{' '}
-              <strong className="text-slate-900 dark:text-zinc-100">{confirmDelete.full_name || confirmDelete.email}</strong>?
+              ¿Estás seguro de que deseas quitar de tu empresa a{' '}
+              <strong className="text-slate-900 dark:text-zinc-100">{getDisplayUserName(confirmDelete)}</strong>{' '}
+              <span className="text-xs font-mono text-slate-400">({confirmDelete.email})</span>?
             </p>
 
             <div className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-3">
               <ShieldAlert size={16} className="shrink-0 mt-0.5" />
               <span>
-                Esta acción revocará de inmediato cualquier acceso al ERP para este colaborador.
+                Esta acción desvinculará de inmediato a este usuario y revocará su acceso a tu empresa.
               </span>
             </div>
 
+            {deleteError && (
+              <div className="flex items-start gap-2 text-xs text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-xl p-3">
+                <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+                <span className="font-semibold leading-relaxed">{deleteError}</span>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2.5 pt-2">
               <button
-                onClick={() => setConfirmDelete(null)}
+                onClick={() => { setDeleteError(''); setConfirmDelete(null) }}
                 className="btn-secondary"
               >
                 Cancelar
@@ -1096,7 +1134,7 @@ export default function Users() {
                 disabled={deleting}
                 className="btn-danger"
               >
-                {deleting ? 'Eliminando…' : 'Eliminar Usuario'}
+                {deleting ? 'Quitando…' : 'Quitar Usuario'}
               </button>
             </div>
           </div>
