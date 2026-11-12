@@ -3,7 +3,7 @@ import {
   Building2, Save, CheckCircle2, ImageIcon, Phone, Mail, MapPin,
   FileText, ShieldCheck, Sparkles, Crown, ArrowRight, Printer,
   ExternalLink, Copy, Check, AlertCircle, RefreshCw, Layers, DollarSign,
-  QrCode, Smartphone, CreditCard, Upload, Trash2
+  QrCode, Smartphone, CreditCard, Upload, Trash2, Lock
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import { companySettingsService } from '../services/companySettingsService'
@@ -163,11 +163,12 @@ export default function CompanySettings() {
 
   const effectivePlan = useMemo(() => getEffectivePlan(companyRaw), [companyRaw])
   const limits = useMemo(() => getLimits(companyRaw), [companyRaw])
+  const isNameLocked = Boolean(companyRaw?.name?.trim())
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
-    const cleanName = form.name.trim()
+    const cleanName = isNameLocked ? companyRaw.name.trim() : form.name.trim()
 
     if (!cleanName) {
       setError('El nombre o razón social de la empresa es obligatorio.')
@@ -301,19 +302,38 @@ export default function CompanySettings() {
                   <div className="space-y-4">
                     {/* Company Name */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
-                        Nombre Comercial / Razón Social *
-                      </label>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                          Nombre Comercial / Razón Social *
+                        </label>
+                        {isNameLocked && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                            <Lock size={10} /> Identidad protegida
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="text"
                         placeholder="Ej: CYA Store, Inversiones Perú SAC…"
-                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 font-bold outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
-                        {...field('name')}
-                        autoFocus
+                        className={`w-full border rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500 ${
+                          isNameLocked
+                            ? 'bg-slate-100/80 dark:bg-zinc-800/50 border-slate-200 dark:border-zinc-700/80 text-slate-500 dark:text-zinc-400 cursor-not-allowed select-none'
+                            : 'bg-slate-50 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10'
+                        }`}
+                        value={form.name || ''}
+                        onChange={(e) => {
+                          if (isNameLocked) return
+                          field('name').onChange(e)
+                        }}
+                        readOnly={isNameLocked}
+                        disabled={isNameLocked}
+                        autoFocus={!isNameLocked}
                         required
                       />
                       <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">
-                        Este nombre encabezará los comprobantes impresos, reportes y cotizaciones.
+                        {isNameLocked
+                          ? 'El nombre comercial queda fijado al registrar la empresa para proteger la identidad fiscal, planes y comprobantes emitidos.'
+                          : 'Este nombre encabezará los comprobantes impresos, reportes y cotizaciones.'}
                       </p>
                     </div>
 

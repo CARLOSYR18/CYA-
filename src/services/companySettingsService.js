@@ -148,7 +148,13 @@ export const companySettingsService = {
         return data
       }
 
+      const cachedCurrent = getStoredCompany()
+      const lockedName = cachedCurrent?.id === companyId && cachedCurrent?.name ? cachedCurrent.name : null
       let payload = { ...data }
+      if (lockedName) {
+        // El nombre comercial de la empresa no debe modificarse tras el registro
+        delete payload.name
+      }
       let lastError = null
 
       // Reintentar de forma inteligente removiendo automáticamente cualquier columna
@@ -181,9 +187,9 @@ export const companySettingsService = {
 
       if (!result) {
         console.warn('Supabase update advertencia, intentando con columnas base:', lastError)
-        // Fallback seguro con columnas esenciales garantizadas
+        // Fallback seguro con columnas esenciales garantizadas (sin sobrescribir el nombre registrado)
         const corePayload = {
-          name: data.name,
+          ...(lockedName ? {} : { name: data.name }),
           ruc: data.ruc,
           address: data.address,
           phone: data.phone,
