@@ -308,7 +308,10 @@ export const usersService = {
    * y lo vincula de forma segura a la empresa actual.
    */
   async create({ email, password, full_name, role = 'empleado', active = true }) {
-    const cleanEmail = email.trim().toLowerCase()
+    const cleanEmail = String(email || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[\u200B-\u200D\uFEFF\u00A0\r\n\t]/g, '')
     const cleanName = full_name.trim()
 
     // 0. VALIDACIÓN GLOBAL ESTRICTA: Bloquear Super Admin y cualquier cuenta ya creada
@@ -364,8 +367,11 @@ export const usersService = {
         if (msg.includes('password should contain') || msg.includes('at least one character') || msg.includes('characters')) {
           throw new Error('La contraseña no es válida: debe contener al menos 6 caracteres, incluyendo una letra mayúscula (A-Z), una minúscula (a-z) y un número (0-9). Ejemplo: Carlos123')
         }
-        if (msg.includes('invalid email') || msg.includes('valid email')) {
-          throw new Error('El formato del correo electrónico ingresado no es válido.')
+        if (msg.includes('rate limit') || msg.includes('over_email_send_rate_limit')) {
+          throw new Error('Límite de correos de Supabase alcanzado. Para registrar colaboradores al instante sin límites de correo, desactiva la opción "Confirm email" en tu consola de Supabase (Authentication > Providers > Email).')
+        }
+        if (msg.includes('invalid') || msg.includes('valid email')) {
+          throw new Error(`El servidor de autenticación rechazó el correo "${cleanEmail}". Esto ocurre si el correo no existe o si Supabase tiene activada la verificación por correo. Asegúrate de ingresar un correo real o desactiva "Confirm email" en Supabase.`)
         }
         throw new Error(`Error de autenticación: ${raw}`)
       }
