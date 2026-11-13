@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Boxes, Tags, ArrowLeftRight, ShoppingCart,
   Truck, Users, UserCog, Warehouse, X, Settings2, Sparkles, ShieldAlert,
   ChevronsLeft, ChevronsRight, Activity, LogOut, ChevronRight, ChevronDown,
-  ChevronUp, Headphones
+  ChevronUp, Headphones, Bell
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { companySettingsService } from '../../services/companySettingsService'
@@ -61,6 +61,7 @@ const MODULES = [
     items: [
       { to: '/actividad-empleados', label: 'Movimientos Empleados', icon: Activity },
       { to: '/usuarios', label: 'Usuarios y Roles', icon: UserCog },
+      { to: '/notificaciones', label: 'Notificaciones', icon: Bell },
       { to: '/planes', label: 'Tu Plan', icon: Sparkles },
       { to: '/configuracion', label: 'Configuración', icon: Settings2 },
     ],
@@ -98,7 +99,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
       ventas: saved?.ventas ?? (p.startsWith('/ventas') || p === '/clientes'),
       compras: saved?.compras ?? (p.startsWith('/compras') || p === '/proveedores'),
       inventario: saved?.inventario ?? (p.startsWith('/productos') || p.startsWith('/categorias') || p.startsWith('/movimientos')),
-      administracion: saved?.administracion ?? (p === '/actividad-empleados' || p === '/usuarios' || p === '/planes' || p === '/configuracion'),
+      administracion: saved?.administracion ?? (p === '/actividad-empleados' || p === '/usuarios' || p === '/notificaciones' || p === '/planes' || p === '/configuracion'),
     }
   })
 
@@ -111,7 +112,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         ventas: prev.ventas || p.startsWith('/ventas') || p === '/clientes',
         compras: prev.compras || p.startsWith('/compras') || p === '/proveedores',
         inventario: prev.inventario || p.startsWith('/productos') || p.startsWith('/categorias') || p.startsWith('/movimientos'),
-        administracion: prev.administracion || p === '/actividad-empleados' || p === '/usuarios' || p === '/planes' || p === '/configuracion',
+        administracion: prev.administracion || p === '/actividad-empleados' || p === '/usuarios' || p === '/notificaciones' || p === '/planes' || p === '/configuracion',
       }
       saveModules(next)
       return next

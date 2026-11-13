@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Menu, ChevronDown, Bell, CheckCircle2, Sparkles, ShieldAlert, Sun, Moon, PanelLeftClose, PanelLeftOpen, UserCircle } from 'lucide-react'
+import { LogOut, Menu, ChevronDown, Bell, CheckCircle2, Sparkles, ShieldAlert, Sun, Moon, PanelLeftClose, PanelLeftOpen, UserCircle, ArrowRight } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { isSupabaseConfigured } from '../../lib/supabaseClient'
@@ -248,6 +248,21 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
                     )
                   })
                 )}
+              </div>
+
+              {/* Footer link to full Notifications and Audit Register */}
+              <div className="p-2.5 bg-slate-50 dark:bg-[#18181c] border-t border-slate-100 dark:border-[#27272a] text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotifOpen(false)
+                    navigate('/notificaciones')
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  <span>Ver todas las notificaciones y registro</span>
+                  <ArrowRight size={13} />
+                </button>
               </div>
             </div>
           )}
