@@ -184,7 +184,7 @@ export default function Notifications() {
   }
 
   return (
-    <AppLayout title="Centro de Notificaciones & Alertas">
+    <AppLayout title="Notificaciones">
       <div className="max-w-7xl mx-auto space-y-6 pb-12">
 
         {/* ─── Feedback Toast ─── */}
@@ -202,7 +202,7 @@ export default function Notifications() {
               <Bell size={24} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                   Centro de Notificaciones & Alertas
                 </h1>
@@ -218,7 +218,7 @@ export default function Notifications() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => loadData(false)}
@@ -629,3 +629,4 @@ export default function Notifications() {
     </AppLayout>
   )
 }
+

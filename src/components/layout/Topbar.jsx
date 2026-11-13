@@ -121,11 +121,11 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
     <header className="h-16 bg-white dark:bg-[#121215] border-b border-slate-200 dark:border-[#27272a] sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 shadow-xs transition-colors duration-200">
 
       {/* Left */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 sm:flex-initial">
         {/* Mobile menu trigger */}
         <button
           onClick={onOpenSidebar}
-          className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all cursor-pointer"
+          className="lg:hidden p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-all cursor-pointer shrink-0"
           title="Abrir menú"
         >
           <Menu size={20} />
@@ -136,16 +136,18 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
           <button
             type="button"
             onClick={onToggleCollapse}
-            className="hidden lg:flex p-2 rounded-xl text-slate-400 hover:text-brand dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="hidden lg:flex p-2 rounded-xl text-slate-400 hover:text-brand dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
             title={isCollapsed ? 'Expandir barra lateral' : 'Contraer barra lateral'}
           >
             {isCollapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}
           </button>
         )}
 
-        <div className="flex items-center gap-2.5">
-          <div className="hidden sm:block w-[3px] h-5 rounded-full bg-blue-600" />
-          <h1 className="font-display font-bold text-[17px] text-slate-800 dark:text-slate-100 tracking-tight">{title}</h1>
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <div className="hidden sm:block w-[3px] h-5 rounded-full bg-blue-600 shrink-0" />
+          <h1 className="font-display font-bold text-[15px] sm:text-[17px] text-slate-800 dark:text-slate-100 tracking-tight truncate max-w-[140px] xs:max-w-[190px] sm:max-w-none">
+            {title}
+          </h1>
         </div>
       </div>
 
@@ -183,10 +185,20 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
           </button>
 
           {notifOpen && (
-            <div
-              className="absolute right-0 top-full mt-2 w-[calc(100vw-24px)] max-w-sm sm:w-84 bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#27272a] rounded-2xl animate-scale-in z-50 overflow-hidden shadow-2xl"
-              style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}
-            >
+            <>
+              {/* Mobile backdrop */}
+              <div
+                className="fixed inset-0 bg-slate-900/30 dark:bg-black/50 backdrop-blur-[2px] z-40 sm:hidden"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setNotifOpen(false)
+                }}
+              />
+
+              <div
+                className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-84 max-w-sm mx-auto sm:mx-0 bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#27272a] rounded-2xl animate-scale-in z-50 overflow-hidden shadow-2xl"
+                style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}
+              >
               <div className="px-4 py-3 bg-slate-50 dark:bg-[#18181c] border-b border-slate-100 dark:border-[#27272a] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-[13px] font-bold text-slate-800 dark:text-slate-100">Notificaciones</span>
@@ -265,6 +277,7 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
                 </button>
               </div>
             </div>
+          </>
           )}
         </div>
 
