@@ -558,7 +558,7 @@ export default function NewSale() {
             </button>
           </div>
 
-          <div className="max-h-[200px] overflow-y-auto">
+          <div className="max-h-[220px] overflow-x-auto overflow-y-auto">
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead className="sticky top-0 z-10 bg-white dark:bg-[#141417] border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <tr>

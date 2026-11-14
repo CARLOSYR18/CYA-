@@ -42,7 +42,7 @@ export default function AppLayout({ title, children, noTopbar = false }) {
 
   return (
     <LayoutContext.Provider value={layoutValue}>
-      <div className="min-h-screen bg-base-bg dark:bg-[#09090b] text-ink-primary dark:text-zinc-100 antialiased transition-colors duration-200">
+      <div className="min-h-screen bg-base-bg dark:bg-[#09090b] text-ink-primary dark:text-zinc-100 antialiased transition-colors duration-200 overflow-x-hidden">
         <Sidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -52,7 +52,7 @@ export default function AppLayout({ title, children, noTopbar = false }) {
         <div
           className={`${
             isCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[270px]'
-          } flex flex-col min-h-screen w-full transition-[padding] duration-300 ease-in-out`}
+          } flex flex-col min-h-screen w-full min-w-0 max-w-full overflow-x-hidden transition-[padding] duration-300 ease-in-out`}
         >
           {!noTopbar && (
             <Topbar
@@ -62,8 +62,8 @@ export default function AppLayout({ title, children, noTopbar = false }) {
               onToggleCollapse={toggleCollapse}
             />
           )}
-          <main className={`flex-1 ${noTopbar ? 'p-2.5 sm:p-5 lg:p-6' : 'p-3 sm:p-6 lg:p-8'} max-w-[1750px] w-full mx-auto transition-all`}>
-            <div className="animate-slide-up">
+          <main className={`flex-1 ${noTopbar ? 'p-2.5 sm:p-5 lg:p-6' : 'p-3 sm:p-6 lg:p-8'} max-w-[1750px] w-full min-w-0 mx-auto transition-all`}>
+            <div className="animate-slide-up min-w-0">
               {children}
             </div>
           </main>

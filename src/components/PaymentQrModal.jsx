@@ -45,14 +45,14 @@ export default function PaymentQrModal({ isOpen, onClose, method, paymentConfig,
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
       <div
-        className="relative w-full max-w-md bg-white dark:bg-[#131627] rounded-3xl shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden transform transition-all animate-slide-up"
+        className="relative w-full max-w-md max-h-[92vh] flex flex-col bg-white dark:bg-[#131627] rounded-3xl shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden transform transition-all animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header Bar with Accent Color */}
         <div
-          className={`px-6 py-4 flex items-center justify-between text-white ${
+          className={`px-5 sm:px-6 py-4 flex items-center justify-between text-white shrink-0 ${
             isYape
               ? 'bg-gradient-to-r from-[#742284] to-[#8E2BA3]'
               : isPlin
@@ -103,7 +103,7 @@ export default function PaymentQrModal({ isOpen, onClose, method, paymentConfig,
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
           {/* Amount Badge */}
           <div className="text-center p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/10">
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">
