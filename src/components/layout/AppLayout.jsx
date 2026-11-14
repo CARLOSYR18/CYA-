@@ -42,13 +42,14 @@ export default function AppLayout({ title, children, noTopbar = false }) {
 
   return (
     <LayoutContext.Provider value={layoutValue}>
-      <div className="min-h-screen bg-base-bg dark:bg-[#09090b] text-ink-primary dark:text-zinc-100 antialiased transition-colors duration-200 overflow-x-hidden">
-        <Sidebar
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          isCollapsed={isCollapsed}
-          onToggleCollapse={toggleCollapse}
-        />
+      {/* Sidebar fijo e independiente de cualquier contenedor de contenido */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
+      />
+      <div className="min-h-screen bg-base-bg dark:bg-[#09090b] text-ink-primary dark:text-zinc-100 antialiased transition-colors duration-200">
         <div
           className={`${
             isCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[270px]'
