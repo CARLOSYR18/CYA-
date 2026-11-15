@@ -41,6 +41,69 @@ function formatDateTimePE(dateStr) {
   return { date, time, full: `${date} - ${time}` }
 }
 
+/* ─── Custom Vector Sales Cart Badge (Pure Code SVG) ─── */
+function SalesCartBadge() {
+  return (
+    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-500 p-2.5 flex items-center justify-center shadow-lg shadow-blue-500/25 border border-white/20 shrink-0 group hover:scale-105 transition-transform duration-200">
+      <svg
+        viewBox="0 0 48 48"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-full drop-shadow-sm"
+      >
+        <defs>
+          <linearGradient id="cyaCartGrad" x1="6" y1="8" x2="42" y2="36" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="100%" stopColor="#DCEBFE" />
+          </linearGradient>
+          <linearGradient id="cyaBasketGrad" x1="12" y1="14" x2="38" y2="28" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.1" />
+          </linearGradient>
+          <linearGradient id="cyaWheelGrad" x1="16" y1="36" x2="22" y2="42" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="100%" stopColor="#BFDBFE" />
+          </linearGradient>
+        </defs>
+
+        {/* Cart Main Rail & Basket Outline */}
+        <path
+          d="M6 10H11.2L15.4 27.2C15.7 28.5 16.8 29.5 18.2 29.5H34.8C36.1 29.5 37.3 28.5 37.6 27.2L40.5 15.5H12.8"
+          stroke="url(#cyaCartGrad)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Semi-transparent Basket Body */}
+        <path
+          d="M13.2 16.5H38.8L36.6 26.6C36.4 27.4 35.7 28 34.8 28H18.2C17.3 28 16.6 27.4 16.4 26.6L13.2 16.5Z"
+          fill="url(#cyaBasketGrad)"
+        />
+
+        {/* Wire Mesh Grid Lines */}
+        <line x1="20" y1="17.5" x2="21.5" y2="27" stroke="#FFFFFF" strokeWidth="1.6" strokeOpacity="0.75" strokeLinecap="round" />
+        <line x1="26" y1="17.5" x2="27" y2="27" stroke="#FFFFFF" strokeWidth="1.6" strokeOpacity="0.75" strokeLinecap="round" />
+        <line x1="32" y1="17.5" x2="32.5" y2="27" stroke="#FFFFFF" strokeWidth="1.6" strokeOpacity="0.75" strokeLinecap="round" />
+        <line x1="15" y1="22" x2="37.5" y2="22" stroke="#FFFFFF" strokeWidth="1.6" strokeOpacity="0.5" strokeLinecap="round" />
+
+        {/* Wheels */}
+        <circle cx="19" cy="37.5" r="3.5" fill="url(#cyaWheelGrad)" />
+        <circle cx="19" cy="37.5" r="1.5" fill="#1E40AF" />
+
+        <circle cx="34" cy="37.5" r="3.5" fill="url(#cyaWheelGrad)" />
+        <circle cx="34" cy="37.5" r="1.5" fill="#1E40AF" />
+
+        {/* Golden Sparkle Accent on top right */}
+        <path
+          d="M33 6.5L34.2 9.2L37 10.5L34.2 11.8L33 14.5L31.8 11.8L29 10.5L31.8 9.2L33 6.5Z"
+          fill="#FDE047"
+        />
+      </svg>
+    </div>
+  )
+}
+
 export default function Sales() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -635,13 +698,7 @@ export default function Sales() {
           {/* Title & Actions Row */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100/60 dark:from-blue-950/40 dark:to-zinc-900 border border-blue-200/60 dark:border-blue-800/40 p-1.5 flex items-center justify-center shadow-md shadow-blue-600/10 shrink-0 overflow-hidden group">
-                <img
-                  src="/shopping-cart-3d.png"
-                  alt="Carrito de Ventas"
-                  className="w-full h-full object-contain drop-shadow-sm group-hover:scale-110 transition-transform duration-200"
-                />
-              </div>
+              <SalesCartBadge />
               <div>
                 <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
                   Ventas & Facturación
