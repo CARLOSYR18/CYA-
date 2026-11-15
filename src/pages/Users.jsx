@@ -11,6 +11,7 @@ import {
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
+import PageHeaderBadge from '../components/ui/PageHeaderBadge'
 import { usersService } from '../services/usersService'
 import { companySettingsService } from '../services/companySettingsService'
 import { getLimits } from '../lib/planLimits'
@@ -379,9 +380,7 @@ export default function Users() {
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#141417] p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-xs">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
-                <UserCog size={22} />
-              </div>
+              <PageHeaderBadge type="users" />
               <div>
                 <div className="flex items-center gap-2.5">
                   <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">

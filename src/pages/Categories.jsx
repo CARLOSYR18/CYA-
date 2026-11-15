@@ -12,6 +12,7 @@ import {
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
+import PageHeaderBadge from '../components/ui/PageHeaderBadge'
 import { categoriesService } from '../services/categoriesService'
 import { productsService } from '../services/productsService'
 
@@ -547,9 +548,7 @@ export default function Categories() {
           {/* Title & Actions Row */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 shrink-0">
-                <FolderTree size={22} />
-              </div>
+              <PageHeaderBadge type="categories" />
               <div>
                 <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
                   Categorías de Catálogo

@@ -11,6 +11,7 @@ import {
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
+import PageHeaderBadge from '../components/ui/PageHeaderBadge'
 import { suppliersService } from '../services/suppliersService'
 import { purchasesService } from '../services/purchasesService'
 import { productsService } from '../services/productsService'
@@ -430,9 +431,7 @@ export default function Suppliers() {
           {/* Title & Actions Row */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 shrink-0">
-                <Building2 size={22} />
-              </div>
+              <PageHeaderBadge type="suppliers" />
               <div>
                 <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
                   Directorio de Proveedores

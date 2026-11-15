@@ -10,6 +10,7 @@ import {
 import AppLayout from '../components/layout/AppLayout'
 import EmptyState from '../components/ui/EmptyState'
 import Modal from '../components/ui/Modal'
+import PageHeaderBadge from '../components/ui/PageHeaderBadge'
 import { salesService } from '../services/salesService'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
 import { productsService } from '../services/productsService'
@@ -538,9 +539,7 @@ export default function EmployeeActivity() {
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/25 shrink-0">
-                <Activity size={22} />
-              </div>
+              <PageHeaderBadge type="activity" />
               <div>
                 <div className="flex items-center gap-2.5">
                   <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">

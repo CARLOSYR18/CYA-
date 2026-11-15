@@ -6,6 +6,7 @@ import {
   QrCode, Smartphone, CreditCard, Upload, Trash2, Lock
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
+import PageHeaderBadge from '../components/ui/PageHeaderBadge'
 import { companySettingsService } from '../services/companySettingsService'
 import { paymentMethodsService, DEFAULT_PAYMENT_CONFIG } from '../services/paymentMethodsService'
 import { getLimits, getEffectivePlan } from '../lib/planLimits'
@@ -218,10 +219,8 @@ export default function CompanySettings() {
            ═════════════════════════════════════════════════════════ */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#141417] p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-xs">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-brand/10 text-brand dark:text-blue-400">
-                <Building2 size={18} />
-              </span>
+            <div className="flex items-center gap-3">
+              <PageHeaderBadge type="settings" />
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight font-display">
                 Perfil e Identidad de Empresa
               </h1>
