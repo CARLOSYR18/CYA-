@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Boxes, Tags, ArrowLeftRight, ShoppingCart,
@@ -180,20 +181,20 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
   // En móvil (cuando el sidebar se abre como drawer), siempre mostrar versión completa
   const effectiveCollapsed = isCollapsed && !isOpen
 
-  return (
+  const sidebarNode = (
     <>
       {isOpen && (
         <div
+          id="cya-sidebar-backdrop"
           className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 lg:hidden animate-fade-in"
           onClick={onClose}
-          style={{ height: '100dvh', minHeight: '100%' }}
         />
       )}
       <aside
-        className={`fixed inset-y-0 top-0 bottom-0 left-0 z-50 flex flex-col h-full h-screen h-[100dvh] min-h-[100dvh] shrink-0 bg-gradient-to-b from-[#072563] via-[#061d4f] to-[#041338] border-r border-[#0D3075] text-white shadow-2xl transition-[width,transform] duration-300 ease-in-out ${
+        id="cya-main-sidebar"
+        className={`fixed inset-y-0 top-0 bottom-0 left-0 z-50 flex flex-col shrink-0 bg-gradient-to-b from-[#072563] via-[#061d4f] to-[#041338] border-r border-[#0D3075] text-white shadow-2xl transition-[width,transform] duration-300 ease-in-out ${
           isOpen ? 'translate-x-0 w-[270px]' : '-translate-x-full lg:translate-x-0'
         } ${isCollapsed ? 'lg:w-[76px]' : 'lg:w-[270px]'}`}
-        style={{ height: '100dvh', minHeight: '100dvh' }}
       >
 
         {/* Abstract 3D layered curved waves background (positioned softly behind Help Card & Footer) */}
@@ -618,4 +619,10 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
       </aside>
     </>
   )
+
+  if (typeof document !== 'undefined' && document?.body) {
+    return createPortal(sidebarNode, document.body)
+  }
+
+  return sidebarNode
 }
