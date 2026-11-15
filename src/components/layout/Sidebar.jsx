@@ -91,6 +91,24 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
   const [logoError, setLogoError] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
+  const [activeFlyout, setActiveFlyout] = useState(null)
+
+  // Close flyout on navigation
+  useEffect(() => {
+    setActiveFlyout(null)
+  }, [location.pathname])
+
+  // Close flyout when clicking outside
+  useEffect(() => {
+    if (!activeFlyout) return
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('#cya-flyout-container') && !e.target.closest('[data-flyout-trigger]')) {
+        setActiveFlyout(null)
+      }
+    }
+    document.addEventListener('pointerdown', handleClickOutside)
+    return () => document.removeEventListener('pointerdown', handleClickOutside)
+  }, [activeFlyout])
 
   // Track which modules are open in accordion (persisted so opened modules stay open across navigation)
   const [openModules, setOpenModules] = useState(() => {
@@ -334,7 +352,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         </div>
 
         {/* Navigation list with hidden native scrollbar */}
-        <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-1.5 no-scrollbar overscroll-contain z-10">
+        <nav className={`flex-1 min-h-0 ${effectiveCollapsed ? 'overflow-visible' : 'overflow-y-auto'} px-2 py-3 space-y-1.5 no-scrollbar overscroll-contain z-10`}>
           {/* Navegación Exclusiva para Super Administrador de la Plataforma (sin empresa asignada) */}
           {isPlatformAdmin && !user?.company_id ? (
             <div className="space-y-1.5 animate-fade-in">
@@ -442,22 +460,108 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
 
               if (effectiveCollapsed) {
                 const Icon = mod.icon
+                const isOpenFlyout = activeFlyout === mod.id
+                const isNearBottom = mod.id === 'administracion'
+
                 return (
-                  <button
+                  <div
                     key={mod.id}
-                    type="button"
-                    onClick={() => {
-                      toggleModule(mod.id)
-                    }}
-                    title={mod.label}
-                    className={`w-full flex items-center justify-center py-2.5 rounded-2xl transition-all ${
-                      isChildActive
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-600/40'
-                        : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
-                    }`}
+                    className="relative"
+                    onMouseEnter={() => setActiveFlyout(mod.id)}
+                    onMouseLeave={() => setActiveFlyout((curr) => (curr === mod.id ? null : curr))}
                   >
-                    <Icon size={18} strokeWidth={isChildActive ? 2.3 : 1.9} />
-                  </button>
+                    <button
+                      type="button"
+                      data-flyout-trigger={mod.id}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveFlyout((curr) => (curr === mod.id ? null : mod.id))
+                      }}
+                      className={`w-full flex items-center justify-center py-2.5 rounded-2xl transition-all cursor-pointer ${
+                        isChildActive
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-600/40 font-bold'
+                          : isOpenFlyout
+                          ? 'bg-white/15 text-white ring-2 ring-blue-400/50'
+                          : 'text-slate-300 hover:text-white hover:bg-white/[0.08]'
+                      }`}
+                      title={!isOpenFlyout ? mod.label : undefined}
+                      aria-expanded={isOpenFlyout}
+                      aria-haspopup="true"
+                    >
+                      <Icon size={18} strokeWidth={isChildActive || isOpenFlyout ? 2.3 : 1.9} />
+                    </button>
+
+                    {/* Flyout Popover with the module's sections */}
+                    {isOpenFlyout && (
+                      <div
+                        id="cya-flyout-container"
+                        onClick={(e) => e.stopPropagation()}
+                        className={`absolute left-full ${
+                          isNearBottom ? 'bottom-0' : 'top-0'
+                        } ml-3 w-56 bg-[#08214D] border border-blue-400/40 rounded-2xl shadow-2xl shadow-black/80 p-2 z-[999] animate-fade-in backdrop-blur-xl`}
+                        style={{ filter: 'drop-shadow(0 12px 28px rgba(0, 0, 0, 0.55))' }}
+                      >
+                        {/* Invisible bridge to prevent cursor gap drop */}
+                        <div className="absolute -left-3 top-0 bottom-0 w-3" />
+
+                        {/* Triangular pointer arrow */}
+                        <div
+                          className={`absolute -left-1.5 ${
+                            isNearBottom ? 'bottom-4' : 'top-4'
+                          } w-3 h-3 bg-[#08214D] border-l border-b border-blue-400/40 rotate-45 transform`}
+                        />
+
+                        {/* Module Header */}
+                        <div className="px-3 py-1.5 border-b border-white/10 mb-1 flex items-center justify-between">
+                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-200">
+                            {mod.label}
+                          </span>
+                          <span className="text-[10px] text-blue-300/80 font-mono">
+                            {mod.items.length} {mod.items.length === 1 ? 'sección' : 'secciones'}
+                          </span>
+                        </div>
+
+                        {/* List of sections */}
+                        <div className="space-y-0.5">
+                          {mod.items.map((sub) => {
+                            const SubIcon = sub.icon
+                            const isSubActive =
+                              location.pathname === sub.to ||
+                              location.pathname.startsWith(sub.to + '/')
+
+                            return (
+                              <NavLink
+                                key={sub.to}
+                                to={sub.to}
+                                end={sub.end}
+                                onClick={() => {
+                                  setActiveFlyout(null)
+                                  onClose?.()
+                                }}
+                                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                  isSubActive
+                                    ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/40'
+                                    : 'text-slate-200 hover:text-white hover:bg-white/10'
+                                }`}
+                              >
+                                <SubIcon
+                                  size={15}
+                                  strokeWidth={isSubActive ? 2.3 : 1.9}
+                                  className={`shrink-0 ${
+                                    isSubActive ? 'text-white' : 'text-blue-300'
+                                  }`}
+                                />
+                                <span className="truncate flex-1">{sub.label}</span>
+                                {isSubActive && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                                )}
+                              </NavLink>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )
               }
 
