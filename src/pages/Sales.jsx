@@ -635,8 +635,12 @@ export default function Sales() {
           {/* Title & Actions Row */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 shrink-0">
-                <ShoppingCart size={22} />
+              <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100/60 dark:from-blue-950/40 dark:to-zinc-900 border border-blue-200/60 dark:border-blue-800/40 p-1.5 flex items-center justify-center shadow-md shadow-blue-600/10 shrink-0 overflow-hidden group">
+                <img
+                  src="/shopping-cart-3d.png"
+                  alt="Carrito de Ventas"
+                  className="w-full h-full object-contain drop-shadow-sm group-hover:scale-110 transition-transform duration-200"
+                />
               </div>
               <div>
                 <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
