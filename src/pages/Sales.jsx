@@ -1161,154 +1161,294 @@ export default function Sales() {
                 No hay ventas registradas en este período.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-100 dark:border-zinc-800/80 text-[11px] font-bold text-slate-500 dark:text-zinc-400">
-                      <th className="pb-3 px-2">N° Comprobante</th>
-                      <th className="pb-3 px-3">Cliente</th>
-                      <th className="pb-3 px-3">Fecha y Hora</th>
-                      <th className="pb-3 px-3">Total</th>
-                      <th className="pb-3 px-3">Estado</th>
-                      <th className="pb-3 px-2 text-right">Acciones</th>
-                    </tr>
-                  </thead>
+              <>
+                {/* Desktop View: Traditional Table (hidden on mobile, visible on sm+) */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-zinc-800/80 text-[11px] font-bold text-slate-500 dark:text-zinc-400">
+                        <th className="pb-3 px-2">N° Comprobante</th>
+                        <th className="pb-3 px-3">Cliente</th>
+                        <th className="pb-3 px-3">Fecha y Hora</th>
+                        <th className="pb-3 px-3">Total</th>
+                        <th className="pb-3 px-3">Estado</th>
+                        <th className="pb-3 px-2 text-right">Acciones</th>
+                      </tr>
+                    </thead>
 
-                  <tbody className="divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
-                    {recentSalesList.map((s) => {
-                      const voucher = formatVoucherCode(s)
-                      const { full } = formatDateTimePE(s.created_at)
-                      const isPaid = s.status === 'pagado'
-                      const isMenuOpen = activeMenuId === s.id
+                    <tbody className="divide-y divide-slate-100 dark:divide-zinc-800 text-xs">
+                      {recentSalesList.map((s) => {
+                        const voucher = formatVoucherCode(s)
+                        const { full } = formatDateTimePE(s.created_at)
+                        const isPaid = s.status === 'pagado'
+                        const isMenuOpen = activeMenuId === s.id
 
-                      return (
-                        <tr
-                          key={s.id}
-                          className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/40 transition-colors"
-                        >
-                          {/* N° Comprobante */}
-                          <td className="py-3 px-2 font-mono font-semibold text-slate-900 dark:text-zinc-200 whitespace-nowrap">
-                            {voucher}
-                          </td>
+                        return (
+                          <tr
+                            key={s.id}
+                            className="hover:bg-slate-50/80 dark:hover:bg-zinc-800/40 transition-colors"
+                          >
+                            {/* N° Comprobante */}
+                            <td className="py-3 px-2 font-mono font-semibold text-slate-900 dark:text-zinc-200 whitespace-nowrap">
+                              {voucher}
+                            </td>
 
-                          {/* Cliente */}
-                          <td className="py-3 px-3 font-medium text-slate-800 dark:text-zinc-300 truncate max-w-[160px]">
-                            {s.client_name || 'Cliente General'}
-                          </td>
+                            {/* Cliente */}
+                            <td className="py-3 px-3 font-medium text-slate-800 dark:text-zinc-300 truncate max-w-[160px]">
+                              {s.client_name || 'Cliente General'}
+                            </td>
 
-                          {/* Fecha y Hora */}
-                          <td className="py-3 px-3 text-slate-500 dark:text-zinc-400 font-mono text-[11px] whitespace-nowrap">
-                            {full}
-                          </td>
+                            {/* Fecha y Hora */}
+                            <td className="py-3 px-3 text-slate-500 dark:text-zinc-400 font-mono text-[11px] whitespace-nowrap">
+                              {full}
+                            </td>
 
-                          {/* Total */}
-                          <td className="py-3 px-3 font-bold font-mono text-slate-900 dark:text-white whitespace-nowrap">
-                            {fmtMoney(s.total)}
-                          </td>
+                            {/* Total */}
+                            <td className="py-3 px-3 font-bold font-mono text-slate-900 dark:text-white whitespace-nowrap">
+                              {fmtMoney(s.total)}
+                            </td>
 
-                          {/* Estado (dot format matching reference) */}
-                          <td className="py-3 px-3 whitespace-nowrap">
-                            {isPaid ? (
-                              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                <span>Pagado</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                                <span>Pendiente</span>
-                              </span>
-                            )}
-                          </td>
+                            {/* Estado (dot format matching reference) */}
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              {isPaid ? (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                  <span>Pagado</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                  <span>Pendiente</span>
+                                </span>
+                              )}
+                            </td>
 
-                          {/* Acciones (eye, printer, more) */}
-                          <td className="py-3 px-2 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {/* View detail */}
-                              <button
-                                type="button"
-                                onClick={() => setViewingSale(s)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                                title="Ver detalles"
-                              >
-                                <Eye size={15} />
-                              </button>
-
-                              {/* Print Receipt */}
-                              <button
-                                type="button"
-                                onClick={() => setViewingReceipt(s)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                                title="Imprimir ticket / comprobante"
-                              >
-                                <Printer size={15} />
-                              </button>
-
-                              {/* More menu */}
-                              <div className="relative">
+                            {/* Acciones (eye, printer, more) */}
+                            <td className="py-3 px-2 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {/* View detail */}
                                 <button
                                   type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setActiveMenuId(isMenuOpen ? null : s.id)
-                                  }}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-                                  title="Más opciones"
+                                  onClick={() => setViewingSale(s)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                                  title="Ver detalles"
                                 >
-                                  <MoreHorizontal size={15} />
+                                  <Eye size={15} />
                                 </button>
 
-                                {isMenuOpen && (
-                                  <div
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-700 rounded-xl shadow-lg p-1 z-30 animate-fade-in text-left text-xs"
+                                {/* Print Receipt */}
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingReceipt(s)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                                  title="Imprimir ticket / comprobante"
+                                >
+                                  <Printer size={15} />
+                                </button>
+
+                                {/* More menu */}
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setActiveMenuId(isMenuOpen ? null : s.id)
+                                    }}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                                    title="Más opciones"
                                   >
-                                    {!isPaid && (
+                                    <MoreHorizontal size={15} />
+                                  </button>
+
+                                  {isMenuOpen && (
+                                    <div
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-700 rounded-xl shadow-lg p-1 z-30 animate-fade-in text-left text-xs"
+                                    >
+                                      {!isPaid && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setActiveMenuId(null)
+                                            setSettlingSale(s)
+                                          }}
+                                          className="w-full px-2.5 py-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold flex items-center gap-2"
+                                        >
+                                          <CheckCircle2 size={13} />
+                                          <span>Marcar Pagado</span>
+                                        </button>
+                                      )}
                                       <button
                                         type="button"
                                         onClick={() => {
                                           setActiveMenuId(null)
-                                          setSettlingSale(s)
+                                          handleOpenEdit(s)
                                         }}
-                                        className="w-full px-2.5 py-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold flex items-center gap-2"
+                                        className="w-full px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center gap-2"
                                       >
-                                        <CheckCircle2 size={13} />
-                                        <span>Marcar Pagado</span>
+                                        <Pencil size={13} />
+                                        <span>Editar datos</span>
                                       </button>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setActiveMenuId(null)
-                                        handleOpenEdit(s)
-                                      }}
-                                      className="w-full px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center gap-2"
-                                    >
-                                      <Pencil size={13} />
-                                      <span>Editar datos</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setActiveMenuId(null)
-                                        setConfirmDelete(s)
-                                      }}
-                                      className="w-full px-2.5 py-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2"
-                                    >
-                                      <Trash2 size={13} />
-                                      <span>Anular venta</span>
-                                    </button>
-                                  </div>
-                                )}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setActiveMenuId(null)
+                                          setConfirmDelete(s)
+                                        }}
+                                        className="w-full px-2.5 py-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2"
+                                      >
+                                        <Trash2 size={13} />
+                                        <span>Anular venta</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile View: High-End Responsive Card List (visible only on mobile sm:hidden) */}
+                <div className="block sm:hidden divide-y divide-slate-100 dark:divide-zinc-800">
+                  {recentSalesList.map((s) => {
+                    const voucher = formatVoucherCode(s)
+                    const { full } = formatDateTimePE(s.created_at)
+                    const isPaid = s.status === 'pagado'
+                    const isMenuOpen = activeMenuId === s.id
+
+                    return (
+                      <div
+                        key={s.id}
+                        className="py-3 first:pt-0 last:pb-0 flex flex-col gap-2"
+                      >
+                        {/* Row 1: Comprobante & Estado */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40 px-2 py-0.5 rounded-md">
+                            {voucher}
+                          </span>
+                          {isPaid ? (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-0.5 rounded-full border border-emerald-200/50 dark:border-emerald-800/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              <span>Pagado</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-0.5 rounded-full border border-amber-200/50 dark:border-amber-800/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              <span>Pendiente</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Row 2: Cliente & Fecha/Hora */}
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            <Users size={13} className="text-slate-400 shrink-0" />
+                            <span className="font-medium text-slate-800 dark:text-zinc-200 truncate">
+                              {s.client_name || 'Cliente General'}
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-mono text-slate-400 dark:text-zinc-500 shrink-0">
+                            {full}
+                          </span>
+                        </div>
+
+                        {/* Row 3: Total & Actions */}
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-zinc-800/60">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block leading-tight">
+                              Total
+                            </span>
+                            <span className="text-sm font-black font-mono text-slate-900 dark:text-white">
+                              {fmtMoney(s.total)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setViewingSale(s)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                              title="Ver detalles"
+                            >
+                              <Eye size={15} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setViewingReceipt(s)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                              title="Imprimir ticket"
+                            >
+                              <Printer size={15} />
+                            </button>
+
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setActiveMenuId(isMenuOpen ? null : s.id)
+                                }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                                title="Más opciones"
+                              >
+                                <MoreHorizontal size={15} />
+                              </button>
+
+                              {isMenuOpen && (
+                                <div
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="absolute right-0 bottom-full mb-1 w-44 bg-white dark:bg-[#18181b] border border-slate-200 dark:border-zinc-700 rounded-xl shadow-lg p-1 z-30 animate-fade-in text-left text-xs"
+                                >
+                                  {!isPaid && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveMenuId(null)
+                                        setSettlingSale(s)
+                                      }}
+                                      className="w-full px-2.5 py-1.5 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-semibold flex items-center gap-2"
+                                    >
+                                      <CheckCircle2 size={13} />
+                                      <span>Marcar Pagado</span>
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveMenuId(null)
+                                      handleOpenEdit(s)
+                                    }}
+                                    className="w-full px-2.5 py-1.5 rounded-lg text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center gap-2"
+                                  >
+                                    <Pencil size={13} />
+                                    <span>Editar datos</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveMenuId(null)
+                                      setConfirmDelete(s)
+                                    }}
+                                    className="w-full px-2.5 py-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2"
+                                  >
+                                    <Trash2 size={13} />
+                                    <span>Anular venta</span>
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
             )}
           </div>
 
