@@ -361,3 +361,4 @@ export default function PageHeaderBadge({ type = 'sales', className = '' }) {
     </div>
   )
 }
+
