@@ -12,7 +12,7 @@ export const LayoutContext = createContext({
 
 export const useLayout = () => useContext(LayoutContext)
 
-export default function AppLayout({ title, children, noTopbar = false }) {
+export default function AppLayout({ title, children, noTopbar = false, noPadding = false }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
@@ -63,7 +63,7 @@ export default function AppLayout({ title, children, noTopbar = false }) {
               onToggleCollapse={toggleCollapse}
             />
           )}
-          <main className={`flex-1 ${noTopbar ? 'p-2.5 sm:p-5 lg:p-6' : 'p-3 sm:p-6 lg:p-8'} max-w-[1750px] w-full min-w-0 mx-auto transition-all`}>
+          <main className={`flex-1 ${noPadding ? '' : noTopbar ? 'p-2.5 sm:p-5 lg:p-6' : 'p-3 sm:p-6 lg:p-8'} ${noPadding ? 'w-full' : 'max-w-[1750px] w-full mx-auto'} min-w-0 transition-all`}>
             <div className="animate-slide-up min-w-0">
               {children}
             </div>
