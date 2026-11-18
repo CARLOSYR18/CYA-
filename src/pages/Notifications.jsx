@@ -70,6 +70,11 @@ export default function Notifications() {
 
   useEffect(() => {
     loadData()
+    const handleUpdate = () => {
+      setReadIds(getReadNotificationIds(companyId))
+    }
+    window.addEventListener('cya_notifications_updated', handleUpdate)
+    return () => window.removeEventListener('cya_notifications_updated', handleUpdate)
   }, [companyId])
 
   // Marcar una notificación individual como leída

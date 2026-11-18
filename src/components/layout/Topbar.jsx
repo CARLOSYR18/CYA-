@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Menu, ChevronDown, Bell, CheckCircle2, Sparkles, ShieldAlert, Sun, Moon, PanelLeftClose, PanelLeftOpen, UserCircle, ArrowRight } from 'lucide-react'
+import { LogOut, Menu, ChevronDown, Bell, CheckCircle2, Sparkles, ShieldAlert, Sun, Moon, PanelLeftClose, PanelLeftOpen, UserCircle, ArrowRight, Check, CheckCheck } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { isSupabaseConfigured } from '../../lib/supabaseClient'
-import { getNotifications } from '../../lib/notifications'
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, unmarkNotificationAsRead } from '../../lib/notifications'
 import { companySettingsService } from '../../services/companySettingsService'
 
 const COLORS = ['#3B82F6','#8B5CF6','#10B981','#F59E0B','#EF4444','#06B6D4']
@@ -86,10 +86,12 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
     return () => window.removeEventListener('cya_company_updated', handleCompanyUpdate)
   }, [user?.company_id])
 
+  const companyId = user?.company_id || 'default'
+
   const loadNotifs = async () => {
     try {
       setLoadingNotifs(true)
-      const list = await getNotifications()
+      const list = await getNotifications(companyId)
       setNotifications(list || [])
     } catch (err) {
       console.error('Error al cargar notificaciones:', err)
@@ -100,7 +102,38 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
 
   useEffect(() => {
     loadNotifs()
-  }, [])
+    const handleUpdate = () => loadNotifs()
+    window.addEventListener('cya_notifications_updated', handleUpdate)
+    return () => window.removeEventListener('cya_notifications_updated', handleUpdate)
+  }, [companyId])
+
+  const unreadNotifsCount = useMemo(() => {
+    return notifications.filter((n) => !n.isRead).length
+  }, [notifications])
+
+  const handleMarkAllNotifsRead = (e) => {
+    e?.stopPropagation()
+    const allIds = notifications.map((n) => n.id)
+    markAllNotificationsAsRead(allIds, companyId)
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+  }
+
+  const handleToggleNotifRead = (id, currentIsRead) => {
+    if (currentIsRead) {
+      unmarkNotificationAsRead(id, companyId)
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: false } : n)))
+    } else {
+      markNotificationAsRead(id, companyId)
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
+    }
+  }
+
+  const handleNotifItemClick = (n) => {
+    markNotificationAsRead(n.id, companyId)
+    setNotifications((prev) => prev.map((item) => (item.id === n.id ? { ...item, isRead: true } : item)))
+    setNotifOpen(false)
+    if (n.link) navigate(n.link)
+  }
 
   useEffect(() => {
     const handleOutside = (e) => {
@@ -177,9 +210,9 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
             aria-label="Notificaciones"
           >
             <Bell size={18} className="pointer-events-none" />
-            {notifications.length > 0 && (
+            {unreadNotifsCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-bad text-white text-[10px] font-extrabold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-900 shadow-xs pointer-events-none">
-                {notifications.length > 9 ? '9+' : notifications.length}
+                {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
               </span>
             )}
           </button>
@@ -196,20 +229,37 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
               />
 
               <div
-                className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-84 max-w-sm mx-auto sm:mx-0 bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#27272a] rounded-2xl animate-scale-in z-50 overflow-hidden shadow-2xl"
+                className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-88 max-w-sm mx-auto sm:mx-0 bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#27272a] rounded-2xl animate-scale-in z-50 overflow-hidden shadow-2xl"
                 style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}
               >
               <div className="px-4 py-3 bg-slate-50 dark:bg-[#18181c] border-b border-slate-100 dark:border-[#27272a] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-[13px] font-bold text-slate-800 dark:text-slate-100">Notificaciones</span>
-                  {notifications.length > 0 && (
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 bg-slate-200 dark:bg-[#27272a] text-slate-700 dark:text-slate-300 rounded-full font-mono">
-                      {notifications.length}
+                  {unreadNotifsCount > 0 ? (
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300 rounded-full font-mono">
+                      {unreadNotifsCount}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300 rounded-full font-mono">
+                      0
                     </span>
                   )}
                 </div>
-                {loadingNotifs && (
-                  <span className="text-[10px] text-slate-400 font-medium animate-pulse">Actualizando…</span>
+                {unreadNotifsCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllNotifsRead}
+                    className="text-[10.5px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                    title="Marcar todas como leídas"
+                  >
+                    <CheckCheck size={13} />
+                    <span>Marcar todas leídas</span>
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-emerald-500 dark:text-emerald-400 font-medium flex items-center gap-1">
+                    <Check size={11} strokeWidth={2.5} />
+                    <span>Todas leídas</span>
+                  </span>
                 )}
               </div>
 
@@ -225,38 +275,72 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
                 ) : (
                   notifications.map((n) => {
                     const isDanger = n.type === 'danger'
+                    const isRead = !!n.isRead
                     return (
-                      <button
+                      <div
                         key={n.id}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setNotifOpen(false)
-                          if (n.link) navigate(n.link)
-                        }}
-                        className="w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 active:bg-slate-100 dark:active:bg-slate-800 transition-colors flex items-start gap-2.5 group cursor-pointer"
+                        onClick={() => handleNotifItemClick(n)}
+                        className={`w-full text-left p-3 transition-colors flex items-start gap-2.5 group cursor-pointer ${
+                          isRead
+                            ? 'bg-slate-50/50 dark:bg-white/[0.02] opacity-75 hover:opacity-100 hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 active:bg-slate-100 dark:active:bg-slate-800'
+                        }`}
                       >
                         <span
                           className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
-                            isDanger ? 'bg-bad animate-pulse' : 'bg-amber-500'
+                            isRead
+                              ? 'bg-slate-300 dark:bg-zinc-600'
+                              : isDanger
+                              ? 'bg-bad animate-pulse'
+                              : 'bg-amber-500'
                           }`}
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-1">
-                            <p className={`text-xs font-bold truncate ${isDanger ? 'text-bad' : 'text-slate-900 dark:text-slate-100'}`}>
+                            <p className={`text-xs font-bold truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors ${
+                              isRead
+                                ? 'text-slate-500 dark:text-slate-400 font-medium'
+                                : isDanger
+                                ? 'text-bad'
+                                : 'text-slate-900 dark:text-slate-100'
+                            }`}>
                               {n.title}
                             </p>
-                            <span className={`text-[10px] font-medium px-1.5 py-0.2 rounded shrink-0 ${
-                              isDanger ? 'bg-bad-dim text-bad' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
-                            }`}>
-                              {isDanger ? 'Urgente' : 'Alerta'}
-                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className={`text-[9px] font-medium px-1.5 py-0.2 rounded ${
+                                isRead
+                                  ? 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+                                  : isDanger
+                                  ? 'bg-bad-dim text-bad'
+                                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                              }`}>
+                                {isRead ? 'Leída' : isDanger ? 'Urgente' : 'Alerta'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleToggleNotifRead(n.id, isRead)
+                                }}
+                                title={isRead ? 'Marcar como no leída' : 'Marcar como leída'}
+                                className={`p-1 rounded-md transition-colors cursor-pointer ${
+                                  isRead
+                                    ? 'text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                                    : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                                }`}
+                              >
+                                <Check size={13} strokeWidth={isRead ? 2.5 : 2} className={isRead ? 'text-emerald-500' : 'text-slate-400'} />
+                              </button>
+                            </div>
                           </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2 leading-tight">
+                          <p className={`text-[11px] mt-0.5 line-clamp-2 leading-tight ${isRead ? 'text-slate-400 dark:text-zinc-500' : 'text-slate-500 dark:text-slate-400'}`}>
                             {n.message}
                           </p>
+                          <span className={`text-[10px] font-medium inline-flex items-center gap-0.5 mt-1 group-hover:underline ${isRead ? 'text-slate-400 dark:text-zinc-500' : 'text-blue-500'}`}>
+                            Ir al producto / detalle →
+                          </span>
                         </div>
-                      </button>
+                      </div>
                     )
                   })
                 )}

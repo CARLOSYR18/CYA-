@@ -4,7 +4,7 @@ import {
   ArrowLeft, ArrowRight, SlidersHorizontal, Plus, AlertTriangle, Calendar, Clock,
   Wallet, ArrowUpRight, ArrowDownRight, Search, ChevronDown, MoreVertical,
   LayoutGrid, Paperclip, CheckCircle2, Eye, RefreshCw, FileText,
-  Receipt, ShoppingBag, Bell, Settings, DollarSign, X, Check, ExternalLink,
+  Receipt, ShoppingBag, Bell, Settings, DollarSign, X, Check, CheckCheck, ExternalLink,
   ChevronRight, Sun, Moon, LogOut, Menu, User, Boxes, TrendingUp, QrCode
 } from 'lucide-react'
 import AppLayout, { useLayout } from '../components/layout/AppLayout'
@@ -21,7 +21,7 @@ import { purchasesService } from '../services/purchasesService'
 import { companySettingsService } from '../services/companySettingsService'
 import { paymentMethodsService } from '../services/paymentMethodsService'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
-import { getNotifications } from '../lib/notifications'
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, unmarkNotificationAsRead } from '../lib/notifications'
 import DashboardAnalytics from '../components/DashboardAnalytics'
 
 /* ═════════════════════════════════════════════════════════════
@@ -133,10 +133,47 @@ function DashboardContent() {
   // Local state copy of invoices — solo ventas reales del ERP
   const [invoiceList, setInvoiceList] = useState([])
 
-  // Fetch notifications
+  const companyId = user?.company_id || 'default'
+
+  // Fetch notifications with real-time sync across components
+  const refreshNotifs = () => {
+    getNotifications(companyId).then(list => setNotifications(list || [])).catch(() => {})
+  }
+
   useEffect(() => {
-    getNotifications().then(list => setNotifications(list || [])).catch(() => {})
-  }, [])
+    refreshNotifs()
+    const handleUpdate = () => refreshNotifs()
+    window.addEventListener('cya_notifications_updated', handleUpdate)
+    return () => window.removeEventListener('cya_notifications_updated', handleUpdate)
+  }, [companyId])
+
+  const unreadCount = useMemo(() => {
+    return notifications.filter(n => !n.isRead).length
+  }, [notifications])
+
+  const handleMarkAllRead = (e) => {
+    e?.stopPropagation()
+    const allIds = notifications.map(n => n.id)
+    markAllNotificationsAsRead(allIds, companyId)
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+  }
+
+  const handleToggleRead = (id, currentIsRead) => {
+    if (currentIsRead) {
+      unmarkNotificationAsRead(id, companyId)
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: false } : n))
+    } else {
+      markNotificationAsRead(id, companyId)
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))
+    }
+  }
+
+  const handleItemClick = (n) => {
+    markNotificationAsRead(n.id, companyId)
+    setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, isRead: true } : item))
+    setNotifDropdownOpen(false)
+    if (n.link) navigate(n.link)
+  }
 
   // Close menus on outside click or touch
   useEffect(() => {
@@ -161,7 +198,7 @@ function DashboardContent() {
     setRefreshing(true)
     try {
       await loadData(true)
-      const notifs = await getNotifications().catch(() => [])
+      const notifs = await getNotifications(companyId).catch(() => [])
       setNotifications(notifs || [])
     } finally {
       setTimeout(() => setRefreshing(false), 550)
@@ -926,9 +963,9 @@ function DashboardContent() {
                 aria-label="Notificaciones"
               >
                 <Bell size={14} className="shrink-0 pointer-events-none" />
-                {notifications.length > 0 && (
+                {unreadCount > 0 && (
                   <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center absolute -top-1 -right-1 ring-2 ring-white dark:ring-[#131627] pointer-events-none">
-                    {notifications.length > 9 ? '9+' : notifications.length}
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
               </button>
@@ -944,19 +981,38 @@ function DashboardContent() {
                   />
 
                   <div
-                    className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-84 max-w-sm mx-auto sm:mx-0 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-3 z-50 animate-scale-in"
+                    className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-88 max-w-sm mx-auto sm:mx-0 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-3 z-50 animate-scale-in"
                     style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}
                   >
                     <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-white/10">
                       <div className="flex items-center gap-1.5">
                         <p className="text-xs font-bold text-slate-900 dark:text-white">Notificaciones</p>
-                        {notifications.length > 0 && (
+                        {unreadCount > 0 ? (
                           <span className="text-[10px] font-extrabold px-1.5 py-0.2 bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300 rounded-full font-mono">
-                            {notifications.length}
+                            {unreadCount}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300 rounded-full font-mono">
+                            0
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] text-slate-400 font-medium">Alertas del sistema</span>
+                      {unreadCount > 0 ? (
+                        <button
+                          type="button"
+                          onClick={handleMarkAllRead}
+                          className="text-[10.5px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Marcar todas como leídas"
+                        >
+                          <CheckCheck size={13} />
+                          <span>Marcar todas leídas</span>
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-emerald-500 dark:text-emerald-400 font-medium flex items-center gap-1">
+                          <Check size={11} strokeWidth={2.5} />
+                          <span>Todas leídas</span>
+                        </span>
+                      )}
                     </div>
 
                     {notifications.length === 0 ? (
@@ -969,45 +1025,72 @@ function DashboardContent() {
                       <div className="space-y-1.5 max-h-64 overflow-y-auto">
                         {notifications.slice(0, 8).map((n, i) => {
                           const isDanger = n.type === 'danger'
+                          const isRead = !!n.isRead
                           return (
-                            <button
+                            <div
                               key={n.id || i}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setNotifDropdownOpen(false)
-                                if (n.link) navigate(n.link)
-                              }}
-                              className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-blue-50 dark:hover:bg-blue-900/20 active:scale-[0.98] transition-all cursor-pointer group flex items-start gap-2.5 border border-transparent hover:border-blue-200 dark:hover:border-blue-500/30"
+                              onClick={() => handleItemClick(n)}
+                              className={`w-full text-left p-2.5 rounded-xl transition-all cursor-pointer group flex items-start gap-2.5 border ${
+                                isRead
+                                  ? 'bg-slate-50/60 dark:bg-white/[0.02] border-slate-100 dark:border-white/5 opacity-70 hover:opacity-100'
+                                  : 'bg-slate-50 dark:bg-white/5 border-transparent hover:border-blue-200 dark:hover:border-blue-500/30 hover:bg-blue-50/50 dark:hover:bg-blue-900/20'
+                              }`}
                             >
                               <span
-                                className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
-                                  isDanger ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'
+                                className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
+                                  isRead
+                                    ? 'bg-slate-300 dark:bg-zinc-600'
+                                    : isDanger
+                                    ? 'bg-rose-500 animate-pulse'
+                                    : 'bg-amber-500'
                                 }`}
                               />
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between gap-1">
                                   <p className={`text-xs font-bold truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors ${
-                                    isDanger ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200'
+                                    isRead
+                                      ? 'text-slate-500 dark:text-slate-400 font-medium'
+                                      : isDanger
+                                      ? 'text-rose-600 dark:text-rose-400'
+                                      : 'text-slate-800 dark:text-slate-200'
                                   }`}>
                                     {n.title}
                                   </p>
-                                  <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded shrink-0 ${
-                                    isDanger
-                                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
-                                      : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
-                                  }`}>
-                                    {isDanger ? 'Crítico' : 'Atención'}
-                                  </span>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                                      isRead
+                                        ? 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+                                        : isDanger
+                                        ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
+                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
+                                    }`}>
+                                      {isRead ? 'Leída' : isDanger ? 'Crítico' : 'Atención'}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleToggleRead(n.id, isRead)
+                                      }}
+                                      title={isRead ? 'Marcar como no leída' : 'Marcar como leída'}
+                                      className={`p-1 rounded-md transition-colors cursor-pointer ${
+                                        isRead
+                                          ? 'text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                                          : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                                      }`}
+                                    >
+                                      <Check size={13} strokeWidth={isRead ? 2.5 : 2} className={isRead ? 'text-emerald-500' : 'text-slate-400'} />
+                                    </button>
+                                  </div>
                                 </div>
-                                <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-2 leading-tight">
+                                <p className={`text-[11px] mt-0.5 line-clamp-2 leading-tight ${isRead ? 'text-slate-400 dark:text-zinc-500' : 'text-slate-600 dark:text-slate-300'}`}>
                                   {n.message}
                                 </p>
-                                <span className="text-[10px] text-blue-500 font-medium inline-flex items-center gap-0.5 mt-1 group-hover:underline">
+                                <span className={`text-[10px] font-medium inline-flex items-center gap-0.5 mt-1 group-hover:underline ${isRead ? 'text-slate-400 dark:text-zinc-500' : 'text-blue-500'}`}>
                                   Ir al producto / detalle →
                                 </span>
                               </div>
-                            </button>
+                            </div>
                           )
                         })}
                       </div>

@@ -16,23 +16,86 @@ export function getReadNotificationIds(companyId = 'default') {
   }
 }
 
+function getRelatedNotificationIds(id) {
+  if (!id) return []
+  const str = String(id)
+  const ids = [str]
+  if (str.startsWith('stock-out-')) {
+    const rawId = str.replace('stock-out-', '')
+    ids.push(`stock-${rawId}`, `stock-low-${rawId}`)
+  } else if (str.startsWith('stock-low-')) {
+    const rawId = str.replace('stock-low-', '')
+    ids.push(`stock-${rawId}`, `stock-out-${rawId}`)
+  } else if (str.startsWith('stock-')) {
+    const rawId = str.replace('stock-', '')
+    ids.push(`stock-low-${rawId}`, `stock-out-${rawId}`)
+  } else if (str.startsWith('sale-overdue-')) {
+    const rawId = str.replace('sale-overdue-', '')
+    ids.push(`sale-${rawId}`)
+  } else if (str.startsWith('sale-')) {
+    const rawId = str.replace('sale-', '')
+    ids.push(`sale-overdue-${rawId}`)
+  } else if (str.startsWith('purchase-pending-')) {
+    const rawId = str.replace('purchase-pending-', '')
+    ids.push(`purchase-${rawId}`)
+  } else if (str.startsWith('purchase-')) {
+    const rawId = str.replace('purchase-', '')
+    ids.push(`purchase-pending-${rawId}`)
+  }
+  return ids
+}
+
+export function isNotificationRead(id, companyId = 'default') {
+  try {
+    const current = getReadNotificationIds(companyId)
+    const related = getRelatedNotificationIds(id)
+    return related.some((r) => current.includes(r))
+  } catch {
+    return false
+  }
+}
+
 export function markNotificationAsRead(id, companyId = 'default') {
   try {
     const current = getReadNotificationIds(companyId)
-    if (!current.includes(id)) {
-      const updated = [...current, id]
+    const related = getRelatedNotificationIds(id)
+    const toAdd = related.filter((r) => !current.includes(r))
+    if (toAdd.length > 0) {
+      const updated = [...current, ...toAdd]
       localStorage.setItem(`${READ_STORAGE_PREFIX}${companyId}`, JSON.stringify(updated))
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('cya_notifications_updated', { detail: { id, companyId, isRead: true } }))
+      }
     }
   } catch (err) {
     console.error('Error al guardar notificación leída:', err)
   }
 }
 
+export function unmarkNotificationAsRead(id, companyId = 'default') {
+  try {
+    const current = getReadNotificationIds(companyId)
+    const related = getRelatedNotificationIds(id)
+    const updated = current.filter((item) => !related.includes(item))
+    localStorage.setItem(`${READ_STORAGE_PREFIX}${companyId}`, JSON.stringify(updated))
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cya_notifications_updated', { detail: { id, companyId, isRead: false } }))
+    }
+  } catch (err) {
+    console.error('Error al desmarcar notificación:', err)
+  }
+}
+
 export function markAllNotificationsAsRead(ids, companyId = 'default') {
   try {
     const current = new Set(getReadNotificationIds(companyId))
-    ids.forEach((id) => current.add(id))
+    ids.forEach((id) => {
+      getRelatedNotificationIds(id).forEach((r) => current.add(r))
+    })
     localStorage.setItem(`${READ_STORAGE_PREFIX}${companyId}`, JSON.stringify(Array.from(current)))
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cya_notifications_updated', { detail: { ids, companyId, isRead: true } }))
+    }
   } catch (err) {
     console.error('Error al marcar todas las notificaciones como leídas:', err)
   }
@@ -41,13 +104,16 @@ export function markAllNotificationsAsRead(ids, companyId = 'default') {
 export function clearReadNotifications(companyId = 'default') {
   try {
     localStorage.removeItem(`${READ_STORAGE_PREFIX}${companyId}`)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('cya_notifications_updated', { detail: { companyId } }))
+    }
   } catch {}
 }
 
 /**
  * Alertas compactas para el Topbar y Asistente Virtual
  */
-export async function getNotifications() {
+export async function getNotifications(companyId = 'default') {
   const [products, sales, purchases] = await Promise.all([
     productsService.list().catch(() => []),
     salesService.list().catch(() => []),
@@ -60,14 +126,16 @@ export async function getNotifications() {
   products
     .filter((p) => !p.is_kit && p.stock <= p.min_stock)
     .forEach((p) => {
+      const notifId = `stock-${p.id}`
       notifications.push({
-        id: `stock-${p.id}`,
+        id: notifId,
         type: p.stock <= 0 ? 'danger' : 'warning',
         category: 'inventario',
         title: p.stock <= 0 ? 'Producto agotado' : 'Stock bajo',
         message: `${p.name} — ${p.stock} unidad(es) disponibles`,
         date: new Date(),
         link: '/productos',
+        isRead: isNotificationRead(notifId, companyId),
       })
     })
 
@@ -76,14 +144,16 @@ export async function getNotifications() {
     .filter((s) => salesService.isOverdue(s))
     .forEach((s) => {
       const days = Math.abs(salesService.daysUntilDue(s))
+      const notifId = `sale-${s.id}`
       notifications.push({
-        id: `sale-${s.id}`,
+        id: notifId,
         type: 'danger',
         category: 'ventas',
         title: 'Venta vencida',
         message: `Venta #${s.id.toString().slice(0, 8).toUpperCase()} vencida hace ${days} día(s)`,
         date: new Date(s.due_date || s.created_at || Date.now()),
         link: '/ventas',
+        isRead: isNotificationRead(notifId, companyId),
       })
     })
 
@@ -93,14 +163,16 @@ export async function getNotifications() {
     .filter((p) => p.status === 'pendiente' && Date.now() - new Date(p.created_at).getTime() > THREE_DAYS_MS)
     .forEach((p) => {
       const days = Math.floor((Date.now() - new Date(p.created_at).getTime()) / (24 * 60 * 60 * 1000))
+      const notifId = `purchase-${p.id}`
       notifications.push({
-        id: `purchase-${p.id}`,
+        id: notifId,
         type: 'warning',
         category: 'compras',
         title: 'Compra pendiente de recibir',
         message: `Orden a proveedor lleva ${days} día(s) sin marcarse como recibida`,
         date: new Date(p.created_at),
         link: '/compras',
+        isRead: isNotificationRead(notifId, companyId),
       })
     })
 
