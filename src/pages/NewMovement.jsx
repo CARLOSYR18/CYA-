@@ -221,7 +221,7 @@ export default function NewMovement() {
 
   // Submit Handler con animación ejecutiva de 3 pasos
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    if (e && e.preventDefault) e.preventDefault()
     setError('')
 
     if (!productId) {
@@ -280,43 +280,80 @@ export default function NewMovement() {
     }
   }
 
+  // Global keyboard shortcuts (F2: Guardar, Esc: Cancelar)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'F2') {
+        e.preventDefault()
+        handleSubmit(e)
+      } else if (e.key === 'Escape') {
+        if (!isProcessing) {
+          requestLeave('/movimientos')
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleSubmit, isProcessing, requestLeave])
+
   return (
     <AppLayout title={isEditing ? 'Modificar Movimiento' : 'Nuevo Movimiento de Inventario'}>
       <div className="space-y-4 max-w-6xl mx-auto pb-8 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
-            0. COMPACT BREADCRUMB & TOP HEADER BAR
+            0. EXECUTIVE BREADCRUMB & HEADER (SENIOR ENTERPRISE)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        <div className="bg-white dark:bg-[#141417] p-4 sm:p-5 rounded-2xl border border-slate-200/90 dark:border-zinc-800 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
             <button
               type="button"
               onClick={() => requestLeave('/movimientos')}
-              className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95 shadow-xs"
-              title="Regresar a Movimientos"
+              className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95 shrink-0"
+              title="Regresar a Movimientos [Esc]"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={17} />
             </button>
             <div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <span className="hover:text-blue-600 cursor-pointer" onClick={() => requestLeave('/movimientos')}>
-                  Inventario
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                <span className="hover:text-[#1B4FD8] cursor-pointer" onClick={() => requestLeave('/movimientos')}>
+                  MÓDULO DE INVENTARIO
                 </span>
                 <span>/</span>
-                <span className="text-blue-600 dark:text-blue-400 font-semibold">
-                  {isEditing ? 'Modificar Operación' : 'Nuevo Movimiento'}
+                <span>AUDITORÍA DE KARDEX</span>
+                <span>/</span>
+                <span className="text-[#1B4FD8] dark:text-blue-400">
+                  {isEditing ? 'MODIFICAR OPERACIÓN' : 'ALTA DE MOVIMIENTO'}
                 </span>
               </div>
-              <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                {isEditing ? 'Modificar Operación de Kardex' : 'Registrar Nuevo Movimiento'}
-              </h1>
+              <div className="flex items-center gap-2.5 mt-0.5">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                  {isEditing ? 'Modificar Operación de Kardex' : 'Registrar Nuevo Movimiento'}
+                </h1>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8] animate-pulse" />
+                  KARDEX AUDITABLE
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30">
-              <ArrowLeftRight size={14} /> Libro Kardex Almacén
-            </span>
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => requestLeave('/movimientos')}
+              className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Cancelar [Esc]
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isProcessing || isInsufficientStock || !productId}
+              className="px-5 py-2.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-2 shadow-sm shadow-blue-600/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Check size={16} strokeWidth={2.5} />
+              <span>{isEditing ? 'Guardar Cambios [F2]' : 'Registrar en Kardex [F2]'}</span>
+            </button>
           </div>
         </div>
 
@@ -769,26 +806,61 @@ export default function NewMovement() {
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Detalles sobre el transporte, lote de producción, número de guía de remisión..."
-                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
+                    className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none font-medium"
                   />
                 </div>
               </div>
+
+              {/* CARD 4: MAIN ACTION BUTTONS BAR (SAFELY POSITIONED ON LEFT COLUMN) */}
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
+                  <span className="font-medium">Kardex protegido con trazabilidad inmutable</span>
+                </div>
+
+                <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => requestLeave('/movimientos')}
+                    className="w-1/2 sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer text-center"
+                  >
+                    Cancelar [Esc]
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isProcessing || isInsufficientStock || !productId}
+                    className="w-1/2 sm:w-auto px-6 py-2.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-98 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isProcessing ? (
+                      <span>Sincronizando…</span>
+                    ) : (
+                      <>
+                        <Check size={16} strokeWidth={2.5} />
+                        <span>{isEditing ? 'Guardar Cambios' : 'Registrar en Kardex'}</span>
+                        <kbd className="px-1.5 py-0.5 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
             </div>
 
             {/* ─── RIGHT COLUMN: LIVE REPLICA CARD & ACTIONS (5 COLS) ─── */}
             <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-4">
 
               {/* CARD: VISTA PREVIA EN TIEMPO REAL */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-5 shadow-xs space-y-4">
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 sm:p-5 shadow-2xs space-y-3.5">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <Sparkles size={16} className="text-blue-600 dark:text-blue-400" />
+                    <Sparkles size={16} className="text-amber-500 shrink-0" />
                     <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
                       Ficha de Operación en Tiempo Real
                     </h3>
                   </div>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> EN VIVO
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8] animate-pulse" /> EN VIVO
                   </span>
                 </div>
 
@@ -888,38 +960,50 @@ export default function NewMovement() {
                   </div>
                 </div>
 
-                {/* BOTÓN PRINCIPAL DE ENVÍO */}
-                <button
-                  type="submit"
-                  disabled={isProcessing || isInsufficientStock || !productId}
-                  className="w-full py-3 px-4 rounded-xl font-black text-xs sm:text-sm text-white bg-blue-600 hover:bg-blue-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {isProcessing ? (
-                    <>
-                      <RefreshCw size={16} className="animate-spin" />
-                      <span>Sincronizando Kardex...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check size={16} strokeWidth={2.5} />
-                      <span>{isEditing ? 'Guardar Cambios de Operación' : 'Registrar Movimiento en Kardex'}</span>
-                    </>
-                  )}
-                </button>
+                {/* Checklist de Conformidad de Operación Kardex */}
+                <div className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800 space-y-2 text-xs">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span>Auditoría de Operación</span>
+                    <span className={productId && !isInsufficientStock ? 'text-emerald-600 font-extrabold' : 'text-amber-600'}>
+                      {[Boolean(type), Boolean(productId), Boolean(opQty > 0 && !isInsufficientStock), Boolean(reason.trim()), Boolean(reference.trim())].filter(Boolean).length}/5 conformes
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600 dark:text-zinc-300">Naturaleza de flujo ({type})</span>
+                      <span className="text-emerald-600 font-bold">✓ Asignada</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600 dark:text-zinc-300">Artículo vinculado</span>
+                      <span className={productId ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                        {productId ? '✓ Seleccionado' : 'Pendiente *'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600 dark:text-zinc-300">Consistencia matemática de stock</span>
+                      <span className={!isInsufficientStock && productId ? 'text-emerald-600 font-bold' : 'text-rose-500 font-bold'}>
+                        {isInsufficientStock ? 'Quiebre de stock' : productId ? '✓ Verificada' : 'Pendiente'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600 dark:text-zinc-300">Justificación comercial</span>
+                      <span className={reason.trim() ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                        {reason.trim() ? '✓ Registrada' : 'Requerida *'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600 dark:text-zinc-300">Código de trazabilidad</span>
+                      <span className="font-mono text-emerald-600 font-bold">
+                        {reference || '✓ Automático'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-                {/* BOTÓN SECUNDARIO CANCELAR */}
-                <button
-                  type="button"
-                  onClick={() => requestLeave('/movimientos')}
-                  className="w-full py-2.5 px-4 rounded-xl font-bold text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors text-center cursor-pointer"
-                >
-                  Cancelar y Regresar
-                </button>
-
-                <p className="text-[10px] text-center text-slate-400 flex items-center justify-center gap-1.5 font-medium">
-                  <ShieldCheck size={12} className="text-emerald-500" />
-                  Sincronización instantánea con catálogo y kardex
-                </p>
+                <div className="pt-1 text-center text-[10.5px] text-slate-400 flex items-center justify-center gap-1.5">
+                  <ShieldCheck size={13} className="text-emerald-500" />
+                  <span>Kardex protegido con Row Level Security & auditoría inmutable</span>
+                </div>
               </div>
             </div>
 
