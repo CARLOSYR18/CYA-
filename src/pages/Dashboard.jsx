@@ -261,6 +261,7 @@ function DashboardContent() {
             ? `${sale.series}-${sale.correlative}` 
             : `VTA-${String(sale.id).slice(-4).toUpperCase()}`
 
+          const isAnulado = sale.status === 'anulado'
           const isPaid = sale.status === 'pagado'
 
           return {
@@ -268,15 +269,19 @@ function DashboardContent() {
             code: codeFormatted,
             client_name: clientName,
             client_role: clientObj?.phone || clientObj?.email || 'Cliente Registrado',
-            due_text: isPaid ? 'Cobrado / Pagado' : (sale.due_date ? `Vence: ${sale.due_date}` : 'Pendiente de cobro'),
-            status: isPaid ? 'Pagada' : 'Pendiente',
+            due_text: isAnulado
+              ? 'Anulada (Stock devuelto)'
+              : isPaid
+              ? 'Cobrado / Pagado'
+              : (sale.due_date ? `Vence: ${sale.due_date}` : 'Pendiente de cobro'),
+            status: isAnulado ? 'Anulada' : isPaid ? 'Pagada' : 'Pendiente',
             amount: total,
             avatar: avatars[idx % avatars.length],
             company: co?.name || 'CYA Store',
             items,
             subtotal: total,
             total,
-            balance: isPaid ? 0 : total,
+            balance: isAnulado || isPaid ? 0 : total,
             isReal: true,
             rawSale: sale
           }
@@ -315,8 +320,8 @@ function DashboardContent() {
     const now = new Date()
     const currentMonthStr = now.toISOString().slice(0, 7) // 'YYYY-MM'
 
-    // Ventas del mes
-    const monthSales = sales.filter(s => s.created_at && s.created_at.startsWith(currentMonthStr))
+    // Ventas del mes (excluyendo ventas anuladas)
+    const monthSales = sales.filter(s => s.status !== 'anulado' && s.created_at && s.created_at.startsWith(currentMonthStr))
     const facturacionMes = monthSales.reduce((acc, s) => acc + salesService.saleTotal(s), 0)
     const ventasMesCount = monthSales.length
     const ticketPromedio = ventasMesCount > 0 ? facturacionMes / ventasMesCount : 0
@@ -369,7 +374,7 @@ function DashboardContent() {
       const dayCapitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1, 3)
       const dayNum = d.getDate()
 
-      const daySales = sales.filter(s => s.created_at && s.created_at.slice(0, 10) === dateStr)
+      const daySales = sales.filter(s => s.status !== 'anulado' && s.created_at && s.created_at.slice(0, 10) === dateStr)
       const total = daySales.reduce((acc, s) => acc + salesService.saleTotal(s), 0)
 
       days.push({

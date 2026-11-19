@@ -108,7 +108,7 @@ export default function DashboardAnalytics({
       })
     } else {
       const totalStock = products.reduce((acc, p) => acc + (Number(p.stock) || 0), 0)
-      salidasQty = sales.reduce((acc, s) => {
+      salidasQty = sales.filter(s => s.status !== 'anulado').reduce((acc, s) => {
         const itemsQty = (s.items || []).reduce((iq, it) => iq + (Number(it.quantity) || 1), 0)
         return acc + itemsQty
       }, 0)
@@ -138,8 +138,8 @@ export default function DashboardAnalytics({
         else if (m.type === 'salida') daySalidas += q
       })
 
-      // Ventas de este día
-      const daySales = (sales || []).filter(s => s.created_at && s.created_at.slice(0, 10) === dateStr)
+      // Ventas de este día (excluyendo anuladas)
+      const daySales = (sales || []).filter(s => s.status !== 'anulado' && s.created_at && s.created_at.slice(0, 10) === dateStr)
       const dayVentasTotal = daySales.reduce((acc, s) => acc + (Number(s.total) || Number(s.amount) || 0), 0)
 
       daysData.push({

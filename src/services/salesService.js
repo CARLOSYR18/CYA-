@@ -113,4 +113,46 @@ export const salesService = {
     if (Object.keys(patch).length === 0) return null
     return base.update(saleId, patch)
   },
+
+  async getById(saleId) {
+    const list = await this.list()
+    return list.find((s) => String(s.id) === String(saleId)) || null
+  },
+
+  // Anulación formal de venta con retorno automático de stock al Kardex.
+  // Cambia el estado a 'anulado' y genera movimientos de 'entrada' para
+  // reintegrar las cantidades exactas al almacén físico.
+  async cancel(saleId, { reason = 'Anulación de venta', userId = null } = {}) {
+    const sale = await this.getById(saleId)
+    if (!sale) throw new Error('Venta no encontrada')
+    if (sale.status === 'anulado') throw new Error('Esta venta ya fue anulada previamente')
+
+    const cleanReason = (reason || 'Anulación de venta').trim()
+    const cancelNote = `[ANULADA ${new Date().toLocaleDateString('es-PE')}]: ${cleanReason}`
+    const updatedNotes = sale.notes ? `${sale.notes} | ${cancelNote}` : cancelNote
+
+    const updated = await base.update(saleId, {
+      status: 'anulado',
+      notes: updatedNotes,
+    })
+
+    // Retorno automático de stock a almacén para cada ítem vendido
+    const items = Array.isArray(sale.items) ? sale.items : []
+    for (const item of items) {
+      const pid = item.product_id
+      const qty = Number(item.quantity) || 0
+      if (pid && qty > 0) {
+        await inventoryMovementsService.register({
+          product_id: pid,
+          type: 'entrada',
+          quantity: qty,
+          reason: `Retorno por anulación de venta #${String(sale.id).slice(0, 8)}: ${cleanReason}`,
+          reference: sale.id,
+          user_id: userId || null,
+        })
+      }
+    }
+
+    return this.normalizeSale(updated)
+  },
 }

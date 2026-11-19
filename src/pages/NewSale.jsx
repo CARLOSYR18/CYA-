@@ -52,6 +52,16 @@ export default function NewSale() {
     { product_id: '', quantity: 1, unit_price: '' }
   ])
 
+  // Mobile Bottom Sheet Picker states
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerItemIdx, setPickerItemIdx] = useState(null)
+  const [pickerSearch, setPickerSearch] = useState('')
+
+  const [clientPickerOpen, setClientPickerOpen] = useState(false)
+  const [clientPickerSearch, setClientPickerSearch] = useState('')
+
+  const [sellerPickerOpen, setSellerPickerOpen] = useState(false)
+
   // Payment & Terms
   const [paymentStatus, setPaymentStatus] = useState('pagado') // 'pagado' | 'pendiente'
   const [paymentMethod, setPaymentMethod] = useState('efectivo') // 'efectivo' | 'yape' | 'plin' | 'transferencia' | 'tarjeta'
@@ -202,6 +212,29 @@ export default function NewSale() {
       })
     )
   }
+
+  // Filtered products for mobile bottom sheet picker
+  const filteredPickerProducts = useMemo(() => {
+    if (!pickerSearch.trim()) return products
+    const q = pickerSearch.toLowerCase().trim()
+    return products.filter((p) => {
+      const name = (p.name || '').toLowerCase()
+      const sku = (p.sku || '').toLowerCase()
+      const cat = (p.category || '').toLowerCase()
+      return name.includes(q) || sku.includes(q) || cat.includes(q)
+    })
+  }, [products, pickerSearch])
+
+  // Filtered clients for mobile bottom sheet picker
+  const filteredPickerClients = useMemo(() => {
+    if (!clientPickerSearch.trim()) return clients
+    const q = clientPickerSearch.toLowerCase().trim()
+    return clients.filter((c) => {
+      const name = (c.name || '').toLowerCase()
+      const doc = (c.ruc || c.phone || '').toLowerCase()
+      return name.includes(q) || doc.includes(q)
+    })
+  }, [clients, clientPickerSearch])
 
   // Financial calculations
   const subtotal = useMemo(() => {
@@ -357,81 +390,102 @@ export default function NewSale() {
       <div className="max-w-[1440px] mx-auto space-y-3.5 pb-4 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
-            0. HEADER BAR (MATCHING 110% SIZING & PROPORTIONS)
+            0. HEADER BAR (Executive Design & Mobile Optimized)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 px-5 py-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3.5">
-          {/* Back button & Title */}
-          <div className="flex items-center gap-3">
+        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/90 dark:border-white/10 p-3.5 sm:p-5 shadow-[0_1px_3px_0_rgba(15,23,42,0.04),0_6px_20px_-3px_rgba(15,23,42,0.05)] flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 transition-all">
+          {/* Top/Left: Back button & Title with Badges */}
+          <div className="flex items-center justify-between gap-3 min-w-0">
+            <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+              <button
+                type="button"
+                onClick={() => requestLeave('/ventas')}
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-zinc-200 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
+                title="Volver a Ventas"
+              >
+                <ArrowLeft size={16} />
+              </button>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 font-medium truncate">
+                  <span className="hover:underline cursor-pointer" onClick={() => requestLeave('/ventas')}>Ventas</span>
+                  <span>›</span>
+                  <span className="font-semibold text-slate-700 dark:text-zinc-300">
+                    Emitir Comprobante
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <h1 className="text-base sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none truncate">
+                    Nueva Venta & Facturación
+                  </h1>
+                  <span className="hidden xs:inline-flex text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-white/10 dark:text-indigo-300 border border-indigo-200/50 dark:border-white/10 shrink-0">
+                    POS PRO
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick general customer shortcut on mobile right */}
             <button
               type="button"
-              onClick={() => requestLeave('/ventas')}
-              className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-200 transition-colors cursor-pointer shrink-0 shadow-2xs"
-              title="Volver a Ventas"
+              onClick={handleQuickClient}
+              className="md:hidden px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-500/10 border border-amber-200/80 dark:border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95"
+              title="Llenar cliente mostrador"
             >
-              <ArrowLeft size={17} />
+              <Zap size={13} className="text-amber-500 fill-amber-500" />
+              <span>Rápido</span>
             </button>
-
-            <div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-zinc-500 font-medium">
-                <span>Ventas</span>
-                <span>›</span>
-                <span className="font-semibold text-slate-700 dark:text-zinc-300">
-                  Emitir Comprobante
-                </span>
-              </div>
-              <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none mt-0.5">
-                Nueva Venta & Facturación
-              </h1>
-            </div>
           </div>
 
-          {/* Document Type Selector (Boleta / Factura / Nota) */}
-          <div className="flex items-center gap-2.5">
-            <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200/80 dark:border-zinc-700 text-xs sm:text-sm font-bold">
+          {/* Bottom/Right: Document Type Segmented Control + Desktop Quick Client */}
+          <div className="flex items-center gap-2 sm:gap-2.5 w-full md:w-auto">
+            <div className="w-full md:w-auto grid grid-cols-3 sm:flex p-1 bg-slate-100 dark:bg-zinc-800/80 rounded-xl border border-slate-200/80 dark:border-zinc-700/80 text-xs sm:text-sm font-bold gap-1">
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('BOLETA')}
-                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
                   docType === 'BOLETA'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[#5550F2] text-white shadow-md shadow-indigo-600/30'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'
                 }`}
               >
-                Boleta (B001)
+                <span>Boleta</span>
+                <span className={`text-[10px] sm:text-xs font-mono font-medium ${docType === 'BOLETA' ? 'text-indigo-100' : 'text-slate-400'}`}>(B001)</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('FACTURA')}
-                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
                   docType === 'FACTURA'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[#5550F2] text-white shadow-md shadow-indigo-600/30'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'
                 }`}
               >
-                Factura (F001)
+                <span>Factura</span>
+                <span className={`text-[10px] sm:text-xs font-mono font-medium ${docType === 'FACTURA' ? 'text-indigo-100' : 'text-slate-400'}`}>(F001)</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('NOTA')}
-                className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
                   docType === 'NOTA'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-[#5550F2] text-white shadow-md shadow-indigo-600/30'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'
                 }`}
               >
-                Nota de Venta
+                <span>Nota Venta</span>
+                <span className={`text-[10px] sm:text-xs font-mono font-medium ${docType === 'NOTA' ? 'text-indigo-100' : 'text-slate-400'}`}>(Ticket)</span>
               </button>
             </div>
 
-            {/* Quick general customer shortcut button */}
+            {/* Quick general customer shortcut button on desktop */}
             <button
               type="button"
               onClick={handleQuickClient}
-              className="px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="hidden md:inline-flex px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-bold items-center gap-1.5 transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95"
               title="Llenar automáticamente con datos de cliente mostrador"
             >
-              <Zap size={14} className="text-amber-500" />
-              <span className="hidden sm:inline">Cliente Rápido</span>
+              <Zap size={14} className="text-amber-500 fill-amber-500" />
+              <span>Cliente Rápido</span>
             </button>
           </div>
         </div>
@@ -452,18 +506,17 @@ export default function NewSale() {
                   </span>
                 </label>
                 {clients.length > 0 && (
-                  <select
-                    value={selectedClientId}
-                    onChange={(e) => handleClientSelect(e.target.value)}
-                    className="text-xs bg-transparent text-blue-600 dark:text-blue-400 font-semibold outline-none cursor-pointer"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setClientPickerSearch('')
+                      setClientPickerOpen(true)
+                    }}
+                    className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    <option value="">Buscar en catálogo…</option>
-                    {clients.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    <Search size={12} />
+                    <span>{selectedClientId ? 'Cambiar cliente' : 'Buscar en catálogo…'}</span>
+                  </button>
                 )}
               </div>
               <input
@@ -505,17 +558,31 @@ export default function NewSale() {
               <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
                 Vendedor Asignado
               </label>
-              <select
-                value={sellerName}
-                onChange={(e) => setSellerName(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium cursor-pointer"
-              >
-                {sellerOptions.map((s, idx) => (
-                  <option key={idx} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              {/* Mobile Touch Button */}
+              <div className="md:hidden">
+                <button
+                  type="button"
+                  onClick={() => setSellerPickerOpen(true)}
+                  className="w-full bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white flex items-center justify-between font-medium cursor-pointer shadow-2xs"
+                >
+                  <span className="truncate">{sellerName || 'Seleccionar vendedor'}</span>
+                  <ChevronDown size={14} className="text-slate-400 shrink-0 ml-1.5" />
+                </button>
+              </div>
+              {/* Desktop standard select */}
+              <div className="hidden md:block">
+                <select
+                  value={sellerName}
+                  onChange={(e) => setSellerName(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium cursor-pointer"
+                >
+                  {sellerOptions.map((s, idx) => (
+                    <option key={idx} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* O.C. / Referencia */}
@@ -558,7 +625,8 @@ export default function NewSale() {
             </button>
           </div>
 
-          <div className="max-h-[220px] overflow-x-auto overflow-y-auto">
+          {/* Desktop Table View (>= 768px): wide horizontal data table */}
+          <div className="hidden md:block max-h-[260px] overflow-x-auto overflow-y-auto">
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead className="sticky top-0 z-10 bg-white dark:bg-[#141417] border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 <tr>
@@ -689,6 +757,144 @@ export default function NewSale() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards View (< 768px): ZERO horizontal scroll, optimized for thumb touches */}
+          <div className="md:hidden divide-y divide-slate-100 dark:divide-zinc-800">
+            {items.map((it, idx) => {
+              const prod = products.find((p) => p.id === it.product_id)
+              const lineTotal = (Number(it.unit_price) || 0) * (Number(it.quantity) || 0)
+              const isOverStock = prod && Number(prod.stock) < Number(it.quantity || 1)
+
+              return (
+                <div key={idx} className="p-3.5 space-y-2.5 bg-white dark:bg-[#141417]">
+                  {/* Row 1: Index badge + Product dropdown + Delete button */}
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 text-xs font-bold flex items-center justify-center shrink-0 font-mono">
+                      #{idx + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPickerItemIdx(idx)
+                          setPickerSearch('')
+                          setPickerOpen(true)
+                        }}
+                        className="w-full text-left bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800/90 border border-slate-200 dark:border-zinc-700 rounded-xl px-2.5 py-2 flex items-center justify-between text-xs text-slate-900 dark:text-white font-medium outline-none transition-all cursor-pointer shadow-2xs active:scale-[0.99]"
+                      >
+                        {prod ? (
+                          <div className="min-w-0 flex items-center gap-1.5 truncate">
+                            {prod.sku && (
+                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-slate-200/80 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded shrink-0">
+                                {prod.sku}
+                              </span>
+                            )}
+                            <span className="font-bold text-slate-900 dark:text-white truncate">
+                              {prod.name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 truncate">
+                            Seleccionar producto…
+                          </span>
+                        )}
+                        <ChevronDown size={14} className="text-slate-400 shrink-0 ml-1.5" />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeItemRow(idx)}
+                      disabled={items.length <= 1}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-20 transition-colors shrink-0 cursor-pointer"
+                      title="Eliminar fila"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+
+                  {/* Row 2: Stock status on left, Subtotal on right */}
+                  <div className="flex items-center justify-between text-xs px-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-slate-400 font-semibold">Stock:</span>
+                      {prod ? (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            isOverStock
+                              ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${isOverStock ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                          <span>{prod.stock} {prod.unit || 'uds.'}</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">—</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-baseline gap-1 font-mono">
+                      <span className="text-[11px] text-slate-400 font-sans font-semibold">Subtotal:</span>
+                      <span className="text-sm font-black text-slate-900 dark:text-white">
+                        {fmt(lineTotal)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Row 3: Stepper Quantity (Left) + Unit Price (Right) */}
+                  <div className="flex items-center justify-between gap-3 pt-0.5">
+                    {/* Quantity Stepper */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-slate-400 font-semibold">Cant:</span>
+                      <div className="flex items-center border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800 overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => updateItem(idx, { quantity: Math.max(1, Number(it.quantity || 1) - 1) })}
+                          className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white active:bg-slate-200 transition-colors"
+                        >
+                          <Minus size={13} />
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={it.quantity}
+                          onChange={(e) => updateItem(idx, { quantity: e.target.value })}
+                          required
+                          className="w-10 bg-transparent text-center font-mono font-bold text-xs text-slate-900 dark:text-white outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updateItem(idx, { quantity: Number(it.quantity || 1) + 1 })}
+                          className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white active:bg-slate-200 transition-colors"
+                        >
+                          <Plus size={13} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Unit Price */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-slate-400 font-semibold">P. Unit:</span>
+                      <div className="relative w-24">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
+                          S/
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={it.unit_price}
+                          onChange={(e) => updateItem(idx, { unit_price: e.target.value })}
+                          placeholder="0.00"
+                          required
+                          className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl pl-6 pr-2 py-1.5 text-right font-mono font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
 
@@ -1077,6 +1283,323 @@ export default function NewSale() {
           amount={total}
           currency="S/"
         />
+
+        {/* MOBILE PRODUCT PICKER (BOTTOM SHEET / DIALOG) */}
+        {pickerOpen && (
+          <div className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 dark:bg-black/75 backdrop-blur-[2px] sm:items-center sm:justify-center p-0 sm:p-4 animate-fade-in">
+            {/* Backdrop dismiss */}
+            <div className="absolute inset-0" onClick={() => setPickerOpen(false)} />
+
+            {/* Bottom Sheet Drawer */}
+            <div className="relative w-full sm:max-w-md bg-white dark:bg-[#181B2E] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 max-h-[82vh] flex flex-col overflow-hidden animate-slide-up">
+              {/* Drag bar for mobile */}
+              <div className="sm:hidden pt-3 pb-1 flex justify-center">
+                <div className="w-10 h-1.5 bg-slate-300 dark:bg-zinc-600 rounded-full" />
+              </div>
+
+              {/* Header */}
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">
+                    Seleccionar Producto
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    Fila #{pickerItemIdx !== null ? pickerItemIdx + 1 : 1} · {products.length} disponibles
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="p-3 border-b border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02]">
+                <div className="relative">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={pickerSearch}
+                    onChange={(e) => setPickerSearch(e.target.value)}
+                    placeholder="Buscar por nombre, código o SKU…"
+                    autoFocus
+                    className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#121420] border border-slate-200 dark:border-white/10 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-blue-600 shadow-2xs"
+                  />
+                  {pickerSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setPickerSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Product List */}
+              <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5 p-2 max-h-[50vh]">
+                {filteredPickerProducts.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400">
+                    <Package size={26} className="mx-auto mb-2 opacity-40 text-slate-400" />
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No se encontraron productos</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Prueba con otro término o código</p>
+                  </div>
+                ) : (
+                  filteredPickerProducts.map((p) => {
+                    const isSelected = pickerItemIdx !== null && items[pickerItemIdx]?.product_id === p.id
+                    const isOutOfStock = Number(p.stock) <= 0
+
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          if (pickerItemIdx !== null) {
+                            updateItem(pickerItemIdx, { product_id: p.id })
+                          }
+                          setPickerOpen(false)
+                        }}
+                        className={`w-full text-left p-3 rounded-xl flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-50/80 dark:bg-blue-900/25 border border-blue-200 dark:border-blue-500/30'
+                            : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {p.sku && (
+                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded">
+                                {p.sku}
+                              </span>
+                            )}
+                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              {p.name}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-[11px]">
+                            <span className={`inline-flex items-center gap-1 font-semibold ${
+                              isOutOfStock
+                                ? 'text-red-600 dark:text-red-400'
+                                : 'text-emerald-600 dark:text-emerald-400'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                              <span>{p.stock} {p.unit || 'uds.'}</span>
+                            </span>
+                            <span className="text-slate-300 dark:text-zinc-600">·</span>
+                            <span className="text-slate-400 capitalize truncate">{p.category || 'General'}</span>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono">
+                            {fmt(p.sale_price)}
+                          </span>
+                          {isSelected && (
+                            <div className="flex items-center justify-end gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-bold mt-0.5">
+                              <Check size={11} strokeWidth={3} />
+                              <span>Elegido</span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MOBILE CLIENT PICKER (BOTTOM SHEET / DIALOG) */}
+        {clientPickerOpen && (
+          <div className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 dark:bg-black/75 backdrop-blur-[2px] sm:items-center sm:justify-center p-0 sm:p-4 animate-fade-in">
+            <div className="absolute inset-0" onClick={() => setClientPickerOpen(false)} />
+            <div className="relative w-full sm:max-w-md bg-white dark:bg-[#181B2E] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 max-h-[82vh] flex flex-col overflow-hidden animate-slide-up">
+              <div className="sm:hidden pt-3 pb-1 flex justify-center">
+                <div className="w-10 h-1.5 bg-slate-300 dark:bg-zinc-600 rounded-full" />
+              </div>
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">
+                    Buscar Cliente en Catálogo
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    {clients.length} clientes registrados
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setClientPickerOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="p-3 border-b border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02]">
+                <div className="relative">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={clientPickerSearch}
+                    onChange={(e) => setClientPickerSearch(e.target.value)}
+                    placeholder="Buscar por nombre, DNI, RUC o teléfono…"
+                    autoFocus
+                    className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#121420] border border-slate-200 dark:border-white/10 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-blue-600 shadow-2xs"
+                  />
+                  {clientPickerSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setClientPickerSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Client List */}
+              <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5 p-2 max-h-[50vh]">
+                {/* General Customer Quick Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleQuickClient()
+                    setClientPickerOpen(false)
+                  }}
+                  className="w-full text-left p-3 rounded-xl flex items-center justify-between gap-3 hover:bg-amber-50 dark:hover:bg-amber-950/20 border border-transparent transition-colors cursor-pointer mb-1"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                      <Zap size={15} className="fill-amber-500 text-amber-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">
+                        {docType === 'FACTURA' ? 'INVERSIONES & SERVICIOS S.A.C.' : 'Cliente General'}
+                      </p>
+                      <p className="text-[11px] text-slate-400">Autocompletar venta rápida mostrador</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 shrink-0">
+                    Rápido
+                  </span>
+                </button>
+
+                {filteredPickerClients.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400">
+                    <User size={26} className="mx-auto mb-2 opacity-40 text-slate-400" />
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No se encontraron clientes</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Puedes escribir los datos manualmente en el formulario</p>
+                  </div>
+                ) : (
+                  filteredPickerClients.map((c) => {
+                    const isSelected = selectedClientId === c.id
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          handleClientSelect(c.id)
+                          setClientPickerOpen(false)
+                        }}
+                        className={`w-full text-left p-3 rounded-xl flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-50/80 dark:bg-blue-900/25 border border-blue-200 dark:border-blue-500/30'
+                            : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {c.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                            {c.ruc && <span>RUC/DNI: {c.ruc}</span>}
+                            {c.phone && <span>· Tel: {c.phone}</span>}
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <div className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-bold shrink-0">
+                            <Check size={12} strokeWidth={3} />
+                            <span>Elegido</span>
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MOBILE SELLER PICKER (BOTTOM SHEET / DIALOG) */}
+        {sellerPickerOpen && (
+          <div className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 dark:bg-black/75 backdrop-blur-[2px] sm:items-center sm:justify-center p-0 sm:p-4 animate-fade-in">
+            <div className="absolute inset-0" onClick={() => setSellerPickerOpen(false)} />
+            <div className="relative w-full sm:max-w-md bg-white dark:bg-[#181B2E] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 max-h-[70vh] flex flex-col overflow-hidden animate-slide-up">
+              <div className="sm:hidden pt-3 pb-1 flex justify-center">
+                <div className="w-10 h-1.5 bg-slate-300 dark:bg-zinc-600 rounded-full" />
+              </div>
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">
+                    Vendedor Asignado
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    Selecciona el responsable de esta venta
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSellerPickerOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5 p-2">
+                {sellerOptions.map((s, idx) => {
+                  const isSelected = sellerName === s
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setSellerName(s)
+                        setSellerPickerOpen(false)
+                      }}
+                      className={`w-full text-left p-3 rounded-xl flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-blue-50/80 dark:bg-blue-900/25 border border-blue-200 dark:border-blue-500/30'
+                          : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold text-xs flex items-center justify-center shrink-0">
+                          {s.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          {s}
+                        </span>
+                      </div>
+                      {isSelected && (
+                        <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={3} />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal de confirmación para descartar cambios si intenta salir */}
         {DiscardModalComponent}

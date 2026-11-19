@@ -12,6 +12,8 @@ import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
 import ReceiptModal from '../components/Receipt'
 import PageHeaderBadge from '../components/ui/PageHeaderBadge'
+import CashClosingModal from '../components/CashClosingModal'
+import { exportToExcel } from '../utils/exportToExcel'
 import { salesService } from '../services/salesService'
 import { productsService } from '../services/productsService'
 import { clientsService } from '../services/clientsService'
@@ -87,9 +89,13 @@ export default function Sales() {
   const [savingEdit, setSavingEdit] = useState(false)
   const [editError, setEditError] = useState('')
 
-  // Delete Confirmation Modal
+  // Void / Cancel Sale Modal
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [cancelReason, setCancelReason] = useState('Devolución de cliente')
   const [deleting, setDeleting] = useState(false)
+
+  // Cierre de Caja / Arqueo de Turno
+  const [cashClosingOpen, setCashClosingOpen] = useState(false)
 
   // Quick Settlement Modal
   const [settlingSale, setSettlingSale] = useState(null)
@@ -233,6 +239,8 @@ export default function Sales() {
       result = result.filter((s) => s.status === 'pagado')
     } else if (statusTab === 'pendiente') {
       result = result.filter((s) => s.status === 'pendiente')
+    } else if (statusTab === 'anulado') {
+      result = result.filter((s) => s.status === 'anulado')
     }
 
     // 2. Seller Filter
@@ -290,14 +298,15 @@ export default function Sales() {
     return result
   }, [salesInPeriod, statusTab, sellerFilter, search, sortBy, productMap, sellerMap])
 
-  // Statistics for the 4 KPI Cards
+  // Statistics for the 4 KPI Cards (Excluyendo ventas anuladas para rigor financiero)
   const stats = useMemo(() => {
-    const totalAmount = salesInPeriod.reduce((sum, s) => sum + (Number(s.total) || 0), 0)
-    const vouchersCount = salesInPeriod.length
+    const validSales = salesInPeriod.filter((s) => s.status !== 'anulado')
+    const totalAmount = validSales.reduce((sum, s) => sum + (Number(s.total) || 0), 0)
+    const vouchersCount = validSales.length
 
     // Distinct clients served in period
     const uniqueClientsSet = new Set()
-    salesInPeriod.forEach((s) => {
+    validSales.forEach((s) => {
       if (s.client_name) uniqueClientsSet.add(s.client_name.trim().toLowerCase())
       else if (s.client_id) uniqueClientsSet.add(s.client_id)
     })
@@ -319,7 +328,9 @@ export default function Sales() {
     let servicios = 0
     let otros = 0
 
-    salesInPeriod.forEach((s) => {
+    salesInPeriod
+      .filter((s) => s.status !== 'anulado')
+      .forEach((s) => {
       if (Array.isArray(s.items)) {
         s.items.forEach((it) => {
           const pr = productMap[it.product_id]
@@ -368,6 +379,7 @@ export default function Sales() {
       const startMs = new Date(y, mIdx, 1).getTime()
       const endMs = new Date(y, mIdx + 1, 0, 23, 59, 59).getTime()
       const monthSales = sales.filter((s) => {
+        if (s.status === 'anulado') return false
         const t = new Date(s.created_at).getTime()
         return t >= startMs && t <= endMs
       })
@@ -476,15 +488,19 @@ export default function Sales() {
     }
   }
 
-  // Delete Sale
-  const handleDeleteSale = async () => {
+  // Void / Cancel Sale with automatic stock return
+  const handleCancelSale = async () => {
     if (!confirmDelete) return
     setDeleting(true)
     try {
-      await salesService.delete(confirmDelete.id)
+      await salesService.cancel(confirmDelete.id, {
+        reason: cancelReason || 'Devolución de cliente',
+        userId: user?.id || null
+      })
       await loadAll()
+      setSuccessToast(`Venta #${String(confirmDelete.id).slice(-4).toUpperCase()} anulada y stock devuelto a almacén exitosamente.`)
       setConfirmDelete(null)
-      setSuccessToast('Venta anulada correctamente.')
+      setCancelReason('Devolución de cliente')
     } catch (err) {
       alert(err.message || 'Error al anular la venta.')
     } finally {
@@ -492,46 +508,30 @@ export default function Sales() {
     }
   }
 
-  // Export to Excel / CSV
+  // Export to Excel / CSV con UTF-8 BOM
   const handleExportExcel = () => {
     if (salesInPeriod.length === 0) {
       alert('No hay ventas disponibles para exportar.')
       return
     }
 
-    const headers = [
-      'N° Comprobante',
-      'Fecha y Hora',
-      'Cliente',
-      'Teléfono / Documento',
-      'Vendedor',
-      'Estado',
-      'Total (S/)'
-    ]
-
-    const rows = salesInPeriod.map((s) => {
-      const voucher = formatVoucherCode(s)
-      const { full } = formatDateTimePE(s.created_at)
-      const seller = resolveSeller(s)
-      return [
-        `"${voucher}"`,
-        `"${full}"`,
-        `"${(s.client_name || 'Cliente General').replace(/"/g, '""')}"`,
-        `"${s.client_phone || ''}"`,
-        `"${seller.name}"`,
-        `"${s.status === 'pagado' ? 'Pagado' : 'Pendiente'}"`,
-        (Number(s.total) || 0).toFixed(2)
-      ]
+    exportToExcel({
+      filename: `Ventas_Facturacion_${new Date().toISOString().slice(0, 10)}`,
+      columns: [
+        { header: 'N° Comprobante', accessor: (s) => formatVoucherCode(s) },
+        { header: 'Fecha y Hora', accessor: (s) => formatDateTimePE(s.created_at).full },
+        { header: 'Cliente', accessor: (s) => s.client_name || 'Cliente General' },
+        { header: 'Teléfono / Documento', accessor: (s) => s.client_phone || '' },
+        { header: 'Vendedor', accessor: (s) => resolveSeller(s).name },
+        { header: 'Método de Pago', accessor: (s) => (s.payment_method || 'Efectivo').toUpperCase() },
+        {
+          header: 'Estado',
+          accessor: (s) => (s.status === 'anulado' ? 'ANULADO' : s.status === 'pagado' ? 'PAGADO' : 'PENDIENTE')
+        },
+        { header: 'Total (S/)', accessor: (s) => (Number(s.total) || 0).toFixed(2) }
+      ],
+      data: salesInPeriod
     })
-
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `Ventas_Facturacion_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
   }
 
   // Date and Time timestamp for System Status card
@@ -1114,16 +1114,17 @@ export default function Sales() {
                 </span>
               </button>
 
-              {/* Action 4: Reportes */}
+              {/* Action 4: Arqueo de Caja */}
               <button
-                onClick={handleExportExcel}
-                className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-zinc-800/60 hover:bg-blue-50/70 dark:hover:bg-blue-950/30 border border-slate-200/70 dark:border-zinc-700/80 flex flex-col items-center justify-center text-center transition-all group cursor-pointer"
+                onClick={() => setCashClosingOpen(true)}
+                className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-zinc-800/60 hover:bg-emerald-50/70 dark:hover:bg-emerald-950/30 border border-slate-200/70 dark:border-zinc-700/80 flex flex-col items-center justify-center text-center transition-all group cursor-pointer"
+                title="Cierre y Arqueo de Caja Diario"
               >
-                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <BarChart2 size={18} />
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                  <CreditCard size={18} />
                 </div>
-                <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                  Reportes
+                <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
+                  Arqueo Caja
                 </span>
               </button>
             </div>
@@ -1148,6 +1149,16 @@ export default function Sales() {
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCashClosingOpen(true)}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-brand/10 dark:bg-zinc-800 dark:hover:bg-brand/20 text-slate-700 hover:text-brand dark:text-zinc-300 dark:hover:text-brand text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Cierre de Caja & Arqueo Diario"
+                >
+                  <CreditCard size={14} className="text-brand" />
+                  <span className="hidden sm:inline">Arqueo</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={handleExportExcel}
@@ -1233,6 +1244,17 @@ export default function Sales() {
                     >
                       Pendientes ({salesInPeriod.filter((s) => s.status === 'pendiente').length})
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusTab('anulado')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                        statusTab === 'anulado'
+                          ? 'bg-rose-600 text-white shadow-xs'
+                          : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200'
+                      }`}
+                    >
+                      Anuladas ({salesInPeriod.filter((s) => s.status === 'anulado').length})
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1298,7 +1320,12 @@ export default function Sales() {
 
                             {/* Estado (dot format matching reference) */}
                             <td className="py-3 px-3 whitespace-nowrap">
-                              {isPaid ? (
+                              {s.status === 'anulado' ? (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                                  <span>Anulada</span>
+                                </span>
+                              ) : isPaid ? (
                                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
                                   <span>Pagado</span>
@@ -1377,17 +1404,23 @@ export default function Sales() {
                                         <Pencil size={13} />
                                         <span>Editar datos</span>
                                       </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setActiveMenuId(null)
-                                          setConfirmDelete(s)
-                                        }}
-                                        className="w-full px-2.5 py-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2"
-                                      >
-                                        <Trash2 size={13} />
-                                        <span>Anular venta</span>
-                                      </button>
+                                      {s.status !== 'anulado' ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setActiveMenuId(null)
+                                            setConfirmDelete(s)
+                                          }}
+                                          className="w-full px-2.5 py-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer font-medium"
+                                        >
+                                          <RotateCcw size={13} />
+                                          <span>Anular venta & retornar stock</span>
+                                        </button>
+                                      ) : (
+                                        <span className="block px-2.5 py-1.5 text-[11px] font-semibold text-rose-500 dark:text-rose-400/80 italic">
+                                          Venta Anulada (Stock devuelto)
+                                        </span>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -1418,7 +1451,12 @@ export default function Sales() {
                           <span className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40 px-2 py-0.5 rounded-md">
                             {voucher}
                           </span>
-                          {isPaid ? (
+                          {s.status === 'anulado' ? (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 px-2.5 py-0.5 rounded-full border border-rose-200/50 dark:border-rose-800/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                              <span>Anulada</span>
+                            </span>
+                          ) : isPaid ? (
                             <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-0.5 rounded-full border border-emerald-200/50 dark:border-emerald-800/30">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               <span>Pagado</span>
@@ -1516,17 +1554,23 @@ export default function Sales() {
                                     <Pencil size={13} />
                                     <span>Editar datos</span>
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveMenuId(null)
-                                      setConfirmDelete(s)
-                                    }}
-                                    className="w-full px-2.5 py-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-2"
-                                  >
-                                    <Trash2 size={13} />
-                                    <span>Anular venta</span>
-                                  </button>
+                                  {s.status !== 'anulado' ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveMenuId(null)
+                                        setConfirmDelete(s)
+                                      }}
+                                      className="w-full px-2.5 py-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer font-medium"
+                                    >
+                                      <RotateCcw size={13} />
+                                      <span>Anular venta & retornar stock</span>
+                                    </button>
+                                  ) : (
+                                    <span className="block px-2.5 py-1.5 text-[11px] font-semibold text-rose-500 dark:text-rose-400/80 italic">
+                                      Venta Anulada (Stock devuelto)
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1802,23 +1846,40 @@ export default function Sales() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            MODAL 5: CONFIRMAR ANULACIÓN
+            MODAL 5: CONFIRMAR ANULACIÓN CON RETORNO A STOCK
            ═════════════════════════════════════════════════════════ */}
         {confirmDelete && (
           <Modal
             open={!!confirmDelete}
             onClose={() => setConfirmDelete(null)}
-            title="Anular Comprobante de Venta"
+            title="Anular Comprobante de Venta & Retorno a Stock"
           >
             <div className="space-y-4 text-xs">
-              <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-900 dark:text-red-200 flex items-start gap-3">
-                <AlertTriangle size={18} className="text-red-600 shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-900 dark:text-rose-200 flex items-start gap-3">
+                <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-sm">¿Estás seguro de anular esta venta?</p>
-                  <p className="mt-1 text-slate-600 dark:text-zinc-300">
-                    Se anulará el comprobante <strong>{formatVoucherCode(confirmDelete)}</strong> del cliente <strong>{confirmDelete.client_name || 'General'}</strong> por un importe de <strong className="font-mono">{fmtMoney(confirmDelete.total)}</strong>. Esta acción no se puede deshacer.
+                  <p className="font-bold text-sm">¿Confirmas la anulación de esta venta?</p>
+                  <p className="mt-1 text-slate-600 dark:text-zinc-300 leading-relaxed">
+                    Se anulará el comprobante <strong>{formatVoucherCode(confirmDelete)}</strong> del cliente <strong>{confirmDelete.client_name || 'General'}</strong> por un importe de <strong className="font-mono">{fmtMoney(confirmDelete.total)}</strong>.
+                  </p>
+                  <p className="mt-1.5 font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                    <RotateCcw size={13} />
+                    <span>Los productos retornarán automáticamente al inventario físico en el Kardex.</span>
                   </p>
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
+                  Motivo de Anulación / Devolución:
+                </label>
+                <input
+                  type="text"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Ej: Devolución de cliente, error de emisión, etc."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium"
+                />
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -1833,16 +1894,27 @@ export default function Sales() {
                 <button
                   type="button"
                   disabled={deleting}
-                  onClick={handleDeleteSale}
-                  className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                  onClick={handleCancelSale}
+                  className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Trash2 size={14} />
-                  <span>{deleting ? 'Anulando…' : 'Confirmar Anulación'}</span>
+                  <RotateCcw size={14} />
+                  <span>{deleting ? 'Anulando y reingresando stock…' : 'Anular y Retornar a Stock'}</span>
                 </button>
               </div>
             </div>
           </Modal>
         )}
+
+        {/* ═════════════════════════════════════════════════════════
+            MODAL 6: CIERRE DE CAJA & ARQUEO DE TURNO
+           ═════════════════════════════════════════════════════════ */}
+        <CashClosingModal
+          open={cashClosingOpen}
+          onClose={() => setCashClosingOpen(false)}
+          sales={sales}
+          company={company}
+          currentUser={user}
+        />
 
       </div>
     </AppLayout>

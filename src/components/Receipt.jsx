@@ -27,7 +27,21 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
   )
   const discount = Number(sale?.discount || 0)
   const total = Math.max(subtotal - discount, 0)
-  const ticketCode = `B001-${sale?.id ? sale.id.toString().slice(-6).toUpperCase() : '000001'}`
+  const isAnulado = sale?.status === 'anulado'
+  
+  const voucherTitle = sale?.receipt_type === 'factura'
+    ? 'Factura Electrónica'
+    : sale?.receipt_type === 'nota'
+    ? 'Nota de Venta'
+    : 'Boleta de Venta'
+
+  const serialPrefix = sale?.receipt_type === 'factura'
+    ? 'F001'
+    : sale?.receipt_type === 'nota'
+    ? 'NV01'
+    : 'B001'
+
+  const ticketCode = sale?.invoice_number || `${serialPrefix}-${sale?.id ? String(sale.id).replace(/\D/g, '').slice(-6).padStart(6, '0') : '000001'}`
 
   const clientName = client?.name || sale?.client_name || 'CLIENTE PARTICULAR'
   const clientPhone = client?.phone || sale?.client_phone || ''
@@ -37,9 +51,20 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
   return (
     <div
       ref={ref}
-      className="bg-white text-slate-900 font-sans p-6 rounded-2xl border border-slate-200/90 shadow-sm max-w-[340px] mx-auto text-xs leading-relaxed select-text"
+      className="bg-white text-slate-900 font-sans p-6 rounded-2xl border border-slate-200/90 shadow-sm max-w-[340px] mx-auto text-xs leading-relaxed select-text relative overflow-hidden"
     >
-      
+      {/* ─── Watermark Anulado ─── */}
+      {isAnulado && (
+        <div className="mb-3 p-2.5 rounded-xl bg-rose-50 border-2 border-dashed border-rose-400 text-center">
+          <p className="text-rose-700 font-black tracking-widest text-[11px] uppercase">
+            *** COMPROBANTE ANULADO ***
+          </p>
+          <p className="text-rose-600 font-semibold text-[9px] mt-0.5">
+            SIN VALOR COMERCIAL NI TRIBUTARIO • RETORNADO A STOCK
+          </p>
+        </div>
+      )}
+
       {/* ─── Company Header con Logo Oficial ─── */}
       <div className="text-center pb-3 border-b border-dashed border-slate-300">
         <div className="min-h-[44px] max-h-16 max-w-[220px] mx-auto mb-2 flex items-center justify-center">
@@ -80,7 +105,7 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
       {/* ─── Boleta Badge & Correlative ─── */}
       <div className="my-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
         <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
-          Boleta de Venta
+          {voucherTitle}
         </p>
         <p className="font-mono font-extrabold text-sm text-slate-900 mt-0.5 tracking-wider">
           {ticketCode}
@@ -117,8 +142,14 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
         )}
         <div className="flex justify-between">
           <span className="text-slate-400 font-medium">Condición:</span>
-          <span className="font-semibold text-emerald-700 uppercase text-[10px]">
-            {sale.status === 'pagado' ? 'Al Contado • Pagado' : 'Crédito • Pendiente'}
+          <span className={`font-semibold uppercase text-[10px] ${
+            isAnulado
+              ? 'text-rose-600 font-bold'
+              : sale.status === 'pagado'
+              ? 'text-emerald-700'
+              : 'text-amber-700'
+          }`}>
+            {isAnulado ? 'Anulada' : sale.status === 'pagado' ? 'Al Contado • Pagado' : 'Crédito • Pendiente'}
           </span>
         </div>
       </div>
@@ -189,8 +220,8 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
         </div>
         <p className="font-mono text-[9px] text-slate-400 tracking-widest">{ticketCode}</p>
 
-        <p className="text-[11px] font-semibold text-slate-700">
-          ¡Gracias por su preferencia!
+        <p className="text-[11px] font-semibold text-slate-700 whitespace-pre-line">
+          {company?.footer_message || '¡Gracias por su preferencia! Conserve su comprobante para cambios.'}
         </p>
         <p className="text-[10px] text-slate-400">
           Comprobante emitido electrónicamente por el sistema ERP
