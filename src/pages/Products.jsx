@@ -977,10 +977,10 @@ export default function Products() {
           </div>
         ) : viewMode === 'grid' ? (
           /* ═════════════════════════════════════════════════════════
-              EXACT GRID CARD VIEW (SENIOR ERP REDESIGN)
+              MERCADO LIBRE / MODERN E-COMMERCE SHOWCASE GRID
              ═════════════════════════════════════════════════════════ */
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
               {paginatedProducts.map((p, idx) => {
                 const stock = Number(p.stock) || 0
                 const minStock = Number(p.min_stock) || 0
@@ -993,133 +993,193 @@ export default function Products() {
                 const cat = catName(p.category_id)
                 const sup = supName(p.supplier_id)
 
+                // Split price into integer and decimal like Mercado Libre
+                const salePriceNum = Number(p.sale_price) || 0
+                const intPart = Math.floor(salePriceNum).toLocaleString('es-PE')
+                const decPart = (salePriceNum % 1).toFixed(2).substring(2)
+
+                // Stock progress ratio (e.g. minStock reference or base 100)
+                const stockRatio = isOutOfStock ? 0 : Math.min(100, Math.max(15, Math.round((stock / Math.max(minStock * 2, 20)) * 100)))
+
                 return (
                   <div
                     key={p.id}
-                    className={`bg-white dark:bg-[#141417] rounded-2xl border transition-all flex flex-col justify-between group overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card ${
-                      idx === 0
-                        ? 'border-[#1B4FD8]/60 dark:border-[#1B4FD8]/50'
-                        : 'border-slate-200/80 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700'
-                    }`}
+                    className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/90 dark:border-zinc-800 transition-all duration-300 flex flex-col justify-between group overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_32px_rgba(0,0,0,0.08)] hover:-translate-y-1 hover:border-[#1B4FD8]/40"
                   >
-                    <div className="p-4 sm:p-5">
-                      {/* Top Bar: SKU on left & Status Badge on right */}
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div className="flex flex-col gap-1 items-start">
-                          <span className="font-mono text-xs font-bold text-slate-700 dark:text-zinc-300 bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 px-2.5 py-0.5 rounded-lg shadow-2xs">
+                    <div>
+                      {/* ─── Top Showcase: Product Image & Floating Mercado Libre Badges ─── */}
+                      <div className="relative w-full h-52 sm:h-56 bg-white dark:bg-zinc-900/60 p-4 flex items-center justify-center overflow-hidden border-b border-slate-100 dark:border-zinc-800/80">
+                        {/* Floating Top-Left Badges: SKU & Kit */}
+                        <div className="absolute top-3 left-3 z-10 flex flex-col gap-1 items-start">
+                          <span className="font-mono text-[10.5px] font-bold text-slate-700 dark:text-zinc-300 bg-white/95 dark:bg-zinc-800/95 backdrop-blur-md border border-slate-200/90 dark:border-zinc-700 px-2 py-0.5 rounded-md shadow-2xs">
                             {p.sku || `PROD-000${idx + 1}`}
                           </span>
                           {p.is_kit && (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#5550F2] text-white shadow-2xs">
-                              Combo / Kit
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#5550F2] text-white shadow-xs tracking-wide">
+                              COMBO / KIT
                             </span>
                           )}
                         </div>
 
-                        {/* Status Badge with Dot */}
-                        <div>
+                        {/* Floating Top-Right Badge: Stock Status */}
+                        <div className="absolute top-3 right-3 z-10">
                           <span
-                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold backdrop-blur-md shadow-2xs ${
                               isOutOfStock
-                                ? 'bg-rose-50 text-rose-600 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40'
+                                ? 'bg-rose-50/95 text-rose-600 border border-rose-200 dark:bg-rose-950/80 dark:text-rose-400 dark:border-rose-900/50'
                                 : isLowStock
-                                ? 'bg-amber-50 text-amber-600 border border-amber-200/70 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/40'
-                                : 'bg-emerald-50 text-emerald-600 border border-emerald-200/70 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/40'
+                                ? 'bg-amber-50/95 text-amber-700 border border-amber-200 dark:bg-amber-950/80 dark:text-amber-400 dark:border-amber-900/50'
+                                : 'bg-emerald-50/95 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/80 dark:text-emerald-400 dark:border-emerald-900/50'
                             }`}
                           >
                             <span
                               className={`w-1.5 h-1.5 rounded-full ${
-                                isOutOfStock ? 'bg-rose-500' : isLowStock ? 'bg-amber-500' : 'bg-emerald-500'
+                                isOutOfStock ? 'bg-rose-500' : isLowStock ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
                               }`}
                             />
                             <span>{isOutOfStock ? 'Agotado' : isLowStock ? 'Stock Bajo' : 'Disponible'}</span>
                           </span>
                         </div>
+
+                        {/* Product Image with Hover Zoom */}
+                        <div
+                          onClick={() => openLightbox(p)}
+                          className={`w-full h-full flex items-center justify-center ${
+                            p.image_url ? 'cursor-pointer' : ''
+                          }`}
+                          title={p.image_url ? 'Click para ampliar fotografía en alta resolución' : ''}
+                        >
+                          {p.image_url ? (
+                            <img
+                              src={p.image_url}
+                              alt={p.name}
+                              className="max-h-full max-w-full object-contain transition-transform duration-300 ease-out group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-slate-300 dark:text-zinc-600">
+                              <ImageOff size={36} strokeWidth={1.5} />
+                              <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 mt-1">
+                                Sin fotografía
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Floating Quick Action Overlay on Hover */}
+                        <div className="absolute bottom-2.5 right-2.5 z-10 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          {p.image_url && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openLightbox(p)
+                              }}
+                              className="w-8 h-8 rounded-lg bg-white/95 dark:bg-zinc-800/95 backdrop-blur-md border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:text-[#1B4FD8] flex items-center justify-center shadow-xs cursor-pointer transition-colors"
+                              title="Ampliar imagen"
+                            >
+                              <Eye size={14} />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Large Centered Image Box */}
-                      <div
-                        onClick={() => openLightbox(p)}
-                        className={`relative w-full h-44 sm:h-48 rounded-xl bg-white dark:bg-zinc-900 flex items-center justify-center p-2 mb-4 overflow-hidden transition-all ${
-                          p.image_url ? 'cursor-pointer group-hover:scale-[1.02]' : ''
-                        }`}
-                        title={p.image_url ? 'Click para ampliar imagen' : ''}
-                      >
-                        {p.image_url ? (
-                          <img
-                            src={p.image_url}
-                            alt={p.name}
-                            className="w-full h-full object-contain transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="flex flex-col items-center justify-center text-slate-300 dark:text-zinc-600">
-                            <ImageOff size={34} strokeWidth={1.5} />
-                            <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 mt-1">
-                              Sin fotografía
+                      {/* ─── Card Body: Mercado Libre Style Typography ─── */}
+                      <div className="p-4 sm:p-4.5 space-y-2.5">
+                        {/* Category & Supplier Brand line */}
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider truncate">
+                          <span className="truncate">{cat}</span>
+                          <span className="text-slate-300 dark:text-zinc-600">·</span>
+                          <span className="truncate font-medium text-slate-500 dark:text-zinc-400">{sup}</span>
+                        </div>
+
+                        {/* Product Title */}
+                        <h3
+                          onClick={() => navigate(`/productos/editar/${p.id}`)}
+                          className="font-medium text-slate-800 dark:text-slate-100 text-[14.5px] sm:text-[15px] leading-snug line-clamp-2 min-h-[2.5rem] group-hover:text-[#1B4FD8] dark:group-hover:text-blue-400 transition-colors cursor-pointer"
+                          title={p.name}
+                        >
+                          {p.name}
+                        </h3>
+
+                        {/* Mercado Libre Price Section */}
+                        <div className="pt-1">
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <div className="flex items-baseline font-sans text-slate-900 dark:text-white leading-none">
+                              <span className="text-sm font-semibold mr-1 text-slate-700 dark:text-zinc-300">S/</span>
+                              <span className="text-2xl font-bold tracking-tight">{intPart}</span>
+                              <span className="text-xs font-bold self-start ml-0.5">{decPart}</span>
+                            </div>
+
+                            {marginPct !== null && (
+                              <span className="inline-flex items-center text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded-md">
+                                +{marginPct}% margen
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Reference cost line */}
+                          {Number(p.cost_price) > 0 && (
+                            <p className="text-[11px] font-mono text-slate-400 dark:text-zinc-500 mt-1">
+                              Costo compra: {fmt(p.cost_price)}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Stock & Availability Indicator (Mercado Libre Style) */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-zinc-800/80">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-slate-500 dark:text-zinc-400 font-medium flex items-center gap-1">
+                              Stock disponible:
+                            </span>
+                            <span
+                              className={`font-mono font-bold text-xs ${
+                                isOutOfStock
+                                  ? 'text-rose-600 dark:text-rose-400'
+                                  : isLowStock
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-slate-800 dark:text-zinc-200'
+                              }`}
+                            >
+                              {stock} {p.unit || 'uds.'}
                             </span>
                           </div>
-                        )}
-                      </div>
 
-                      {/* Category & Supplier in uppercase tracking */}
-                      <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1 truncate" title={`${cat} · ${sup}`}>
-                        {cat} <span className="text-slate-300 dark:text-zinc-600">·</span> {sup}
-                      </p>
-
-                      {/* Product Name */}
-                      <h3
-                        onClick={() => navigate(`/productos/editar/${p.id}`)}
-                        className="font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-1 hover:text-[#1B4FD8] dark:hover:text-blue-400 transition-colors cursor-pointer"
-                      >
-                        {p.name}
-                      </h3>
-
-                      {/* Existencias */}
-                      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs">
-                        <span className="text-slate-500 dark:text-zinc-400 font-medium">Existencias:</span>
-                        <span
-                          className={`font-mono font-bold text-xs sm:text-sm ${
-                            isOutOfStock
-                              ? 'text-rose-600 dark:text-rose-400'
-                              : isLowStock
-                              ? 'text-amber-600 dark:text-amber-400'
-                              : 'text-slate-900 dark:text-white'
-                          }`}
-                        >
-                          {stock} {p.unit || 'unidad'}
-                        </span>
+                          {/* Mini Stock Health Bar */}
+                          <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
+                            <div
+                              style={{ width: `${stockRatio}%` }}
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                isOutOfStock
+                                  ? 'bg-rose-500'
+                                  : isLowStock
+                                  ? 'bg-amber-500'
+                                  : 'bg-emerald-500'
+                              }`}
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Bottom Row: Price & Quick Action Icons */}
-                    <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-zinc-800/40 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
-                      <div>
-                        <p className="font-mono font-black text-base sm:text-lg text-slate-900 dark:text-white leading-tight">
-                          {fmt(p.sale_price)}
-                        </p>
-                        {marginPct !== null && (
-                          <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                            +{marginPct}% margen
-                          </p>
-                        )}
-                      </div>
+                    {/* ─── Bottom Actions Bar (Sleek Clean Controls) ─── */}
+                    <div className="p-3 sm:px-4 sm:py-3 bg-slate-50/80 dark:bg-zinc-800/40 border-t border-slate-100 dark:border-zinc-800 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/productos/editar/${p.id}`)}
+                        className="flex-1 py-2 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200/90 dark:border-zinc-700 hover:border-[#1B4FD8] hover:bg-[#1B4FD8] text-slate-700 dark:text-zinc-200 hover:text-white dark:hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                      >
+                        <Pencil size={13} />
+                        <span>Editar Ficha</span>
+                      </button>
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => navigate(`/productos/editar/${p.id}`)}
-                          title="Editar producto"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors cursor-pointer"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          onClick={() => setConfirmDelete(p)}
-                          title="Eliminar producto"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(p)}
+                        title="Eliminar producto"
+                        className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:border-rose-200 transition-colors cursor-pointer shadow-2xs"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                 )
