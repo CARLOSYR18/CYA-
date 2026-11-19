@@ -181,10 +181,10 @@ export default function Clients() {
 
   const chartCoordinates = useMemo(() => {
     const width = 460
-    const height = 150
+    const height = 155
     const paddingLeft = 40
     const paddingRight = 30
-    const paddingTop = 20
+    const paddingTop = 36
     const paddingBottom = 25
     const innerW = width - paddingLeft - paddingRight
     const innerH = height - paddingTop - paddingBottom
@@ -371,228 +371,162 @@ export default function Clients() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            0. BREADCRUMB & HEADER ROW (EXACT REFERENCE DESIGN)
+            0. INSTITUTIONAL HEADER & TELEMETRY SCOPE
            ═════════════════════════════════════════════════════════ */}
-        <div className="space-y-3">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-            <Home size={14} className="text-slate-400 dark:text-zinc-500" />
-            <span className="text-slate-300 dark:text-zinc-600">›</span>
-            <span className="font-semibold text-slate-700 dark:text-zinc-300">Cartera de Clientes & CRM</span>
-          </div>
-
-          {/* Title & Actions Row */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <PageHeaderBadge type="clients" />
-              <div>
-                <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
-                  Cartera de Clientes & CRM
-                </h1>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
-                  Gestiona tu cartera de clientes, historial de compras, frecuencia de consumo y contacto directo.
-                </p>
+        <div className="space-y-2">
+          {/* Breadcrumb + Scope */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                <span>MÓDULO COMERCIAL</span>
+                <span>/</span>
+                <span className="text-slate-600 dark:text-zinc-400">CARTERA Y DIRECTORIO DE CLIENTES</span>
               </div>
+              <div className="flex items-center gap-2.5 mt-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Directorio Comercial & Cartera de Clientes
+                </h1>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                  {stats.totalClients} CUENTAS REGISTRADAS
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 max-w-2xl">
+                Control de ciclo de vida del cliente, fidelización LTV, recurrencia de compra y contacto comercial directo.
+              </p>
             </div>
 
-            <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               {/* Excel Button */}
               <button
                 onClick={handleExportExcel}
-                className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
                 title="Exportar cartera a Excel / CSV"
               >
-                <FileSpreadsheet size={16} className="text-emerald-600 dark:text-emerald-400" />
+                <FileSpreadsheet size={15} className="text-emerald-600 dark:text-emerald-400" />
                 <span>Exportar Excel</span>
               </button>
 
               {/* + Nuevo Cliente Primary Button */}
               <button
                 onClick={openCreate}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-2 shadow-sm shadow-blue-600/25 transition-all cursor-pointer"
               >
-                <Plus size={16} strokeWidth={2.5} />
-                <span>+ Nuevo Cliente</span>
+                <Plus size={15} strokeWidth={2.5} />
+                <span>Registrar Cliente</span>
               </button>
             </div>
           </div>
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            1. 4 KPI CARDS (EXACT MATCHING DESIGN & PROPORTIONS)
+            1. 4 FINANCIAL & CLIENT TELEMETRY CARDS (SENIOR ERP GRADE)
            ═════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 animate-fade-in">
           
-          {/* Card 1: Cartera Activa (Blue) */}
-          <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
-                <Users size={20} />
+          {/* Card 1: Cartera Activa */}
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                  CARTERA TOTAL
+                </span>
+                <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
+                  CRM ACTIVO
+                </span>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                  Cartera Activa
-                </p>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                  {loading ? '…' : stats.totalClients}
-                </h3>
-                <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
-                  <span>↑ +12.5%</span>
-                  <span className="text-slate-400 dark:text-zinc-500 font-normal ml-0.5">
-                    ({stats.recurringClients} recurrentes)
-                  </span>
-                </p>
+              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                {loading ? '…' : stats.totalClients}
+                <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">cuentas</span>
               </div>
             </div>
-            {/* Sparkline curve (Blue) */}
-            <div className="w-20 h-10 shrink-0">
-              <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                <defs>
-                  <linearGradient id="sparkBlue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M 0 32 Q 20 30 35 22 T 60 16 T 80 6 L 80 40 L 0 40 Z"
-                  fill="url(#sparkBlue)"
-                />
-                <path
-                  d="M 0 32 Q 20 30 35 22 T 60 16 T 80 6"
-                  fill="none"
-                  stroke="#3B82F6"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                />
-              </svg>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-400">
+              <div className="flex items-center justify-between">
+                <span>Recurrentes: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.recurringClients}</strong></span>
+                <span>Nuevos: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.newClients}</strong></span>
+              </div>
+              {/* Segmented bar */}
+              <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden mt-1.5 flex">
+                <div style={{ width: `${segmentStats.recPct}%` }} className="bg-blue-600 h-full" title={`Recurrentes: ${segmentStats.recPct}%`} />
+                <div style={{ width: `${segmentStats.vipPct}%` }} className="bg-amber-500 h-full" title={`VIP: ${segmentStats.vipPct}%`} />
+                <div style={{ width: `${segmentStats.newPct}%` }} className="bg-emerald-500 h-full" title={`Nuevos: ${segmentStats.newPct}%`} />
+                <div style={{ width: `${segmentStats.leadPct}%` }} className="bg-slate-300 h-full" title={`Prospectos: ${segmentStats.leadPct}%`} />
+              </div>
             </div>
           </div>
 
-          {/* Card 2: Facturación Total (Green) */}
-          <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                <TrendingUp size={20} />
+          {/* Card 2: Facturación Total (LTV) */}
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                  FACTURACIÓN CARTERA
+                </span>
+                <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">
+                  LTV TOTAL
+                </span>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                  Facturación Clientes
-                </p>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                  {loading ? '…' : fmt(stats.totalSpentAll)}
-                </h3>
-                <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
-                  <span>↑ +8.3%</span>
-                  <span className="text-slate-400 dark:text-zinc-500 font-normal ml-0.5">ventas liquidadas</span>
-                </p>
+              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                {loading ? '…' : fmt(stats.totalSpentAll)}
               </div>
             </div>
-            {/* Sparkline curve (Green) */}
-            <div className="w-20 h-10 shrink-0">
-              <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                <defs>
-                  <linearGradient id="sparkGreen" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10B981" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M 0 35 Q 22 34 38 24 T 62 18 T 80 8 L 80 40 L 0 40 Z"
-                  fill="url(#sparkGreen)"
-                />
-                <path
-                  d="M 0 35 Q 22 34 38 24 T 62 18 T 80 8"
-                  fill="none"
-                  stroke="#10B981"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                />
-              </svg>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                <TrendingUp size={12} /> +8.3% liquidado
+              </span>
+              <span className="font-mono text-slate-400">100% cobrado</span>
             </div>
           </div>
 
-          {/* Card 3: Ticket Promedio (Purple) */}
-          <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-full bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                <DollarSign size={20} />
+          {/* Card 3: Ticket Promedio */}
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                  TICKET PROMEDIO
+                </span>
+                <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40">
+                  POR CUENTA
+                </span>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                  Ticket Promedio
-                </p>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                  {loading ? '…' : fmt(stats.avgTicket)}
-                </h3>
-                <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
-                  <span>↑ +2.1%</span>
-                  <span className="text-slate-400 dark:text-zinc-500 font-normal ml-0.5">inversión media</span>
-                </p>
+              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                {loading ? '…' : fmt(stats.avgTicket)}
               </div>
             </div>
-            {/* Sparkline curve (Purple) */}
-            <div className="w-20 h-10 shrink-0">
-              <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                <defs>
-                  <linearGradient id="sparkPurple" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#A855F7" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="#A855F7" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M 0 34 Q 24 30 42 20 T 64 16 T 80 6 L 80 40 L 0 40 Z"
-                  fill="url(#sparkPurple)"
-                />
-                <path
-                  d="M 0 34 Q 24 30 42 20 T 64 16 T 80 6"
-                  fill="none"
-                  stroke="#A855F7"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                />
-              </svg>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+              <span>Ratio medio de compra</span>
+              <span className="font-mono font-semibold text-slate-700 dark:text-zinc-300">
+                {stats.totalClients > 0 ? (stats.totalSpentAll / stats.totalClients).toFixed(2) : 0} S//cli
+              </span>
             </div>
           </div>
 
-          {/* Card 4: Cliente VIP Top (Amber) */}
-          <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="w-11 h-11 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                <Crown size={20} />
+          {/* Card 4: Cliente VIP Top */}
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                  CLIENTE VIP TOP
+                </span>
+                <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900/40 flex items-center gap-1">
+                  <Crown size={10} /> {stats.vipClients} VIPs
+                </span>
               </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                  Cliente VIP Top
-                </p>
-                <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight mt-0.5 truncate max-w-[130px]">
-                  {loading ? '…' : (stats.topClient?.name || 'Amigo de Angel')}
-                </h3>
-                <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 truncate mt-0.5">
-                  {stats.topClient ? fmt(stats.topClient.totalSpent) : 'S/ 698.29'}
-                </p>
+              <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight mt-1 truncate" title={stats.topClient?.name}>
+                {loading ? '…' : (stats.topClient?.name || 'Cliente Particular')}
               </div>
             </div>
-            {/* Sparkline curve (Amber) */}
-            <div className="w-20 h-10 shrink-0">
-              <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                <defs>
-                  <linearGradient id="sparkAmber" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M 0 33 Q 25 35 45 25 T 66 18 T 80 9 L 80 40 L 0 40 Z"
-                  fill="url(#sparkAmber)"
-                />
-                <path
-                  d="M 0 33 Q 25 35 45 25 T 66 18 T 80 9"
-                  fill="none"
-                  stroke="#F59E0B"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                />
-              </svg>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
+              <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                {stats.topClient ? fmt(stats.topClient.totalSpent) : 'S/ 0.00'}
+              </span>
+              <span className="text-slate-400 dark:text-zinc-500 font-mono">
+                {stats.topClient?.salesCount || 0} compras
+              </span>
             </div>
           </div>
 
@@ -601,52 +535,44 @@ export default function Clients() {
         {/* ═════════════════════════════════════════════════════════
             2. MIDDLE SECTION: 3 CARDS (CHART, DONUT, ACCIONES)
            ═════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           
           {/* Card 1: Evolución de Inversión por Clientes (Area chart) */}
-          <div className="lg:col-span-6 xl:col-span-5 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-            <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="lg:col-span-6 xl:col-span-5 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-3 mb-2">
               <div className="flex items-center gap-2">
-                <BarChart2 size={18} className="text-blue-600 shrink-0" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Evolución de Compras
+                <BarChart2 size={16} className="text-blue-600 shrink-0" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
+                  Evolución de Compras & LTV
                 </h3>
               </div>
-              <div className="inline-flex items-center bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1 text-xs">
-                <select
-                  value={chartPeriod}
-                  onChange={(e) => setChartPeriod(e.target.value)}
-                  className="bg-transparent text-xs text-slate-600 dark:text-zinc-300 font-semibold outline-none cursor-pointer"
-                >
-                  <option value="6MONTHS" className="dark:bg-zinc-900">Últimos 6 meses</option>
-                  <option value="30DAYS" className="dark:bg-zinc-900">Últimos 30 días</option>
-                  <option value="YEAR" className="dark:bg-zinc-900">Este año</option>
-                </select>
+              <div className="flex items-center gap-2">
+                <span className="hidden sm:inline-block font-mono font-bold text-xs text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md border border-blue-200/60 dark:border-blue-900/40">
+                  {fmt(stats.totalSpentAll)}
+                </span>
+                <div className="inline-flex items-center bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2 py-0.5 text-xs">
+                  <select
+                    value={chartPeriod}
+                    onChange={(e) => setChartPeriod(e.target.value)}
+                    className="bg-transparent text-xs text-slate-600 dark:text-zinc-300 font-semibold outline-none cursor-pointer"
+                  >
+                    <option value="6MONTHS" className="dark:bg-zinc-900">Últimos 6 meses</option>
+                    <option value="30DAYS" className="dark:bg-zinc-900">Últimos 30 días</option>
+                    <option value="YEAR" className="dark:bg-zinc-900">Este año</option>
+                  </select>
+                </div>
               </div>
             </div>
 
-            {/* Interactive SVG Chart */}
-            <div className="relative pt-6 pb-2 w-full">
-              {chartCoordinates.coords.length > 0 && (
-                <div
-                  className="absolute bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 shadow-md rounded-lg px-2.5 py-1 text-xs font-black text-slate-900 dark:text-white pointer-events-none transform -translate-x-1/2 -translate-y-full z-10 font-mono"
-                  style={{
-                    left: `${(chartCoordinates.coords[chartCoordinates.coords.length - 1].x / chartCoordinates.width) * 100}%`,
-                    top: `${(chartCoordinates.coords[chartCoordinates.coords.length - 1].y / chartCoordinates.height) * 100 - 8}%`
-                  }}
-                >
-                  {fmt(stats.totalSpentAll)}
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-white dark:border-t-zinc-900" />
-                </div>
-              )}
-
+            {/* Interactive SVG Chart (Zero-Overlap Precision) */}
+            <div className="relative pt-2 pb-1 w-full">
               <svg
                 viewBox={`0 0 ${chartCoordinates.width} ${chartCoordinates.height}`}
                 className="w-full h-44 overflow-visible"
               >
                 <defs>
                   <linearGradient id="clientSalesGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.32" />
+                    <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.25" />
                     <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
@@ -685,8 +611,8 @@ export default function Clients() {
                 <path
                   d={chartCoordinates.pathD}
                   fill="none"
-                  stroke="#2563EB"
-                  strokeWidth="3"
+                  stroke="#1B4FD8"
+                  strokeWidth="2.5"
                   strokeLinecap="round"
                 />
 
@@ -696,9 +622,9 @@ export default function Clients() {
                     key={idx}
                     cx={pt.x}
                     cy={pt.y}
-                    r={idx === chartCoordinates.coords.length - 1 ? 5 : 3.5}
-                    className="fill-blue-600 stroke-white dark:stroke-zinc-900"
-                    strokeWidth={idx === chartCoordinates.coords.length - 1 ? 3 : 2}
+                    r={idx === chartCoordinates.coords.length - 1 ? 5 : 3}
+                    className="fill-[#1B4FD8] stroke-white dark:stroke-zinc-900"
+                    strokeWidth={idx === chartCoordinates.coords.length - 1 ? 2.5 : 1.5}
                   />
                 ))}
 
@@ -834,66 +760,73 @@ export default function Clients() {
             </div>
           </div>
 
-          {/* Card 3: Acciones Rápidas (2x2 action grid) */}
-          <div className="lg:col-span-12 xl:col-span-3 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-            <div className="flex items-center gap-2 mb-4">
-              <Zap size={18} className="text-blue-600 shrink-0" />
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Acciones Rápidas
-              </h3>
+          {/* Card 3: Acciones Rápidas & Control CRM */}
+          <div className="lg:col-span-12 xl:col-span-3 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
+                <Zap size={15} className="text-blue-600 shrink-0" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
+                  Acciones Rápidas
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono text-slate-400">CRM SHORTCUTS</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 my-auto">
+            <div className="grid grid-cols-2 gap-2 my-auto">
               {/* Action 1: Nuevo Cliente */}
               <button
                 onClick={openCreate}
-                className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-zinc-800/60 hover:bg-blue-50/70 dark:hover:bg-blue-950/30 border border-slate-200/70 dark:border-zinc-700/80 flex flex-col items-center justify-center text-center transition-all group cursor-pointer"
+                className="p-2.5 rounded-lg bg-slate-50 hover:bg-blue-50/80 dark:bg-zinc-800/60 dark:hover:bg-zinc-700/60 border border-slate-200/80 dark:border-zinc-700 flex flex-col items-center justify-center text-center transition-all group cursor-pointer shadow-2xs"
               >
-                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <UserPlus size={18} />
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-1 border border-blue-200/60 dark:border-blue-900/40 group-hover:scale-105 transition-transform">
+                  <UserPlus size={15} />
                 </div>
-                <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                <span className="text-[11px] font-bold text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
                   Nuevo Cliente
                 </span>
+                <span className="text-[9px] text-slate-400 font-mono">Alta directa</span>
               </button>
 
               {/* Action 2: Nueva Venta */}
               <button
                 onClick={() => navigate('/ventas/nueva')}
-                className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-zinc-800/60 hover:bg-blue-50/70 dark:hover:bg-blue-950/30 border border-slate-200/70 dark:border-zinc-700/80 flex flex-col items-center justify-center text-center transition-all group cursor-pointer"
+                className="p-2.5 rounded-lg bg-slate-50 hover:bg-emerald-50/80 dark:bg-zinc-800/60 dark:hover:bg-zinc-700/60 border border-slate-200/80 dark:border-zinc-700 flex flex-col items-center justify-center text-center transition-all group cursor-pointer shadow-2xs"
               >
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <ShoppingCart size={18} />
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-1 border border-emerald-200/60 dark:border-emerald-900/40 group-hover:scale-105 transition-transform">
+                  <ShoppingCart size={15} />
                 </div>
-                <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                <span className="text-[11px] font-bold text-slate-800 dark:text-zinc-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
                   Nueva Venta
                 </span>
+                <span className="text-[9px] text-slate-400 font-mono">Facturar POS</span>
               </button>
 
               {/* Action 3: Exportar Excel */}
               <button
                 onClick={handleExportExcel}
-                className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-zinc-800/60 hover:bg-blue-50/70 dark:hover:bg-blue-950/30 border border-slate-200/70 dark:border-zinc-700/80 flex flex-col items-center justify-center text-center transition-all group cursor-pointer"
+                className="p-2.5 rounded-lg bg-slate-50 hover:bg-purple-50/80 dark:bg-zinc-800/60 dark:hover:bg-zinc-700/60 border border-slate-200/80 dark:border-zinc-700 flex flex-col items-center justify-center text-center transition-all group cursor-pointer shadow-2xs"
               >
-                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <FileSpreadsheet size={18} />
+                <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-1 border border-purple-200/60 dark:border-purple-900/40 group-hover:scale-105 transition-transform">
+                  <FileSpreadsheet size={15} />
                 </div>
-                <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                  Exportar CRM
+                <span className="text-[11px] font-bold text-slate-800 dark:text-zinc-200 group-hover:text-purple-600 dark:group-hover:text-purple-400">
+                  Exportar CSV
                 </span>
+                <span className="text-[9px] text-slate-400 font-mono">Directorio</span>
               </button>
 
               {/* Action 4: Historial de Ventas */}
               <button
                 onClick={() => navigate('/ventas')}
-                className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-zinc-800/60 hover:bg-blue-50/70 dark:hover:bg-blue-950/30 border border-slate-200/70 dark:border-zinc-700/80 flex flex-col items-center justify-center text-center transition-all group cursor-pointer"
+                className="p-2.5 rounded-lg bg-slate-50 hover:bg-amber-50/80 dark:bg-zinc-800/60 dark:hover:bg-zinc-700/60 border border-slate-200/80 dark:border-zinc-700 flex flex-col items-center justify-center text-center transition-all group cursor-pointer shadow-2xs"
               >
-                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Receipt size={18} />
+                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-1 border border-amber-200/60 dark:border-amber-900/40 group-hover:scale-105 transition-transform">
+                  <Receipt size={15} />
                 </div>
-                <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                <span className="text-[11px] font-bold text-slate-800 dark:text-zinc-200 group-hover:text-amber-600 dark:group-hover:text-amber-400">
                   Ver Ventas
                 </span>
+                <span className="text-[9px] text-slate-400 font-mono">Historial</span>
               </button>
             </div>
           </div>
@@ -903,14 +836,14 @@ export default function Clients() {
         {/* ═════════════════════════════════════════════════════════
             3. CRM SEARCH, FILTER & SEGMENTATION BAR
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-3.5">
+        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3.5 shadow-2xs space-y-3">
           
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             {/* Search Input */}
             <div className="relative flex-1 w-full">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" />
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" />
               <input
-                className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-10 pr-9 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all outline-none"
+                className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 rounded-lg pl-9 pr-8 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-800 focus:border-[#1B4FD8] transition-colors outline-none"
                 placeholder="Buscar cliente por nombre, teléfono, DNI o RUC..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -929,7 +862,7 @@ export default function Clients() {
             {/* Sort & View Mode Controls */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Sort Selector */}
-              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-2.5 py-1.5">
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1.5">
                 <ArrowUpDown size={13} className="text-slate-400 dark:text-zinc-500 shrink-0" />
                 <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium shrink-0">Ordenar:</span>
                 <select
@@ -945,30 +878,30 @@ export default function Clients() {
               </div>
 
               {/* View Mode Toggle */}
-              <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200/80 dark:border-zinc-700 shrink-0">
+              <div className="inline-flex items-center p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-lg border border-slate-200/80 dark:border-zinc-700 shrink-0">
                 <button
                   type="button"
                   onClick={() => setViewMode('grid')}
                   title="Vista en tarjetas"
-                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                  className={`p-1.5 rounded-md transition-all cursor-pointer ${
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-xs font-semibold'
+                      ? 'bg-white dark:bg-zinc-700 text-[#1B4FD8] dark:text-blue-400 shadow-xs font-semibold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <LayoutGrid size={15} />
+                  <LayoutGrid size={14} />
                 </button>
                 <button
                   type="button"
                   onClick={() => setViewMode('table')}
                   title="Vista en tabla"
-                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                  className={`p-1.5 rounded-md transition-all cursor-pointer ${
                     viewMode === 'table'
-                      ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-xs font-semibold'
+                      ? 'bg-white dark:bg-zinc-700 text-[#1B4FD8] dark:text-blue-400 shadow-xs font-semibold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <List size={15} />
+                  <List size={14} />
                 </button>
               </div>
 
@@ -976,7 +909,7 @@ export default function Clients() {
               {hasActiveFilters && (
                 <button
                   onClick={handleResetFilters}
-                  className="px-2.5 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/70 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-100 transition-colors flex items-center gap-1 cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/40 bg-rose-50/70 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-100 transition-colors flex items-center gap-1 cursor-pointer"
                   title="Restablecer filtros"
                 >
                   <RefreshCw size={12} />
@@ -987,8 +920,8 @@ export default function Clients() {
           </div>
 
           {/* Segment Pills Row */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2.5 border-t border-slate-100 dark:border-zinc-800 -mx-1 px-1">
-            <span className="text-[11px] font-bold uppercase text-slate-400 dark:text-zinc-500 mr-1 shrink-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-2 border-t border-slate-100 dark:border-zinc-800 -mx-1 px-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 mr-1 shrink-0">
               Segmento:
             </span>
 
@@ -1005,13 +938,13 @@ export default function Clients() {
                 <button
                   key={tab.id}
                   onClick={() => setSegmentFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-xl font-semibold transition-all whitespace-nowrap shrink-0 text-xs flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all whitespace-nowrap shrink-0 text-xs flex items-center gap-1.5 cursor-pointer ${
                     active
-                      ? 'bg-blue-600 text-white shadow-xs'
+                      ? 'bg-[#1B4FD8] text-white shadow-xs font-bold'
                       : 'bg-slate-100/80 dark:bg-zinc-800/60 text-slate-600 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60'
                   }`}
                 >
-                  {TabIcon && <TabIcon size={13} className={active ? 'text-white' : tab.color} />}
+                  {TabIcon && <TabIcon size={12} className={active ? 'text-white' : tab.color} />}
                   <span>{tab.label}</span>
                 </button>
               )
@@ -1396,7 +1329,7 @@ export default function Clients() {
                           onClick={() => setCurrentPage(pageNum)}
                           className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                             currentPage === pageNum
-                              ? 'bg-blue-600 text-white shadow-xs'
+                              ? 'bg-[#1B4FD8] text-white shadow-xs'
                               : 'bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
                           }`}
                         >
