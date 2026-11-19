@@ -581,6 +581,41 @@ export default function NewSupplier() {
                 </div>
               </div>
 
+              {/* Main Actions Bar (Positioned safely on the left column, zero overlap with floating assistant) */}
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
+                  <span className="font-medium">Expediente comercial auditado en Kardex</span>
+                </div>
+
+                <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => requestLeave('/proveedores')}
+                    className="w-1/2 sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer text-center"
+                  >
+                    Cancelar [Esc]
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={handleSubmit}
+                    className="w-1/2 sm:w-auto px-6 py-2.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-98 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  >
+                    {isProcessing ? (
+                      <span>Guardando…</span>
+                    ) : (
+                      <>
+                        <Check size={16} strokeWidth={2.5} />
+                        <span>{isEditing ? 'Guardar Cambios' : 'Registrar Proveedor'}</span>
+                        <kbd className="px-1.5 py-0.5 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
             </div>
 
             {/* ─── RIGHT COLUMN: LIVE CARD PREVIEW & ACTIONS (5 COLS) ─── */}
@@ -710,37 +745,9 @@ export default function NewSupplier() {
                   </div>
                 )}
 
-                {/* Main Action Button */}
-                <div className="space-y-2 pt-1">
-                  <button
-                    type="button"
-                    disabled={isProcessing}
-                    onClick={handleSubmit}
-                    className="w-full py-3 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-98 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-                  >
-                    {isProcessing ? (
-                      <span>Guardando proveedor…</span>
-                    ) : (
-                      <>
-                        <Check size={16} strokeWidth={2.5} />
-                        <span>{isEditing ? 'Guardar Cambios' : 'Registrar Proveedor'}</span>
-                        <kbd className="px-1.5 py-0.5 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => requestLeave('/proveedores')}
-                    className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer text-center"
-                  >
-                    Cancelar y Regresar [Esc]
-                  </button>
-                </div>
-
-                <div className="pt-1 text-center text-[10.5px] text-slate-400 flex items-center justify-center gap-1">
-                  <ShieldCheck size={13} className="text-emerald-500" />
-                  <span>Vinculación instantánea al catálogo de abastecimiento</span>
+                <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
+                  <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
+                  <span>Vinculación directa al módulo de compras y kardex</span>
                 </div>
               </div>
 
