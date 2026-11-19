@@ -195,6 +195,44 @@ export default function NewUser() {
   const hasNumber = /[0-9]/.test(pwd)
   const isPwdValid = hasMinLength && hasLower && hasUpper && hasNumber
 
+  const isEmailValid = useMemo(() => {
+    const clean = form.email.trim().toLowerCase()
+    return Boolean(
+      clean &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean) &&
+      emailCheck.status !== 'blocked' &&
+      !isPlatformAdminEmail(clean)
+    )
+  }, [form.email, emailCheck.status])
+
+  const validations = useMemo(() => [
+    { label: 'Nombre de colaborador registrado (mín. 3 caracteres)', valid: form.full_name.trim().length >= 3 },
+    { label: 'Correo corporativo verificado y disponible', valid: isEmailValid },
+    { label: isEditing ? 'Credenciales de acceso configuradas' : 'Contraseña de alta seguridad (Mayús, Minús, Núm)', valid: isEditing ? true : isPwdValid },
+    { label: `Privilegio RBAC asignado (${form.role === 'admin' ? 'Administrador' : 'Empleado'})`, valid: Boolean(form.role) },
+    { label: 'Sincronización instantánea con accesos ERP', valid: true }
+  ], [form.full_name, isEmailValid, isEditing, isPwdValid, form.role])
+
+  const validationsCount = validations.filter((v) => v.valid).length
+
+  // Global keyboard shortcuts (F2: Guardar, Esc: Cancelar)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'F2') {
+        e.preventDefault()
+        if (!isProcessing) {
+          handleSubmit(e)
+        }
+      } else if (e.key === 'Escape') {
+        if (!isProcessing) {
+          requestLeave('/usuarios')
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleSubmit, isProcessing, requestLeave])
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -285,41 +323,73 @@ export default function NewUser() {
 
   return (
     <AppLayout title={isEditing ? 'Modificar Usuario' : 'Nuevo Usuario'}>
-      <div className="space-y-4 max-w-6xl mx-auto pb-8 animate-fade-in">
+      <div className="space-y-4 max-w-6xl mx-auto pb-32 sm:pb-40 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
-            0. COMPACT BREADCRUMB & TOP HEADER BAR
+            0. COMPACT BREADCRUMB & TOP HEADER BAR (EXECUTIVE STANDARD)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-white dark:bg-[#141417] p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-zinc-800/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => requestLeave('/usuarios')}
-              className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95 shadow-xs"
-              title="Regresar a Usuarios"
+              className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer shrink-0 shadow-2xs"
+              title="Volver a Usuarios (Esc)"
             >
               <ArrowLeft size={16} />
             </button>
             <div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <span className="hover:text-blue-600 cursor-pointer" onClick={() => requestLeave('/usuarios')}>
-                  Usuarios y Roles
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                <span className="hover:text-[#1B4FD8] cursor-pointer" onClick={() => requestLeave('/usuarios')}>
+                  ADMINISTRACIÓN
                 </span>
                 <span>/</span>
-                <span className="text-blue-600 dark:text-blue-400 font-semibold">
-                  {isEditing ? 'Ficha de Colaborador' : 'Nuevo Registro'}
+                <span className="hover:text-[#1B4FD8] cursor-pointer" onClick={() => requestLeave('/usuarios')}>
+                  EQUIPO & ROLES
+                </span>
+                <span>/</span>
+                <span className="text-[#1B4FD8] dark:text-blue-400">
+                  {isEditing ? 'FICHA DE COLABORADOR' : 'NUEVO REGISTRO'}
                 </span>
               </div>
-              <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                {isEditing ? `Editar: ${originalUser?.full_name || form.full_name}` : 'Registrar Nuevo Usuario'}
-              </h1>
+              <div className="flex items-center gap-2.5 mt-0.5">
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-none">
+                  {isEditing ? `Editar: ${originalUser?.full_name || form.full_name}` : 'Registrar Nuevo Usuario'}
+                </h1>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8]" />
+                  CONTROL RBAC
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30">
-              <UserCog size={14} /> Control de Acceso y Roles
-            </span>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => requestLeave('/usuarios')}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Cancelar [Esc]
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={
+                isProcessing ||
+                !form.full_name.trim() ||
+                !form.email.trim() ||
+                limitReached ||
+                isPlatformAdminEmail(form.email) ||
+                emailCheck.status === 'blocked' ||
+                emailCheck.status === 'checking'
+              }
+              className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-blue-600/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Check size={15} strokeWidth={2.5} />
+              <span>{isEditing ? 'Guardar Cambios' : 'Guardar y Registrar'}</span>
+              <kbd className="px-1 py-0.5 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
+            </button>
           </div>
         </div>
 
@@ -327,7 +397,7 @@ export default function NewUser() {
             PLAN LIMIT NOTICE (IF LIMIT REACHED ON FREE PLAN)
            ═════════════════════════════════════════════════════════ */}
         {limitReached && (
-          <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-900 dark:text-amber-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-900 dark:text-amber-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-2.5">
               <Crown size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="font-semibold">{limitMsg}</span>
@@ -347,7 +417,7 @@ export default function NewUser() {
             ERROR NOTIFICATION
            ═════════════════════════════════════════════════════════ */}
         {error && (
-          <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs flex items-center justify-between gap-2.5 shadow-xs animate-slide-up">
+          <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs flex items-center justify-between gap-2.5 shadow-xs animate-slide-up">
             <div className="flex items-center gap-2.5">
               <AlertCircle size={16} className="shrink-0 text-rose-600 dark:text-rose-400" />
               <span className="font-semibold">{error}</span>
@@ -363,7 +433,7 @@ export default function NewUser() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            MAIN FORM: COMPACT 2-COLUMN SINGLE-SCREEN LAYOUT
+            MAIN FORM: 2-COLUMN SENIOR ENTERPRISE LAYOUT
            ═════════════════════════════════════════════════════════ */}
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
@@ -372,22 +442,24 @@ export default function NewUser() {
             <div className="lg:col-span-7 space-y-4">
 
               {/* CARD 1: PERSONAL & LOGIN CREDENTIALS */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-5 shadow-xs space-y-3.5">
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 sm:p-5 shadow-2xs space-y-3.5">
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <User size={15} className="text-blue-600 dark:text-blue-400" />
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-[#1B4FD8] dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <User size={15} />
+                    </div>
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                       1. Datos Personales y Credenciales
                     </h3>
                   </div>
-                  <span className="text-[10px] sm:text-[11px] text-slate-400 dark:text-zinc-500 font-medium">Campos requeridos *</span>
+                  <span className="text-[11px] text-slate-400 font-medium">Campos obligatorios *</span>
                 </div>
 
                 <div className="space-y-3">
                   {/* Full Name */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1 uppercase tracking-wider">
-                      Nombre Completo del Colaborador *
+                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Nombre Completo del Colaborador <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -396,14 +468,14 @@ export default function NewUser() {
                       placeholder="Ej: Lucía Fernández Ramos"
                       required
                       autoFocus
-                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold"
+                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] focus:bg-white dark:focus:bg-zinc-900 font-medium transition-all"
                     />
                   </div>
 
                   {/* Email */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1 uppercase tracking-wider">
-                      Correo Electrónico (Usuario de Inicio de Sesión) *
+                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Correo Electrónico (Usuario de Inicio de Sesión) <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="email"
@@ -412,7 +484,7 @@ export default function NewUser() {
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
                       placeholder="Ej: lucia.fernandez@empresa.com"
                       required
-                      className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white placeholder:text-slate-400 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-50"
+                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] focus:bg-white dark:focus:bg-zinc-900 font-mono font-medium transition-all disabled:opacity-50"
                     />
                     {(isPlatformAdminEmail(form.email) || emailCheck.status === 'blocked') && (
                       <div className="mt-2 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 rounded-xl text-red-700 dark:text-red-300 text-xs flex items-start gap-2.5 animate-fade-in">
@@ -445,8 +517,12 @@ export default function NewUser() {
 
                   {/* Password */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1 uppercase tracking-wider">
-                      {isEditing ? 'Nueva Contraseña (Dejar vacío para no modificar)' : 'Contraseña de Acceso *'}
+                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      {isEditing ? 'Nueva Contraseña (Dejar vacío para no modificar)' : (
+                        <>
+                          Contraseña de Acceso <span className="text-rose-500">*</span>
+                        </>
+                      )}
                     </label>
                     <div className="relative">
                       <input
@@ -456,7 +532,7 @@ export default function NewUser() {
                         placeholder={isEditing ? '••••••••' : 'Mínimo 6 caracteres'}
                         required={!isEditing}
                         minLength={6}
-                        className="w-full text-xs sm:text-sm pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white placeholder:text-slate-400 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-3.5 pr-10 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] focus:bg-white dark:focus:bg-zinc-900 font-mono transition-all"
                       />
                       <button
                         type="button"
@@ -468,7 +544,7 @@ export default function NewUser() {
                     </div>
 
                     {!isEditing && (
-                      <div className="mt-2 p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 space-y-1.5">
+                      <div className="mt-2.5 p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700/60 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-[10.5px] font-bold text-slate-700 dark:text-zinc-200 uppercase tracking-wider">
                             Requisitos de Contraseña
@@ -482,7 +558,7 @@ export default function NewUser() {
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-1.5 text-[10.5px]">
+                        <div className="grid grid-cols-2 gap-2 text-[10.5px]">
                           <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 dark:text-zinc-500'}`}>
                             <span className="font-mono">{hasMinLength ? '✓' : '○'}</span>
                             <span>Mínimo 6 caracteres</span>
@@ -507,16 +583,18 @@ export default function NewUser() {
               </div>
 
               {/* CARD 2: ROLES & PRIVILEGES */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-5 shadow-xs space-y-3.5">
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 sm:p-5 shadow-2xs space-y-3.5">
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck size={15} className="text-blue-600 dark:text-blue-400" />
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-[#1B4FD8] dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <ShieldCheck size={15} />
+                    </div>
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                       2. Nivel de Acceso y Privilegios
                     </h3>
                   </div>
-                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
-                    {form.role === 'admin' ? 'Acceso Total' : 'Operativo / Ventas'}
+                  <span className="text-[11px] font-bold text-[#1B4FD8] dark:text-blue-400">
+                    {form.role === 'admin' ? 'Control Total' : 'Operativo / Ventas'}
                   </span>
                 </div>
 
@@ -524,15 +602,15 @@ export default function NewUser() {
                   {/* ADMIN ROLE CARD */}
                   <div
                     onClick={() => setForm({ ...form, role: 'admin' })}
-                    className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                    className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                       form.role === 'admin'
-                        ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/20 shadow-xs ring-1 ring-blue-600'
+                        ? 'border-[#1B4FD8] bg-blue-50/50 dark:bg-blue-950/20 shadow-xs ring-1 ring-[#1B4FD8]'
                         : 'border-slate-200/80 dark:border-zinc-700 bg-slate-50/60 dark:bg-zinc-800/40 hover:border-slate-300'
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-[#1B4FD8] dark:text-blue-400 flex items-center justify-center">
                           <ShieldCheck size={18} />
                         </div>
                         <input
@@ -540,30 +618,33 @@ export default function NewUser() {
                           name="role"
                           checked={form.role === 'admin'}
                           onChange={() => setForm({ ...form, role: 'admin' })}
-                          className="w-4 h-4 text-blue-600 cursor-pointer"
+                          className="w-4 h-4 text-[#1B4FD8] cursor-pointer"
                         />
                       </div>
-                      <h4 className="font-extrabold text-slate-900 dark:text-zinc-100 text-xs sm:text-sm">
+                      <h4 className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm">
                         Administrador
                       </h4>
-                      <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 leading-snug">
+                      <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1 leading-snug">
                         Control total: ventas, compras, kardex, edición de catálogo, finanzas y usuarios.
                       </p>
+                    </div>
+                    <div className="pt-2 mt-2 border-t border-slate-200/60 dark:border-zinc-700/60 text-[10px] font-bold uppercase tracking-wider text-[#1B4FD8] dark:text-blue-400">
+                      Dueño de Empresa
                     </div>
                   </div>
 
                   {/* EMPLEADO ROLE CARD */}
                   <div
                     onClick={() => setForm({ ...form, role: 'empleado' })}
-                    className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                    className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                       form.role === 'empleado'
                         ? 'border-purple-600 bg-purple-50/50 dark:bg-purple-950/20 shadow-xs ring-1 ring-purple-600'
                         : 'border-slate-200/80 dark:border-zinc-700 bg-slate-50/60 dark:bg-zinc-800/40 hover:border-slate-300'
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                           <User size={18} />
                         </div>
                         <input
@@ -574,12 +655,15 @@ export default function NewUser() {
                           className="w-4 h-4 text-purple-600 cursor-pointer"
                         />
                       </div>
-                      <h4 className="font-extrabold text-slate-900 dark:text-zinc-100 text-xs sm:text-sm">
+                      <h4 className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm">
                         Empleado / Vendedor
                       </h4>
-                      <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5 leading-snug">
+                      <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1 leading-snug">
                         Operación diaria: ventas, caja POS, clientes y consulta de inventario.
                       </p>
+                    </div>
+                    <div className="pt-2 mt-2 border-t border-slate-200/60 dark:border-zinc-700/60 text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                      Punto de Venta
                     </div>
                   </div>
                 </div>
@@ -615,12 +699,12 @@ export default function NewUser() {
             {/* ─── RIGHT COLUMN: LIVE REPLICA CARD & ACTIONS (5 COLS) ─── */}
             <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-4">
 
-              {/* CARD: LIVE USER BADGE PREVIEW */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-5 shadow-xs space-y-3.5">
+              {/* CARD 1: LIVE USER BADGE PREVIEW */}
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 sm:p-5 shadow-2xs space-y-3.5">
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <Sparkles size={15} className="text-blue-600 dark:text-blue-400" />
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    <Sparkles size={15} className="text-[#1B4FD8] dark:text-blue-400" />
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                       Ficha de Usuario en Vivo
                     </h3>
                   </div>
@@ -634,10 +718,10 @@ export default function NewUser() {
                 </p>
 
                 {/* THE MOCK CARD */}
-                <div className="bg-gradient-to-b from-white to-slate-50/60 dark:from-[#18181c] dark:to-[#121215] rounded-2xl border border-slate-200/80 dark:border-zinc-700 p-4 shadow-sm space-y-3.5">
+                <div className="bg-gradient-to-b from-white to-slate-50/60 dark:from-[#18181c] dark:to-[#121215] rounded-xl border border-slate-200/90 dark:border-zinc-700/80 p-4 shadow-2xs space-y-3.5">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-2xl bg-gradient-to-br ${avatarStyle.bg} flex items-center justify-center font-black text-base text-white shrink-0 shadow-xs`}
+                      className={`w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] rounded-xl bg-gradient-to-br ${avatarStyle.bg} flex items-center justify-center font-black text-base text-white shrink-0 shadow-xs`}
                     >
                       {getInitials(form.full_name || 'US')}
                     </div>
@@ -684,14 +768,54 @@ export default function NewUser() {
                 {/* PLAN CAPACITY STRIP */}
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/40 border border-slate-200/60 dark:border-zinc-700/60 flex items-center justify-between text-xs">
                   <span className="text-slate-600 dark:text-zinc-300 font-bold flex items-center gap-1.5">
-                    <Building2 size={14} className="text-blue-600 dark:text-blue-400" /> Capacidad en Plan
+                    <Building2 size={14} className="text-[#1B4FD8] dark:text-blue-400" /> Capacidad en Plan
                   </span>
-                  <span className="font-mono font-black text-blue-600 dark:text-blue-400">
+                  <span className="font-mono font-black text-[#1B4FD8] dark:text-blue-400">
                     {allUsersCount} {allUsersCount === 1 ? 'registrado' : 'registrados'}
                   </span>
                 </div>
+              </div>
 
-                {/* PRIMARY SUBMIT BUTTON */}
+              {/* CARD 2: VALIDACIÓN DE ALTA & CHECKLIST */}
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={15} className="text-[#1B4FD8] dark:text-blue-400" />
+                    <h4 className="text-xs font-bold text-slate-800 dark:text-zinc-200">
+                      Validación de Registro
+                    </h4>
+                  </div>
+                  <span className="text-[11px] font-mono font-bold text-[#1B4FD8] dark:text-blue-400">
+                    {validationsCount}/5 Completado
+                  </span>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-[#1B4FD8] h-full transition-all duration-300 rounded-full"
+                    style={{ width: `${(validationsCount / 5) * 100}%` }}
+                  />
+                </div>
+
+                <div className="space-y-2 text-[11px]">
+                  {validations.map((v, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      {v.valid ? (
+                        <Check size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0 stroke-[3]" />
+                      ) : (
+                        <span className="w-3 h-3 rounded-full border border-slate-300 dark:border-zinc-600 shrink-0" />
+                      )}
+                      <span className={v.valid ? 'text-slate-700 dark:text-zinc-300 font-medium' : 'text-slate-400 dark:text-zinc-500'}>
+                        {v.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* CARD 3: ACTION BUTTONS */}
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs space-y-2.5">
                 <button
                   type="submit"
                   disabled={
@@ -703,7 +827,7 @@ export default function NewUser() {
                     emailCheck.status === 'blocked' ||
                     emailCheck.status === 'checking'
                   }
-                  className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm shadow-blue-600/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isProcessing ? (
                     <>
@@ -718,16 +842,15 @@ export default function NewUser() {
                   )}
                 </button>
 
-                {/* SECONDARY CANCEL BUTTON */}
                 <button
                   type="button"
                   onClick={() => requestLeave('/usuarios')}
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-bold flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-full py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer"
                 >
                   Cancelar y Regresar
                 </button>
 
-                <p className="text-[10px] text-center text-slate-400 flex items-center justify-center gap-1.5 font-medium">
+                <p className="text-[10px] text-center text-slate-400 flex items-center justify-center gap-1.5 font-medium pt-1">
                   <ShieldCheck size={12} className="text-emerald-500" />
                   Sincronización instantánea con catálogo y accesos ERP
                 </p>
