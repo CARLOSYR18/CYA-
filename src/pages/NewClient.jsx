@@ -244,35 +244,9 @@ export default function NewClient() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleSubmit, isProcessing, requestLeave])
 
-  // Validation completeness checklist
-  const validationChecklist = useMemo(() => {
-    return [
-      {
-        label: 'Identificación Fiscal',
-        valid: Boolean(docNumber && (docType === 'RUC' ? docNumber.length === 11 : docType === 'DNI' ? docNumber.length === 8 : true)),
-        detail: docNumber ? `${docType}: ${docNumber}` : 'Pendiente'
-      },
-      {
-        label: 'Razón Social / Nombre',
-        valid: Boolean(name.trim().length >= 3),
-        detail: name.trim() || 'Campo obligatorio'
-      },
-      {
-        label: 'Teléfono / WhatsApp',
-        valid: Boolean(phone && phone.replace(/\D/g, '').length >= 6),
-        detail: phone || 'Recomendado para envíos'
-      },
-      {
-        label: 'Domicilio de Entrega',
-        valid: Boolean(address.trim().length >= 4),
-        detail: address.trim() ? 'Dirección registrada' : 'Opcional'
-      }
-    ]
-  }, [docNumber, docType, name, phone, address])
-
   return (
     <AppLayout title={isEditing ? 'Editar Ficha Comercial' : 'Alta de Cliente'}>
-      <div className="max-w-[1440px] mx-auto space-y-3.5 pb-14 animate-fade-in">
+      <div className="max-w-[1440px] mx-auto space-y-3.5 pb-32 sm:pb-40 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
             0. INSTITUTIONAL HEADER & AUDIT SCOPE
@@ -759,39 +733,65 @@ export default function NewClient() {
                 </div>
               </div>
 
-              {/* PANEL 2: Checklist de Auditoría & Conformidad de Registro */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4.5 shadow-xs space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800">
+              {/* PANEL 2: Resumen Ejecutivo de la Ficha Comercial & Acciones */}
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck size={16} className="text-emerald-600" />
-                    <h4 className="text-xs font-bold text-slate-800 dark:text-zinc-200">
-                      Conformidad de Datos Comerciales
+                    <FileText size={16} className="text-[#1B4FD8] dark:text-blue-400" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
+                      Resumen de Expediente
                     </h4>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-medium">Validación en tiempo real</span>
+                  <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                    {clientType === 'JURIDICA' ? 'PERSONA JURÍDICA' : 'PERSONA NATURAL'}
+                  </span>
                 </div>
 
-                <div className="space-y-2 text-xs">
-                  {validationChecklist.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between py-1 border-b border-slate-50 dark:border-zinc-800/50 last:border-none">
-                      <div className="flex items-center gap-2">
-                        {item.valid ? (
-                          <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                        ) : (
-                          <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-zinc-600 shrink-0" />
-                        )}
-                        <span className={item.valid ? 'text-slate-700 dark:text-zinc-300 font-medium' : 'text-slate-400'}>
-                          {item.label}
-                        </span>
-                      </div>
-                      <span className="text-[11px] font-mono text-slate-500 truncate max-w-[140px]">
-                        {item.detail}
+                {/* Síntesis de Datos sin cortes ni círculos confusos */}
+                <div className="rounded-xl bg-slate-50/90 dark:bg-zinc-800/40 border border-slate-200/70 dark:border-zinc-800 p-3.5 space-y-2 text-xs">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-slate-400 dark:text-zinc-500 font-medium shrink-0">Razón Social:</span>
+                    <span className="font-bold text-slate-900 dark:text-white text-right break-words">
+                      {name.trim() || '— Pendiente de ingresar —'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-200/60 dark:border-zinc-700/60">
+                    <span className="text-slate-400 dark:text-zinc-500 font-medium shrink-0">Identificación:</span>
+                    <span className="font-mono font-bold text-slate-800 dark:text-zinc-200">
+                      {docNumber ? `${docType}: ${docNumber}` : 'Sin documento'}
+                      {sunatStatus === 'valid' && (
+                        <span className="ml-1.5 text-emerald-600 font-sans text-[10px] font-bold">✓ Habido</span>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-200/60 dark:border-zinc-700/60">
+                    <span className="text-slate-400 dark:text-zinc-500 font-medium shrink-0">Segmento:</span>
+                    <span className="font-bold text-[#1B4FD8] dark:text-blue-400">
+                      {suggestedSegment === 'VIP' ? 'VIP Corporativo' : suggestedSegment === 'RECURRENTE' ? 'Cliente Frecuente' : suggestedSegment === 'MINORISTA' ? 'Minorista / Público' : 'Nuevo / Prospecto'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-200/60 dark:border-zinc-700/60">
+                    <span className="text-slate-400 dark:text-zinc-500 font-medium shrink-0">Condición de Pago:</span>
+                    <span className="font-semibold text-slate-700 dark:text-zinc-300 text-right">
+                      {paymentTerm === 'CONTADO' ? 'Al Contado' : paymentTerm === 'CREDITO_15' ? 'Crédito 15 días' : paymentTerm === 'CREDITO_30' ? 'Crédito 30 días' : 'Contraentrega'}
+                      {creditLimit ? ` · Tope S/ ${creditLimit}` : ''}
+                    </span>
+                  </div>
+
+                  {(phone || email) && (
+                    <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-200/60 dark:border-zinc-700/60">
+                      <span className="text-slate-400 dark:text-zinc-500 font-medium shrink-0">Contacto:</span>
+                      <span className="font-mono text-slate-600 dark:text-zinc-300 text-right truncate">
+                        {phone || email}
                       </span>
                     </div>
-                  ))}
+                  )}
                 </div>
 
-                {/* Error Banner */}
+                {/* Error Banner si existe */}
                 {error && (
                   <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-400 text-xs flex items-center gap-2 animate-shake">
                     <AlertTriangle size={15} className="shrink-0 text-rose-600" />
@@ -799,23 +799,23 @@ export default function NewClient() {
                   </div>
                 )}
 
-                {/* Submission Action Buttons */}
+                {/* Botones de acción principales */}
                 <div className="pt-2 space-y-2">
                   <button
                     type="button"
                     onClick={handleSubmit}
                     disabled={isProcessing}
-                    className="w-full py-2.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-98 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                    className="w-full py-3 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-98 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                   >
                     <Check size={16} strokeWidth={2.5} />
                     <span>{isEditing ? 'Guardar Cambios de la Ficha' : 'Guardar y Registrar Cliente'}</span>
-                    <kbd className="px-1.5 py-0.2 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
+                    <kbd className="px-1.5 py-0.5 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => requestLeave('/clientes')}
-                    className="w-full py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
+                    className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
                   >
                     Descartar y Volver a Cartera [Esc]
                   </button>
