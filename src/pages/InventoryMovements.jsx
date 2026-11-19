@@ -588,14 +588,18 @@ export default function InventoryMovements() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            0. BREADCRUMB & HEADER ROW (EXECUTIVE STANDARD)
+            0. BREADCRUMB & HEADER ROW (SENIOR ENTERPRISE ARCHITECTURE)
            ═════════════════════════════════════════════════════════ */}
         <div className="space-y-3">
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-            <Home size={14} className="text-slate-400 dark:text-zinc-500" />
-            <span className="text-slate-300 dark:text-zinc-600">›</span>
-            <span className="font-semibold text-slate-700 dark:text-zinc-300">Almacén & Kardex de Inventario</span>
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+            <Home size={12} className="text-slate-400" />
+            <span>/</span>
+            <span>MÓDULO DE INVENTARIO</span>
+            <span>/</span>
+            <span>ALMACÉN CENTRAL</span>
+            <span>/</span>
+            <span className="text-[#1B4FD8] dark:text-blue-400">AUDITORÍA KARDEX & MOVIMIENTOS</span>
           </div>
 
           {/* Title & Actions Row */}
@@ -603,9 +607,15 @@ export default function InventoryMovements() {
             <div className="flex items-center gap-3.5">
               <PageHeaderBadge type="movements" />
               <div>
-                <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
-                  Control de Movimientos
-                </h1>
+                <div className="flex items-center gap-2.5">
+                  <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
+                    Control de Movimientos
+                  </h1>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8]" />
+                    {movements.length} OPERACIONES REGISTRADAS
+                  </span>
+                </div>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
                   Libro Kardex: Registro cronológico de ingresos, egresos, ventas y ajustes manuales en almacén.
                 </p>
@@ -633,191 +643,160 @@ export default function InventoryMovements() {
                 <span>Exportar Excel</span>
               </button>
 
-              {/* + Registrar Movimiento Primary Button */}
+              {/* Registrar Movimiento Primary Button */}
               <button
                 onClick={openCreate}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer"
               >
                 <Plus size={16} strokeWidth={2.5} />
-                <span>+ Registrar Movimiento</span>
+                <span>Registrar Movimiento</span>
               </button>
             </div>
           </div>
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            1. 4 KPI CARDS WITH SVG SPARKLINE GRADIENTS
+            1. 4 TELEMETRY CARDS (SENIOR ENTERPRISE EXACT STANDARD)
            ═════════════════════════════════════════════════════════ */}
         {showMetrics && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
 
-            {/* Card 1: Movimientos Totales (Blue) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
-                  <ArrowLeftRight size={20} />
+            {/* Card 1: Movimientos Totales */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <ArrowLeftRight size={13} className="text-[#1B4FD8]" />
+                    MOVIMIENTOS EN KARDEX
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
+                    LIBRO AUDITADO
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    Movimientos Totales
-                  </p>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                    {loading ? '…' : stats.totalCount}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 mt-0.5 truncate">
-                    {stats.entriesCount} ingresos · {stats.exitsCount} egresos
-                  </p>
+                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                  {loading ? '…' : stats.totalCount}
+                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">operaciones</span>
                 </div>
               </div>
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkBlueKdx" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 32 Q 20 30 35 22 T 60 16 T 80 6 L 80 40 L 0 40 Z"
-                    fill="url(#sparkBlueKdx)"
+
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                    {stats.entriesCount} ingresos
+                  </span>
+                  <span className="font-mono text-rose-500 dark:text-rose-400 font-semibold">
+                    {stats.exitsCount} egresos
+                  </span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5 flex">
+                  <div
+                    style={{ width: `${stats.totalCount > 0 ? (stats.entriesCount / stats.totalCount) * 100 : 50}%` }}
+                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-500"
                   />
-                  <path
-                    d="M 0 32 Q 20 30 35 22 T 60 16 T 80 6"
-                    fill="none"
-                    stroke="#3B82F6"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
+                  <div
+                    style={{ width: `${stats.totalCount > 0 ? (stats.exitsCount / stats.totalCount) * 100 : 50}%` }}
+                    className="h-full bg-gradient-to-r from-rose-500 to-pink-500"
                   />
-                </svg>
+                </div>
               </div>
             </div>
 
-            {/* Card 2: Entradas a Bodega (Emerald) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <ArrowDownCircle size={20} />
+            {/* Card 2: Entradas a Bodega */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <ArrowDownLeft size={13} className="text-emerald-600" />
+                    ENTRADAS A BODEGA
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">
+                    ABASTECIMIENTO
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    Entradas a Bodega
-                  </p>
-                  <h3 className="text-xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight mt-0.5 font-mono">
-                    {loading ? '…' : `+${fmtN(stats.totalInUnits)} uds.`}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 truncate">
-                    {stats.entriesCount} operaciones de ingreso
-                  </p>
+                <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight mt-1">
+                  {loading ? '…' : `+${fmtN(stats.totalInUnits)}`}
+                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">uds.</span>
                 </div>
               </div>
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkGreenKdx" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#10B981" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 35 Q 22 34 38 24 T 62 18 T 80 8 L 80 40 L 0 40 Z"
-                    fill="url(#sparkGreenKdx)"
-                  />
-                  <path
-                    d="M 0 35 Q 22 34 38 24 T 62 18 T 80 8"
-                    fill="none"
-                    stroke="#10B981"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <TrendingUp size={12} /> {stats.entriesCount} operaciones
+                  </span>
+                  <span className="font-mono text-slate-400">100% verificado</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 w-full" />
+                </div>
               </div>
             </div>
 
-            {/* Card 3: Salidas / Mermas (Rose) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
-                  <ArrowUpCircle size={20} />
+            {/* Card 3: Salidas / Mermas */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <ArrowUpRight size={13} className="text-rose-600" />
+                    SALIDAS Y MERMAS
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/40">
+                    DESPACHO / MERMA
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    Salidas / Mermas
-                  </p>
-                  <h3 className="text-xl font-black text-rose-600 dark:text-rose-400 tracking-tight mt-0.5 font-mono">
-                    {loading ? '…' : `-${fmtN(stats.totalOutUnits)} uds.`}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mt-0.5 truncate">
-                    {stats.exitsCount} operaciones de despacho
-                  </p>
+                <div className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400 tracking-tight mt-1">
+                  {loading ? '…' : `-${fmtN(stats.totalOutUnits)}`}
+                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">uds.</span>
                 </div>
               </div>
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkRoseKdx" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#F43F5E" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#F43F5E" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 35 Q 24 32 40 22 T 62 16 T 80 6 L 80 40 L 0 40 Z"
-                    fill="url(#sparkRoseKdx)"
-                  />
-                  <path
-                    d="M 0 35 Q 24 32 40 22 T 62 16 T 80 6"
-                    fill="none"
-                    stroke="#F43F5E"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold">
+                    <TrendingDown size={12} /> {stats.exitsCount} operaciones
+                  </span>
+                  <span className="font-mono text-slate-400">Kardex restado</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-rose-500 to-pink-500 w-full" />
+                </div>
               </div>
             </div>
 
-            {/* Card 4: Balance Operativo (Purple) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                  <Package size={20} />
+            {/* Card 4: Balance Operativo */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Package size={13} className="text-[#5550F2]" />
+                    BALANCE OPERATIVO
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-[#5550F2] dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40">
+                    NET FLOW
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    Balance Operativo
-                  </p>
-                  <h3 className={`text-xl font-black tracking-tight mt-0.5 font-mono ${
-                    stats.netBalance > 0
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : stats.netBalance < 0
-                      ? 'text-rose-600 dark:text-rose-400'
-                      : 'text-slate-900 dark:text-white'
-                  }`}>
-                    {loading ? '…' : `${stats.netBalance >= 0 ? `+${fmtN(stats.netBalance)}` : fmtN(stats.netBalance)} uds.`}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 mt-0.5 truncate">
-                    Diferencial neto en almacén
-                  </p>
+                <div className={`text-2xl font-bold font-mono tracking-tight mt-1 ${
+                  stats.netBalance > 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : stats.netBalance < 0
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : 'text-slate-900 dark:text-white'
+                }`}>
+                  {loading ? '…' : `${stats.netBalance >= 0 ? `+${fmtN(stats.netBalance)}` : fmtN(stats.netBalance)}`}
+                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">uds.</span>
                 </div>
               </div>
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkPurpleKdx" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#A855F7" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#A855F7" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 34 Q 24 30 42 20 T 64 16 T 80 6 L 80 40 L 0 40 Z"
-                    fill="url(#sparkPurpleKdx)"
-                  />
-                  <path
-                    d="M 0 34 Q 24 30 42 20 T 64 16 T 80 6"
-                    fill="none"
-                    stroke="#A855F7"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span>Diferencial neto</span>
+                  <span className="font-mono font-bold text-[#5550F2] dark:text-purple-400">
+                    {stats.netBalance >= 0 ? 'Superávit (+)' : 'Déficit (-)'}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 w-full" />
+                </div>
               </div>
             </div>
 
@@ -828,22 +807,22 @@ export default function InventoryMovements() {
             2. MIDDLE SECTION: 3 CARDS (CHART, DONUT, ACCIONES RÁPIDAS)
            ═════════════════════════════════════════════════════════ */}
         {showMetrics && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fade-in">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 animate-fade-in">
             
             {/* Card 1: Flujo Operativo de Kardex (Area Chart SVG) */}
-            <div className="lg:col-span-6 xl:col-span-5 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-              <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="lg:col-span-6 xl:col-span-5 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2">
-                  <BarChart2 size={18} className="text-blue-600 shrink-0" />
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Flujo de Movimientos
+                  <BarChart2 size={16} className="text-[#1B4FD8] shrink-0" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
+                    Flujo de Movimientos & Trazabilidad
                   </h3>
                 </div>
-                <div className="inline-flex items-center bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1 text-xs">
+                <div className="inline-flex items-center bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2 py-0.5 text-xs">
                   <select
                     value={chartPeriod}
                     onChange={(e) => setChartPeriod(e.target.value)}
-                    className="bg-transparent text-xs text-slate-600 dark:text-zinc-300 font-semibold outline-none cursor-pointer"
+                    className="bg-transparent text-[11px] text-slate-600 dark:text-zinc-300 font-semibold outline-none cursor-pointer"
                   >
                     <option value="6MONTHS" className="dark:bg-zinc-900">Últimos 6 meses</option>
                     <option value="30DAYS" className="dark:bg-zinc-900">Últimos 30 días</option>
@@ -853,7 +832,7 @@ export default function InventoryMovements() {
               </div>
 
               <div className="relative pt-6 pb-2 w-full">
-                <div className="absolute top-0 right-6 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold">
+                <div className="absolute top-0 right-4 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 text-[10.5px] font-bold">
                   <span>Pico: {Math.max(...monthlyChartData.map((d) => d.amount))} operaciones</span>
                   <span className="text-emerald-500 font-extrabold">↑</span>
                 </div>
@@ -864,8 +843,8 @@ export default function InventoryMovements() {
                 >
                   <defs>
                     <linearGradient id="areaGradientKdx" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.35" />
-                      <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.0" />
+                      <stop offset="0%" stopColor="#1B4FD8" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#1B4FD8" stopOpacity="0.0" />
                     </linearGradient>
                   </defs>
 
@@ -892,8 +871,8 @@ export default function InventoryMovements() {
                   <path
                     d={chartSVG.pathD}
                     fill="none"
-                    stroke="#2563EB"
-                    strokeWidth="3"
+                    stroke="#1B4FD8"
+                    strokeWidth="2.5"
                     strokeLinecap="round"
                   />
 
@@ -902,11 +881,11 @@ export default function InventoryMovements() {
                       <circle
                         cx={pt.x}
                         cy={pt.y}
-                        r="4"
+                        r="3.5"
                         fill="#FFFFFF"
-                        stroke="#2563EB"
+                        stroke="#1B4FD8"
                         strokeWidth="2.5"
-                        className="transition-all duration-200 group-hover:r-6"
+                        className="transition-all duration-200 group-hover:r-5"
                       />
                       <text
                         x={pt.x}
@@ -921,30 +900,33 @@ export default function InventoryMovements() {
                 </svg>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-400">
+              <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
                 <span>
-                  Volumen medio: <strong className="text-slate-700 dark:text-zinc-200">{(stats.totalCount / (monthlyChartData.length || 1)).toFixed(1)} op / mes</strong>
+                  Volumen medio: <strong className="text-slate-700 dark:text-zinc-200 font-mono">{(stats.totalCount / (monthlyChartData.length || 1)).toFixed(1)} op / mes</strong>
                 </span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Trazabilidad activa</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Trazabilidad activa
+                </span>
               </div>
             </div>
 
             {/* Card 2: Proporción de Flujo de Stock (Donut Chart SVG) */}
-            <div className="lg:col-span-6 xl:col-span-4 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+            <div className="lg:col-span-6 xl:col-span-4 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <PieChart size={18} className="text-purple-600 shrink-0" />
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  <PieChart size={16} className="text-[#5550F2] shrink-0" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
                     Proporción de Existencias
                   </h3>
                 </div>
-                <span className="text-xs font-semibold text-slate-400">
+                <span className="text-[11px] font-mono text-slate-400">
                   {fmtN(donutData.total)} uds. movilizadas
                 </span>
               </div>
 
-              <div className="flex items-center justify-center py-4">
-                <div className="relative w-40 h-40">
+              <div className="flex items-center justify-center py-2">
+                <div className="relative w-36 h-36">
                   <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
                     <circle
                       cx="50"
@@ -952,7 +934,7 @@ export default function InventoryMovements() {
                       r="40"
                       fill="transparent"
                       stroke="currentColor"
-                      strokeWidth="12"
+                      strokeWidth="11"
                       className="text-slate-100 dark:text-zinc-800"
                     />
                     <circle
@@ -961,7 +943,7 @@ export default function InventoryMovements() {
                       r="40"
                       fill="transparent"
                       stroke="#10B981"
-                      strokeWidth="12"
+                      strokeWidth="11"
                       strokeDasharray={`${donutData.inStroke} ${donutData.C}`}
                       strokeDashoffset="0"
                       strokeLinecap="round"
@@ -972,27 +954,27 @@ export default function InventoryMovements() {
                       r="40"
                       fill="transparent"
                       stroke="#F43F5E"
-                      strokeWidth="12"
+                      strokeWidth="11"
                       strokeDasharray={`${donutData.outStroke} ${donutData.C}`}
                       strokeDashoffset={-donutData.inStroke}
                       strokeLinecap="round"
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
+                    <span className="text-2xl font-black font-mono text-slate-900 dark:text-white leading-none">
                       {donutData.pctIn}%
                     </span>
-                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mt-0.5">
                       Entradas
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800 text-xs">
+              <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800 text-[11px]">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                     <span className="text-slate-600 dark:text-zinc-300 font-medium">Entradas a bodega</span>
                   </div>
                   <span className="font-mono font-bold text-slate-800 dark:text-white">
@@ -1000,8 +982,8 @@ export default function InventoryMovements() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
                     <span className="text-slate-600 dark:text-zinc-300 font-medium">Salidas / Mermas</span>
                   </div>
                   <span className="font-mono font-bold text-slate-800 dark:text-white">
@@ -1012,34 +994,38 @@ export default function InventoryMovements() {
             </div>
 
             {/* Card 3: Acciones Rápidas (Matriz 2x2) */}
-            <div className="lg:col-span-12 xl:col-span-3 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+            <div className="lg:col-span-12 xl:col-span-3 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                  <Sparkles size={16} className="text-amber-500" />
-                  Acciones Rápidas
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-amber-500 shrink-0" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
+                      Acciones Rápidas
+                    </h3>
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-400 mb-3">
                   Accesos directos de control de almacén y kardex.
                 </p>
 
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={openCreate}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <Plus size={15} />
+                    <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-[#1B4FD8] flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <Plus size={14} />
                     </div>
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Ajuste Manual</p>
-                    <p className="text-[10px] text-slate-400">Ingreso/Egreso</p>
+                    <p className="text-[10px] text-slate-400">Ingreso / Egreso</p>
                   </button>
 
                   <button
                     onClick={() => navigate('/compras/nueva')}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <Truck size={15} />
+                    <div className="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <Truck size={14} />
                     </div>
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Nueva Compra</p>
                     <p className="text-[10px] text-slate-400">Abastecimiento</p>
@@ -1047,10 +1033,10 @@ export default function InventoryMovements() {
 
                   <button
                     onClick={handleExportExcel}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-900/40 text-purple-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <FileSpreadsheet size={15} />
+                    <div className="w-6 h-6 rounded-lg bg-purple-50 dark:bg-purple-900/40 text-[#5550F2] flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <FileSpreadsheet size={14} />
                     </div>
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Exportar CSV</p>
                     <p className="text-[10px] text-slate-400">Descargar Kardex</p>
@@ -1058,10 +1044,10 @@ export default function InventoryMovements() {
 
                   <button
                     onClick={() => navigate('/productos')}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <Boxes size={15} />
+                    <div className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <Boxes size={14} />
                     </div>
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Catálogo SKUs</p>
                     <p className="text-[10px] text-slate-400">Ver inventario</p>
@@ -1069,9 +1055,9 @@ export default function InventoryMovements() {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-400 mt-2">
+              <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-400 mt-2">
                 <span>Auditoría de almacén</span>
-                <span className="text-blue-600 dark:text-blue-400 font-bold">ERP v2.4</span>
+                <span className="text-[#1B4FD8] dark:text-blue-400 font-bold font-mono">ERP v2.4</span>
               </div>
             </div>
 
@@ -1081,7 +1067,7 @@ export default function InventoryMovements() {
         {/* ═════════════════════════════════════════════════════════
             3. CONTROL & FILTER SUITE (AUDITORÍA & KARDEX)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3.5 sm:p-5 shadow-xs space-y-3.5">
+        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs space-y-3">
           
           {/* Main search and sort */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -1090,7 +1076,7 @@ export default function InventoryMovements() {
             <div className="relative flex-1 w-full">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" />
               <input
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-10 pr-9 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all outline-none"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-10 pr-9 py-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] transition-all outline-none font-medium"
                 placeholder="Buscar por producto, código SKU, motivo, responsable o referencia..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -1110,7 +1096,7 @@ export default function InventoryMovements() {
             <div className="flex flex-wrap items-center gap-2">
               
               {/* Filter by Responsible */}
-              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-2.5 py-1.5">
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-2.5 py-1.5">
                 <User size={13} className="text-slate-400 dark:text-zinc-500 shrink-0" />
                 <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium shrink-0">Responsable:</span>
                 <select
@@ -1129,7 +1115,7 @@ export default function InventoryMovements() {
               </div>
 
               {/* Sort selector */}
-              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-2.5 py-1.5">
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-2.5 py-1.5">
                 <ArrowUpDown size={13} className="text-slate-400 dark:text-zinc-500 shrink-0" />
                 <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium shrink-0">Ordenar:</span>
                 <select
@@ -1152,7 +1138,7 @@ export default function InventoryMovements() {
                   title="Vista en lista ejecutiva"
                   className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'table'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      ? 'bg-white dark:bg-zinc-900 text-[#1B4FD8] dark:text-blue-400 shadow-2xs font-bold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
                   }`}
                 >
@@ -1164,7 +1150,7 @@ export default function InventoryMovements() {
                   title="Vista en tarjetas"
                   className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      ? 'bg-white dark:bg-zinc-900 text-[#1B4FD8] dark:text-blue-400 shadow-2xs font-bold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
                   }`}
                 >
@@ -1206,9 +1192,9 @@ export default function InventoryMovements() {
                   <button
                     key={tab.id}
                     onClick={() => setTypeFilter(tab.id)}
-                    className={`px-3 py-1.5 rounded-xl font-semibold transition-all whitespace-nowrap shrink-0 text-xs flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap shrink-0 text-xs flex items-center gap-1.5 cursor-pointer ${
                       active
-                        ? 'bg-blue-600 text-white shadow-xs'
+                        ? 'bg-[#1B4FD8] text-white shadow-xs'
                         : 'bg-slate-100/80 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-700'
                     }`}
                   >
@@ -1240,7 +1226,7 @@ export default function InventoryMovements() {
                       setDateFrom('')
                       setDateTo('')
                     }}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                       active
                         ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold shadow-2xs'
                         : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-700'
