@@ -481,12 +481,12 @@ export default function NewSale() {
                 onClick={() => handleDocTypeChange('BOLETA')}
                 className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   docType === 'BOLETA'
-                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs font-bold'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs font-bold'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <span>Boleta</span>
-                <span className={`text-[10px] font-mono ${docType === 'BOLETA' ? 'opacity-80' : 'text-slate-400'}`}>B001</span>
+                <span className={`text-[10px] font-mono ${docType === 'BOLETA' ? 'opacity-85' : 'text-slate-400'}`}>B001</span>
               </button>
 
               <button
@@ -494,12 +494,12 @@ export default function NewSale() {
                 onClick={() => handleDocTypeChange('FACTURA')}
                 className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   docType === 'FACTURA'
-                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs font-bold'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs font-bold'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <span>Factura</span>
-                <span className={`text-[10px] font-mono ${docType === 'FACTURA' ? 'opacity-80' : 'text-slate-400'}`}>F001</span>
+                <span className={`text-[10px] font-mono ${docType === 'FACTURA' ? 'opacity-85' : 'text-slate-400'}`}>F001</span>
               </button>
 
               <button
@@ -507,12 +507,12 @@ export default function NewSale() {
                 onClick={() => handleDocTypeChange('NOTA')}
                 className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   docType === 'NOTA'
-                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs font-bold'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs font-bold'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <span>Nota Venta</span>
-                <span className={`text-[10px] font-mono ${docType === 'NOTA' ? 'opacity-80' : 'text-slate-400'}`}>NV01</span>
+                <span className={`text-[10px] font-mono ${docType === 'NOTA' ? 'opacity-85' : 'text-slate-400'}`}>NV01</span>
               </button>
             </div>
 
@@ -673,12 +673,12 @@ export default function NewSale() {
             <button
               type="button"
               onClick={addItemRow}
-              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer active:scale-95"
+              className="px-3 py-1.5 rounded-lg bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
               title="Agregar fila de producto [F3]"
             >
               <Plus size={13} strokeWidth={2.5} />
               <span>Agregar Producto</span>
-              <kbd className="hidden sm:inline text-[9px] font-mono text-slate-300 dark:text-slate-600 bg-slate-800 dark:bg-slate-200 px-1 py-0.2 rounded">F3</kbd>
+              <kbd className="hidden sm:inline text-[9px] font-mono text-blue-100 bg-blue-800/60 px-1 py-0.2 rounded">F3</kbd>
             </button>
           </div>
 
@@ -976,7 +976,7 @@ export default function NewSale() {
                     onClick={() => setPaymentStatus('pagado')}
                     className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
                       paymentStatus === 'pagado'
-                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs font-bold'
+                        ? 'bg-[#1B4FD8] text-white shadow-xs font-bold'
                         : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                     }`}
                   >
@@ -1006,7 +1006,7 @@ export default function NewSale() {
                       onClick={() => setPaymentMethod('efectivo')}
                       className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'efectivo'
-                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white font-bold shadow-xs'
+                          ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs'
                           : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
                       }`}
                     >
@@ -1048,7 +1048,7 @@ export default function NewSale() {
                       onClick={() => setPaymentMethod('transferencia')}
                       className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'transferencia'
-                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white font-bold shadow-xs'
+                          ? 'bg-[#1B4FD8] text-white border-[#1B4FD8] font-bold shadow-xs'
                           : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
                       }`}
                     >
@@ -1062,7 +1062,7 @@ export default function NewSale() {
                       onClick={() => setPaymentMethod('tarjeta')}
                       className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'tarjeta'
-                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white font-bold shadow-xs'
+                          ? 'bg-indigo-600 text-white border-indigo-600 font-bold shadow-xs'
                           : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
                       }`}
                     >
@@ -1114,7 +1114,7 @@ export default function NewSale() {
                               value={cashReceived}
                               onChange={(e) => setCashReceived(e.target.value)}
                               placeholder={total > 0 ? total.toFixed(2) : '0.00'}
-                              className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg pl-7 pr-2.5 py-1 text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-slate-900 dark:focus:border-white transition-colors"
+                              className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg pl-7 pr-2.5 py-1 text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600 transition-colors"
                             />
                           </div>
                         </div>
@@ -1148,7 +1148,7 @@ export default function NewSale() {
                         <button
                           type="button"
                           onClick={() => setShowQrModal(true)}
-                          className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                          className="px-2.5 py-1 rounded-md bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
                         >
                           <QrCode size={13} />
                           <span>Mostrar QR</span>
@@ -1228,17 +1228,17 @@ export default function NewSale() {
                   </div>
                 </div>
 
-                {/* Dark Executive Total Banner */}
-                <div className="mt-3 p-3.5 rounded-lg bg-slate-900 text-white dark:bg-zinc-950 border border-slate-800 shadow-md">
+                {/* Financial Total Banner */}
+                <div className="mt-3 p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/25 border border-blue-200/90 dark:border-blue-900/40 shadow-xs">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-300">
+                    <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-zinc-300">
                       TOTAL A COBRAR
                     </span>
-                    <span className="text-2xl sm:text-3xl font-black font-mono text-emerald-400 tracking-tight">
+                    <span className="text-2xl sm:text-3xl font-black font-mono text-[#1B4FD8] dark:text-blue-400 tracking-tight">
                       {fmt(total)}
                     </span>
                   </div>
-                  <div className="mt-1.5 pt-1.5 border-t border-slate-800 text-[10px] font-mono text-slate-400 truncate">
+                  <div className="mt-1.5 pt-1.5 border-t border-blue-200/60 dark:border-blue-900/40 text-[10px] font-mono font-semibold text-slate-500 dark:text-zinc-400 truncate">
                     {numberToWordsPE(total)}
                   </div>
                 </div>
@@ -1258,7 +1258,7 @@ export default function NewSale() {
                 type="submit"
                 disabled={isProcessing}
                 onClick={handleSubmit}
-                className="w-full py-3 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
+                className="w-full py-3.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
                 title="Emitir comprobante [F2]"
               >
                 {isProcessing ? (
@@ -1267,7 +1267,7 @@ export default function NewSale() {
                   <>
                     <Check size={16} strokeWidth={3} />
                     <span>Emitir Comprobante</span>
-                    <kbd className="hidden sm:inline text-[10px] font-mono text-slate-300 dark:text-slate-600 bg-slate-800 dark:bg-slate-200 px-1.5 py-0.2 rounded">F2</kbd>
+                    <kbd className="hidden sm:inline text-[10px] font-mono text-blue-100 bg-blue-800/60 px-1.5 py-0.2 rounded">F2</kbd>
                   </>
                 )}
               </button>
@@ -1290,8 +1290,8 @@ export default function NewSale() {
         {isProcessing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-fade-in">
             <div className="bg-white dark:bg-[#18181b] rounded-2xl border border-slate-200 dark:border-zinc-700 p-6 max-w-sm w-full text-center shadow-2xl space-y-4 animate-slide-up">
-              <div className="w-12 h-12 rounded-full border-3 border-slate-900 dark:border-white border-t-transparent animate-spin mx-auto flex items-center justify-center">
-                <ShoppingCart size={18} className="text-slate-900 dark:text-white animate-pulse" />
+              <div className="w-12 h-12 rounded-full border-3 border-blue-600 border-t-transparent animate-spin mx-auto flex items-center justify-center">
+                <ShoppingCart size={18} className="text-blue-600 animate-pulse" />
               </div>
 
               <div>
@@ -1307,7 +1307,7 @@ export default function NewSale() {
 
               <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
                 <div
-                  className="bg-slate-900 dark:bg-white h-full transition-all duration-300"
+                  className="bg-[#1B4FD8] h-full transition-all duration-300"
                   style={{
                     width:
                       processingStep === 1 ? '35%' : processingStep === 2 ? '75%' : '100%'
@@ -1379,7 +1379,7 @@ export default function NewSale() {
                 <button
                   type="button"
                   onClick={handleResetForm}
-                  className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
                 >
                   <Plus size={13} strokeWidth={2.5} />
                   <span>Emitir Otra Venta</span>
