@@ -6,7 +6,7 @@ import {
   DollarSign, Package, Layers, Sparkles, Crown, ArrowRight,
   ZoomIn, ZoomOut, Download, FileSpreadsheet, ChevronRight,
   ChevronLeft, TrendingUp, Eye, Home, BarChart2, PieChart,
-  ShieldCheck, AlertCircle, ArrowUpDown, Building2
+  ShieldCheck, AlertCircle, ArrowUpDown, Building2, Zap
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
@@ -158,10 +158,10 @@ export default function Products() {
 
   const chartSVG = useMemo(() => {
     const width = 460
-    const height = 150
+    const height = 155
     const paddingLeft = 10
     const paddingRight = 10
-    const paddingTop = 20
+    const paddingTop = 36
     const paddingBottom = 25
     const innerW = width - paddingLeft - paddingRight
     const innerH = height - paddingTop - paddingBottom
@@ -350,7 +350,7 @@ export default function Products() {
 
   return (
     <AppLayout title="Catálogo de Productos">
-      <div className="space-y-6 max-w-[1440px] mx-auto pb-16">
+      <div className="space-y-5 max-w-[1440px] mx-auto pb-32 sm:pb-40 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
             SUCCESS TOAST NOTIFICATION
@@ -371,246 +371,194 @@ export default function Products() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            0. BREADCRUMB & HEADER ROW (EXACT REFERENCE DESIGN)
+            0. BREADCRUMB & HEADER ROW (SENIOR ERP ARCHITECTURE)
            ═════════════════════════════════════════════════════════ */}
-        <div className="space-y-3">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-            <Home size={14} className="text-slate-400 dark:text-zinc-500" />
-            <span className="text-slate-300 dark:text-zinc-600">›</span>
-            <span className="font-semibold text-slate-700 dark:text-zinc-300">Inventario & Catálogo de Productos</span>
+        <div className="space-y-2">
+          {/* Executive Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+            <span>MÓDULO DE INVENTARIO</span>
+            <span>/</span>
+            <span>CONTROL DE EXISTENCIAS & ALMACÉN</span>
+            <span>/</span>
+            <span className="text-slate-600 dark:text-zinc-400">CATÁLOGO DE PRODUCTOS</span>
           </div>
 
           {/* Title & Actions Row */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <PageHeaderBadge type="products" />
-              <div>
-                <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
-                  Catálogo de Productos
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Catálogo Maestro de Productos & Artículos
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
-                  Administración de artículos, existencias, precios de venta y galería multimedia.
-                </p>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8] animate-pulse" />
+                  {stats.totalSkus} SKUS REGISTRADOS
+                </span>
               </div>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 max-w-2xl">
+                Administración centralizada de artículos, existencias físicas, precios comerciales y control de reposición.
+              </p>
             </div>
 
-            <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               {/* Toggle Metrics */}
               <button
+                type="button"
                 onClick={() => setShowMetrics((prev) => !prev)}
-                className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-2xs"
                 title="Mostrar u ocultar métricas y gráficas"
               >
-                <TrendingUp size={16} className="text-slate-400 dark:text-zinc-400" />
+                <TrendingUp size={15} className="text-slate-400 dark:text-zinc-400" />
                 <span className="hidden sm:inline">{showMetrics ? 'Ocultar KPIs' : 'Ver KPIs'}</span>
               </button>
 
               {/* Export Excel */}
               <button
+                type="button"
                 onClick={handleExportExcel}
-                className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-2xs"
                 title="Descargar catálogo en Excel / CSV"
               >
-                <FileSpreadsheet size={16} className="text-emerald-600 dark:text-emerald-400" />
+                <FileSpreadsheet size={15} className="text-emerald-600 dark:text-emerald-400" />
                 <span>Exportar Excel</span>
               </button>
 
-              {/* + Nuevo Producto Primary Button */}
+              {/* + Registrar Producto Primary Button */}
               <button
+                type="button"
                 onClick={() => navigate('/productos/nuevo')}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-2 shadow-sm shadow-blue-600/25 transition-all cursor-pointer"
               >
-                <Plus size={16} strokeWidth={2.5} />
-                <span>+ Nuevo Producto</span>
+                <Plus size={15} strokeWidth={2.5} />
+                <span>Registrar Producto</span>
               </button>
             </div>
           </div>
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            1. 4 KPI CARDS WITH SVG SPARKLINE GRADIENT CURVES
+            1. 4 FINANCIAL & INVENTORY TELEMETRY CARDS (SENIOR ERP GRADE)
            ═════════════════════════════════════════════════════════ */}
         {showMetrics && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 animate-fade-in">
 
-            {/* Card 1: SKUs en Catálogo (Blue) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
-                  <Package size={20} />
+            {/* Card 1: SKUs en Catálogo */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                    SKUS EN CATÁLOGO
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
+                    CATÁLOGO MAESTRO
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    SKUs en Catálogo
-                  </p>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                    {loading ? '…' : stats.totalSkus}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
-                    <span>↑ 100% activo</span>
-                    <span className="text-slate-400 dark:text-zinc-500 font-normal ml-0.5">
-                      ({stats.kitsCount} combos)
-                    </span>
-                  </p>
+                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                  {loading ? '…' : stats.totalSkus}
+                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">artículos</span>
                 </div>
               </div>
-              {/* Sparkline curve (Blue) */}
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkBlueProd" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 32 Q 20 30 35 22 T 60 16 T 80 6 L 80 40 L 0 40 Z"
-                    fill="url(#sparkBlueProd)"
+
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-400">
+                <div className="flex items-center justify-between">
+                  <span>Combos/Kits: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.kitsCount}</strong></span>
+                  <span>Simples: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.totalSkus - stats.kitsCount}</strong></span>
+                </div>
+                {/* Segmented bar */}
+                <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden mt-1.5 flex">
+                  <div
+                    style={{ width: `${stats.totalSkus > 0 ? ((stats.totalSkus - stats.alertsCount) / stats.totalSkus) * 100 : 100}%` }}
+                    className="bg-[#1B4FD8] h-full"
+                    title="Disponibles"
                   />
-                  <path
-                    d="M 0 32 Q 20 30 35 22 T 60 16 T 80 6"
-                    fill="none"
-                    stroke="#3B82F6"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
+                  <div
+                    style={{ width: `${stats.totalSkus > 0 ? (stats.alertsCount / stats.totalSkus) * 100 : 0}%` }}
+                    className="bg-amber-500 h-full"
+                    title="Con alertas de stock"
                   />
-                </svg>
+                </div>
               </div>
             </div>
 
-            {/* Card 2: Valor del Inventario (Emerald) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <DollarSign size={20} />
+            {/* Card 2: Valor del Inventario */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                    VALOR DEL INVENTARIO
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">
+                    CAPITAL ACTIVO
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    Valor del Inventario
-                  </p>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                    {loading ? '…' : fmt(stats.inventoryValuation)}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
-                    <span>↑ +15.2%</span>
-                    <span className="text-slate-400 dark:text-zinc-500 font-normal ml-0.5">capital en almacén</span>
-                  </p>
+                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                  {loading ? '…' : fmt(stats.inventoryValuation)}
                 </div>
               </div>
-              {/* Sparkline curve (Green) */}
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkGreenProd" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#10B981" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 35 Q 22 34 38 24 T 62 18 T 80 8 L 80 40 L 0 40 Z"
-                    fill="url(#sparkGreenProd)"
-                  />
-                  <path
-                    d="M 0 35 Q 22 34 38 24 T 62 18 T 80 8"
-                    fill="none"
-                    stroke="#10B981"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                  <TrendingUp size={12} /> +15.2% valorizado
+                </span>
+                <span className="font-mono text-slate-400">100% en almacén</span>
               </div>
             </div>
 
-            {/* Card 3: Unidades en Almacén (Purple) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                  <Layers size={20} />
+            {/* Card 3: Unidades en Almacén */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                    UNIDADES EN ALMACÉN
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40">
+                    STOCK AUDITADO
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    Unidades en Almacén
-                  </p>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                    {loading ? '…' : `${fmtN(stats.totalUnits)} uds.`}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 mt-0.5">
-                    Existencias totales auditadas
-                  </p>
+                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                  {loading ? '…' : `${fmtN(stats.totalUnits)}`}
+                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">unidades</span>
                 </div>
               </div>
-              {/* Sparkline curve (Purple) */}
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkPurpleProd" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#A855F7" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#A855F7" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 34 Q 24 30 42 20 T 64 16 T 80 6 L 80 40 L 0 40 Z"
-                    fill="url(#sparkPurpleProd)"
-                  />
-                  <path
-                    d="M 0 34 Q 24 30 42 20 T 64 16 T 80 6"
-                    fill="none"
-                    stroke="#A855F7"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                <span>Control Kardex central</span>
+                <span className="font-mono font-semibold text-slate-700 dark:text-zinc-300">
+                  {stats.totalSkus} líneas de artículo
+                </span>
               </div>
             </div>
 
-            {/* Card 4: Alertas de Stock (Amber / Red) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
-                  stats.alertsCount > 0
-                    ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'
-                    : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400'
-                }`}>
-                  <AlertTriangle size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    Alertas de Stock
-                  </p>
-                  <h3 className={`text-xl font-black tracking-tight mt-0.5 font-mono ${
-                    stats.outOfStockCount > 0
-                      ? 'text-rose-600 dark:text-rose-400'
-                      : 'text-slate-900 dark:text-white'
+            {/* Card 4: Alertas de Stock */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                    ALERTAS DE STOCK
+                  </span>
+                  <span className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border ${
+                    stats.alertsCount > 0
+                      ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200/60 dark:border-rose-900/40'
+                      : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/40'
                   }`}>
-                    {loading ? '…' : `${stats.alertsCount} producto(s)`}
-                  </h3>
-                  <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400 mt-0.5">
-                    {stats.outOfStockCount} agotado(s) · {stats.lowStockCount} por agotar
-                  </p>
+                    {stats.alertsCount > 0 ? 'NIVEL CRÍTICO' : 'STOCK ÓPTIMO'}
+                  </span>
+                </div>
+                <div className={`text-2xl font-bold font-mono tracking-tight mt-1 ${
+                  stats.alertsCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'
+                }`}>
+                  {loading ? '…' : `${stats.alertsCount}`}
+                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">en riesgo</span>
                 </div>
               </div>
-              {/* Sparkline curve (Amber) */}
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkAmberProd" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 33 Q 25 35 45 25 T 66 18 T 80 9 L 80 40 L 0 40 Z"
-                    fill="url(#sparkAmberProd)"
-                  />
-                  <path
-                    d="M 0 33 Q 25 35 45 25 T 66 18 T 80 9"
-                    fill="none"
-                    stroke="#F59E0B"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
+                <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+                  {stats.outOfStockCount} agotados
+                </span>
+                <span className="font-mono font-semibold text-amber-600 dark:text-amber-400">
+                  {stats.lowStockCount} por agotar
+                </span>
               </div>
             </div>
 
@@ -621,18 +569,18 @@ export default function Products() {
             2. MIDDLE SECTION: 3 CARDS (CHART, DONUT, ACCIONES)
            ═════════════════════════════════════════════════════════ */}
         {showMetrics && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fade-in">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 animate-fade-in">
             
             {/* Card 1: Valorización de Inventario (Area Chart SVG) */}
-            <div className="lg:col-span-6 xl:col-span-5 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-              <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="lg:col-span-6 xl:col-span-5 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2">
-                  <BarChart2 size={18} className="text-blue-600 shrink-0" />
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  <BarChart2 size={16} className="text-[#1B4FD8] shrink-0" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
                     Rotación & Capital de Inventario
                   </h3>
                 </div>
-                <div className="inline-flex items-center bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1 text-xs">
+                <div className="inline-flex items-center bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2 py-0.5 text-xs">
                   <select
                     value={chartPeriod}
                     onChange={(e) => setChartPeriod(e.target.value)}
@@ -646,9 +594,9 @@ export default function Products() {
               </div>
 
               {/* Interactive SVG Chart */}
-              <div className="relative pt-6 pb-2 w-full">
+              <div className="relative pt-4 pb-1 w-full">
                 {/* Floating Peak Badge */}
-                <div className="absolute top-0 right-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold">
+                <div className="absolute top-0 right-4 flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-[#1B4FD8] dark:text-blue-300 text-[10px] font-bold font-mono">
                   <span>Valor Actual: {fmt(stats.inventoryValuation)}</span>
                   <span className="text-emerald-500 font-extrabold">↑</span>
                 </div>
@@ -659,8 +607,8 @@ export default function Products() {
                 >
                   <defs>
                     <linearGradient id="areaGradientProd" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.35" />
-                      <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.0" />
+                      <stop offset="0%" stopColor="#1B4FD8" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#1B4FD8" stopOpacity="0.0" />
                     </linearGradient>
                   </defs>
 
@@ -690,8 +638,8 @@ export default function Products() {
                   <path
                     d={chartSVG.pathD}
                     fill="none"
-                    stroke="#2563EB"
-                    strokeWidth="3"
+                    stroke="#1B4FD8"
+                    strokeWidth="2.5"
                     strokeLinecap="round"
                   />
 
@@ -701,11 +649,11 @@ export default function Products() {
                       <circle
                         cx={pt.x}
                         cy={pt.y}
-                        r="4"
+                        r="3.5"
                         fill="#FFFFFF"
-                        stroke="#2563EB"
-                        strokeWidth="2.5"
-                        className="transition-all duration-200 group-hover:r-6"
+                        stroke="#1B4FD8"
+                        strokeWidth="2"
+                        className="transition-all duration-200 group-hover:r-5"
                       />
                       <text
                         x={pt.x}
@@ -720,29 +668,29 @@ export default function Products() {
                 </svg>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-400">
-                <span>Existencias auditadas en Kardex: <strong className="text-slate-700 dark:text-zinc-200">{stats.totalUnits} unidades</strong></span>
+              <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-400">
+                <span>Existencias auditadas en Kardex: <strong className="text-slate-700 dark:text-zinc-200 font-mono">{stats.totalUnits} unidades</strong></span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Valorización al alza</span>
               </div>
             </div>
 
             {/* Card 2: Distribución por Categoría (Donut Chart SVG) */}
-            <div className="lg:col-span-6 xl:col-span-4 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
+            <div className="lg:col-span-6 xl:col-span-4 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <PieChart size={18} className="text-purple-600 shrink-0" />
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  <PieChart size={16} className="text-purple-600 shrink-0" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
                     Distribución por Familias
                   </h3>
                 </div>
-                <span className="text-xs font-semibold text-slate-400">
+                <span className="text-xs font-semibold text-slate-400 font-mono">
                   {categories.length} categorías
                 </span>
               </div>
 
               {/* Donut Chart Visual */}
-              <div className="flex items-center justify-center py-4">
-                <div className="relative w-40 h-40">
+              <div className="flex items-center justify-center py-2">
+                <div className="relative w-36 h-36">
                   <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
                     <circle
                       cx="50"
@@ -750,7 +698,7 @@ export default function Products() {
                       r="40"
                       fill="transparent"
                       stroke="currentColor"
-                      strokeWidth="12"
+                      strokeWidth="11"
                       className="text-slate-100 dark:text-zinc-800"
                     />
                     <circle
@@ -758,8 +706,8 @@ export default function Products() {
                       cy="50"
                       r="40"
                       fill="transparent"
-                      stroke="#2563EB"
-                      strokeWidth="12"
+                      stroke="#1B4FD8"
+                      strokeWidth="11"
                       strokeDasharray={`${donutData.stroke1} ${donutData.C}`}
                       strokeDashoffset="0"
                       strokeLinecap="round"
@@ -770,17 +718,17 @@ export default function Products() {
                       r="40"
                       fill="transparent"
                       stroke="#A855F7"
-                      strokeWidth="12"
+                      strokeWidth="11"
                       strokeDasharray={`${donutData.stroke2} ${donutData.C}`}
                       strokeDashoffset={-donutData.stroke1}
                       strokeLinecap="round"
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
+                    <span className="text-2xl font-bold font-mono text-slate-900 dark:text-white">
                       {donutData.topPct}%
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider truncate max-w-[90px]">
+                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider truncate max-w-[90px]">
                       {donutData.topCat.name}
                     </span>
                   </div>
@@ -788,10 +736,10 @@ export default function Products() {
               </div>
 
               {/* Legend with Metrics */}
-              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800 text-xs">
+              <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800 text-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#1B4FD8] shrink-0" />
                     <span className="text-slate-600 dark:text-zinc-300 font-medium truncate max-w-[140px]">{donutData.topCat.name}</span>
                   </div>
                   <span className="font-mono font-bold text-slate-800 dark:text-white">
@@ -810,57 +758,61 @@ export default function Products() {
               </div>
             </div>
 
-            {/* Card 3: Acciones Rápidas (Matriz 2x2) */}
-            <div className="lg:col-span-12 xl:col-span-3 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+            {/* Card 3: Acciones Rápidas (Senior Enterprise Matrix) */}
+            <div className="lg:col-span-12 xl:col-span-3 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                  <Sparkles size={16} className="text-amber-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200 mb-1 flex items-center gap-2">
+                  <Zap size={14} className="text-[#1B4FD8]" />
                   Acciones Rápidas
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4">
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
                   Operaciones directas de inventario y stock.
                 </p>
 
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-2">
                   <button
+                    type="button"
                     onClick={() => navigate('/productos/nuevo')}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-[#1B4FD8] hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <Plus size={15} />
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-[#1B4FD8] flex items-center justify-center mb-1 group-hover:scale-105 transition-transform">
+                      <Plus size={14} strokeWidth={2.5} />
                     </div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Nuevo Producto</p>
+                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Registrar</p>
                     <p className="text-[10px] text-slate-400">Crear SKU</p>
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => navigate('/categorias/nueva')}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <Layers size={15} />
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform">
+                      <Layers size={14} />
                     </div>
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Nueva Familia</p>
                     <p className="text-[10px] text-slate-400">Categoría</p>
                   </button>
 
                   <button
+                    type="button"
                     onClick={handleExportExcel}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-900/40 text-purple-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <FileSpreadsheet size={15} />
+                    <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-900/40 text-purple-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform">
+                      <FileSpreadsheet size={14} />
                     </div>
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Exportar Excel</p>
                     <p className="text-[10px] text-slate-400">Descargar CSV</p>
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => navigate('/inventario/movimientos')}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <TrendingUp size={15} />
+                    <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform">
+                      <TrendingUp size={14} />
                     </div>
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Kardex</p>
                     <p className="text-[10px] text-slate-400">Movimientos</p>
@@ -868,8 +820,8 @@ export default function Products() {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-400 flex items-center gap-1.5">
-                <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
+              <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-400 flex items-center gap-1.5">
+                <ShieldCheck size={13} className="text-emerald-500 shrink-0" />
                 <span>Auditoría de stock en tiempo real</span>
               </div>
             </div>
@@ -880,14 +832,14 @@ export default function Products() {
         {/* ═════════════════════════════════════════════════════════
             3. CONTROL BAR (SEARCH, CATEGORY, PILLS, VIEW SWITCH)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3.5 sm:p-4 shadow-xs space-y-3">
+        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-3.5 shadow-2xs space-y-3">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
 
             {/* Search Input */}
             <div className="relative flex-1 w-full lg:max-w-md">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" />
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" />
               <input
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-10 pr-9 py-2 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all outline-none"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-9 pr-9 py-2 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10 transition-all outline-none font-medium"
                 placeholder="Buscar por nombre de producto o SKU…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -922,14 +874,14 @@ export default function Products() {
               </div>
 
               {/* View Switch: Grid (DEFAULT) vs Table */}
-              <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200/80 dark:border-zinc-700 shrink-0">
+              <div className="inline-flex items-center p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200/80 dark:border-zinc-700 shrink-0">
                 <button
                   type="button"
                   onClick={() => setViewMode('grid')}
                   title="Vista en cuadrícula de tarjetas (por defecto)"
                   className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      ? 'bg-white dark:bg-zinc-900 text-[#1B4FD8] dark:text-blue-400 shadow-2xs font-bold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
                   }`}
                 >
@@ -941,7 +893,7 @@ export default function Products() {
                   title="Vista en lista / tabla"
                   className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'table'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      ? 'bg-white dark:bg-zinc-900 text-[#1B4FD8] dark:text-blue-400 shadow-2xs font-bold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
                   }`}
                 >
@@ -970,7 +922,7 @@ export default function Products() {
                 onClick={() => setStockFilter(tab.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   stockFilter === tab.id
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs'
                     : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
                 }`}
               >
@@ -985,9 +937,9 @@ export default function Products() {
            ═════════════════════════════════════════════════════════ */}
         {loading ? (
           <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-16 flex flex-col items-center justify-center text-center shadow-xs">
-            <div className="w-10 h-10 rounded-full border-3 border-blue-600 border-t-transparent animate-spin mb-3" />
+            <div className="w-10 h-10 rounded-full border-3 border-[#1B4FD8] border-t-transparent animate-spin mb-3" />
             <p className="text-xs font-semibold text-slate-600 dark:text-zinc-400">
-              Cargando catálogo de productos…
+              Cargando catálogo maestro de productos…
             </p>
           </div>
         ) : filtered.length === 0 ? (
@@ -1015,9 +967,9 @@ export default function Products() {
                 ) : (
                   <button
                     onClick={() => navigate('/productos/nuevo')}
-                    className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/25 cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm shadow-blue-600/25 cursor-pointer"
                   >
-                    <Plus size={15} /> Nuevo Producto
+                    <Plus size={15} /> Registrar Producto
                   </button>
                 )
               }
@@ -1025,7 +977,7 @@ export default function Products() {
           </div>
         ) : viewMode === 'grid' ? (
           /* ═════════════════════════════════════════════════════════
-              EXACT GRID CARD VIEW (AS IN USER SCREENSHOT 2)
+              EXACT GRID CARD VIEW (SENIOR ERP REDESIGN)
              ═════════════════════════════════════════════════════════ */
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4">
@@ -1046,12 +998,12 @@ export default function Products() {
                     key={p.id}
                     className={`bg-white dark:bg-[#141417] rounded-2xl border transition-all flex flex-col justify-between group overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card ${
                       idx === 0
-                        ? 'border-blue-500/60 dark:border-blue-500/50'
+                        ? 'border-[#1B4FD8]/60 dark:border-[#1B4FD8]/50'
                         : 'border-slate-200/80 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700'
                     }`}
                   >
                     <div className="p-4 sm:p-5">
-                      {/* Top Bar: SKU on left & Status Badge on right (Exact Screenshot 2) */}
+                      {/* Top Bar: SKU on left & Status Badge on right */}
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <div className="flex flex-col gap-1 items-start">
                           <span className="font-mono text-xs font-bold text-slate-700 dark:text-zinc-300 bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 px-2.5 py-0.5 rounded-lg shadow-2xs">
@@ -1085,7 +1037,7 @@ export default function Products() {
                         </div>
                       </div>
 
-                      {/* Large Centered Image Box (Exact Screenshot 2) */}
+                      {/* Large Centered Image Box */}
                       <div
                         onClick={() => openLightbox(p)}
                         className={`relative w-full h-44 sm:h-48 rounded-xl bg-white dark:bg-zinc-900 flex items-center justify-center p-2 mb-4 overflow-hidden transition-all ${
@@ -1117,7 +1069,7 @@ export default function Products() {
                       {/* Product Name */}
                       <h3
                         onClick={() => navigate(`/productos/editar/${p.id}`)}
-                        className="font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                        className="font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-1 hover:text-[#1B4FD8] dark:hover:text-blue-400 transition-colors cursor-pointer"
                       >
                         {p.name}
                       </h3>
@@ -1139,7 +1091,7 @@ export default function Products() {
                       </div>
                     </div>
 
-                    {/* Bottom Row: Price & Quick Action Icons (Exact Screenshot 2) */}
+                    {/* Bottom Row: Price & Quick Action Icons */}
                     <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-zinc-800/40 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
                       <div>
                         <p className="font-mono font-black text-base sm:text-lg text-slate-900 dark:text-white leading-tight">
@@ -1156,7 +1108,7 @@ export default function Products() {
                         <button
                           onClick={() => navigate(`/productos/editar/${p.id}`)}
                           title="Editar producto"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors cursor-pointer"
                         >
                           <Pencil size={15} />
                         </button>
@@ -1236,7 +1188,7 @@ export default function Products() {
                       <div
                         onClick={() => openLightbox(p)}
                         className={`relative w-[68px] h-[68px] rounded-2xl overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 p-1.5 shrink-0 shadow-xs transition-all ${
-                          p.image_url ? 'cursor-pointer hover:border-blue-400 hover:scale-105' : ''
+                          p.image_url ? 'cursor-pointer hover:border-[#1B4FD8] hover:scale-105' : ''
                         }`}
                         title={p.image_url ? 'Click para ampliar fotografía' : 'Sin imagen'}
                       >
@@ -1257,7 +1209,7 @@ export default function Products() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4
                             onClick={() => navigate(`/productos/editar/${p.id}`)}
-                            className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer leading-tight truncate"
+                            className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base hover:text-[#1B4FD8] dark:hover:text-blue-400 transition-colors cursor-pointer leading-tight truncate"
                           >
                             {p.name}
                           </h4>
@@ -1341,7 +1293,7 @@ export default function Products() {
                       <button
                         onClick={() => navigate(`/productos/editar/${p.id}`)}
                         title="Editar producto"
-                        className="p-2 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer transition-colors"
+                        className="p-2 rounded-xl text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer transition-colors"
                       >
                         <Pencil size={16} />
                       </button>
