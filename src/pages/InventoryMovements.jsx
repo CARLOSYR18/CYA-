@@ -13,7 +13,6 @@ import {
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
-import PageHeaderBadge from '../components/ui/PageHeaderBadge'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
 import { productsService } from '../services/productsService'
 import { salesService } from '../services/salesService'
@@ -604,22 +603,19 @@ export default function InventoryMovements() {
 
           {/* Title & Actions Row */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <PageHeaderBadge type="movements" />
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
-                    Control de Movimientos
-                  </h1>
-                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8]" />
-                    {movements.length} OPERACIONES REGISTRADAS
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
-                  Libro Kardex: Registro cronológico de ingresos, egresos, ventas y ajustes manuales en almacén.
-                </p>
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
+                  Control de Movimientos de Inventario
+                </h1>
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8] animate-pulse" />
+                  {movements.length} OPERACIONES REGISTRADAS
+                </span>
               </div>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
+                Libro Kardex: Registro cronológico de ingresos, egresos, ventas y ajustes manuales en almacén.
+              </p>
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0">
