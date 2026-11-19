@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Trash2, Truck, Building2, Package,
@@ -13,6 +13,7 @@ import { suppliersService } from '../services/suppliersService'
 import { productsService } from '../services/productsService'
 import { companySettingsService } from '../services/companySettingsService'
 import { useAuth } from '../context/AuthContext'
+import { numberToWordsPE } from '../utils/numberToWords'
 
 const fmt = (n) =>
   `S/ ${(Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -272,9 +273,27 @@ export default function NewPurchase() {
     setCreatedPurchase(null)
   }
 
+  // Global Keyboard Shortcuts (F2: Procesar Compra, F3: Agregar Fila, Esc: Cancelar)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'F2' || (e.ctrlKey && e.key === 'Enter')) {
+        e.preventDefault()
+        handleSubmit()
+      } else if (e.key === 'F3') {
+        e.preventDefault()
+        addItemRow()
+      } else if (e.key === 'Escape' && !isProcessing && !showQuickSupplierModal && !createdPurchase) {
+        e.preventDefault()
+        requestLeave('/compras')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleSubmit, addItemRow, isProcessing, showQuickSupplierModal, createdPurchase, requestLeave])
+
   return (
     <AppLayout title="Nueva Compra">
-      <div className="max-w-6xl mx-auto space-y-3.5 pb-8">
+      <div className="max-w-[1440px] mx-auto space-y-3.5 pb-32 sm:pb-40 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
             TOP BAR: COMPACT EXECUTIVE BREADCRUMB & TYPE PILLS
@@ -284,26 +303,34 @@ export default function NewPurchase() {
             <button
               type="button"
               onClick={() => requestLeave('/compras')}
-              className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
-              title="Volver al listado de compras"
+              className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer shrink-0 shadow-2xs"
+              title="Volver a Compras & Abastecimiento"
             >
               <ArrowLeft size={16} />
             </button>
             <div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <span className="hover:text-blue-600 cursor-pointer" onClick={() => requestLeave('/compras')}>Compras</span>
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                <span className="hover:text-[#1B4FD8] cursor-pointer" onClick={() => requestLeave('/compras')}>MÓDULO DE ADQUISICIONES</span>
                 <span>/</span>
-                <span className="text-blue-600 dark:text-blue-400 font-semibold">Nueva Orden</span>
+                <span className="hover:text-[#1B4FD8] cursor-pointer" onClick={() => requestLeave('/compras')}>COMPRAS</span>
+                <span>/</span>
+                <span className="text-[#1B4FD8] dark:text-blue-400">ALTA DE ORDEN DE COMPRA</span>
               </div>
-              <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                Registrar Orden de Compra & Abastecimiento
-              </h1>
+              <div className="flex items-center gap-2.5 mt-0.5">
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-none">
+                  Registrar Orden de Compra & Abastecimiento
+                </h1>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8]" />
+                  ORDEN B2B
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Quick pills & supplier shortcut */}
           <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
-            <div className="inline-flex items-center p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-xl text-xs font-bold">
+            <div className="inline-flex items-center p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-lg border border-slate-200/80 dark:border-zinc-700 text-xs font-bold">
               {[
                 { id: 'ESTANDAR', label: 'Estándar' },
                 { id: 'URGENTE', label: 'Urgente' },
@@ -313,9 +340,9 @@ export default function NewPurchase() {
                   key={opt.id}
                   type="button"
                   onClick={() => setOrderType(opt.id)}
-                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
                     orderType === opt.id
-                      ? 'bg-blue-600 text-white shadow-xs font-extrabold'
+                      ? 'bg-[#1B4FD8] text-white shadow-2xs font-bold'
                       : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                   }`}
                 >
@@ -328,10 +355,10 @@ export default function NewPurchase() {
             <button
               type="button"
               onClick={() => setShowQuickSupplierModal(true)}
-              className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
               title="Registrar nuevo proveedor al instante"
             >
-              <Zap size={14} className="text-amber-500" />
+              <Zap size={13} className="text-amber-500" />
               <span>+ Proveedor Rápido</span>
             </button>
           </div>
@@ -340,18 +367,18 @@ export default function NewPurchase() {
         {/* ═════════════════════════════════════════════════════════
             1. PROVIDER & INVOICE ATTRIBUTES (COMPACT EXECUTIVE ROW)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3.5 sm:p-4 shadow-xs">
+        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-xs">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5 items-end text-xs sm:text-sm">
 
             {/* Proveedor / Razón Social */}
             <div className="lg:col-span-5">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
-                  <Building2 size={13} className="text-blue-600 dark:text-blue-400" />
+                  <Building2 size={13} className="text-[#1B4FD8] dark:text-blue-400" />
                   <span>Proveedor Comercial *</span>
                 </label>
                 {selectedSupplier?.ruc && (
-                  <span className="text-[11px] font-mono font-bold text-slate-400">
+                  <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-zinc-400">
                     RUC: {selectedSupplier.ruc}
                   </span>
                 )}
@@ -361,7 +388,7 @@ export default function NewPurchase() {
                   value={supplierId}
                   onChange={(e) => setSupplierId(e.target.value)}
                   required
-                  className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-900 font-medium cursor-pointer"
+                  className="w-full bg-slate-50/70 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] focus:bg-white dark:focus:bg-zinc-900 font-medium cursor-pointer"
                 >
                   <option value="">Selecciona un proveedor registrado del catálogo…</option>
                   {suppliers.map(s => (
@@ -385,7 +412,7 @@ export default function NewPurchase() {
                   value={invoiceRef}
                   onChange={(e) => setInvoiceRef(e.target.value)}
                   placeholder="Ej. F001-0004523 / GR-1092"
-                  className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-8 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono uppercase"
+                  className="w-full bg-slate-50/70 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-8 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] font-mono uppercase"
                 />
               </div>
             </div>
@@ -398,7 +425,7 @@ export default function NewPurchase() {
               <select
                 value={destinationWarehouse}
                 onChange={(e) => setDestinationWarehouse(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium cursor-pointer"
+                className="w-full bg-slate-50/70 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] font-medium cursor-pointer"
               >
                 <option value="Almacén Central">Almacén Central</option>
                 <option value="Tienda Principal">Tienda Principal</option>
@@ -409,14 +436,14 @@ export default function NewPurchase() {
             {/* Observaciones / Notas */}
             <div className="lg:col-span-2">
               <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                O.C. / Notas
+                Condición / O.C. / Notas
               </label>
               <input
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Ej. Pago a 30 días..."
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium"
+                className="w-full bg-slate-50/70 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] font-medium"
               />
             </div>
 
@@ -424,31 +451,32 @@ export default function NewPurchase() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            2. PRODUCTS TABLE (CLEAN, COMPACT ROWS, INTERNAL SCROLL)
+            2. PRODUCTS TABLE (CLEAN, COMPACT ROWS, ENTERPRISE STYLING)
            ═════════════════════════════════════════════════════════ */}
         <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 overflow-hidden shadow-xs">
           <div className="py-2.5 px-4 bg-slate-50/80 dark:bg-zinc-800/60 border-b border-slate-200/80 dark:border-zinc-800 flex items-center justify-between text-xs sm:text-sm">
             <div className="flex items-center gap-2">
-              <Package size={15} className="text-blue-600 dark:text-blue-400" />
+              <Package size={15} className="text-[#1B4FD8] dark:text-blue-400" />
               <span className="font-bold text-slate-800 dark:text-zinc-200">
                 Artículos a Abastecer
               </span>
-              <span className="text-xs text-slate-400 font-mono">({items.length} líneas / {totalUnits} unidades)</span>
+              <span className="text-xs text-slate-400 font-mono">({items.length} {items.length === 1 ? 'línea' : 'líneas'} / {totalUnits} unidades)</span>
             </div>
 
             <button
               type="button"
               onClick={addItemRow}
-              className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
             >
               <Plus size={14} strokeWidth={2.5} />
               <span>Agregar Fila</span>
+              <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-blue-700/60 text-[10px] font-mono">F3</kbd>
             </button>
           </div>
 
-          <div className="max-h-[220px] overflow-x-auto overflow-y-auto">
+          <div className="max-h-[320px] overflow-x-auto overflow-y-auto">
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
-              <thead className="sticky top-0 z-10 bg-white dark:bg-[#141417] border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <thead className="sticky top-0 z-10 bg-slate-50/90 dark:bg-[#18181b] border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <tr>
                   <th className="py-2.5 px-3.5 w-10 text-center">#</th>
                   <th className="py-2.5 px-3 min-w-[320px]">Producto / Descripción</th>
@@ -478,7 +506,7 @@ export default function NewPurchase() {
                           value={it.product_id}
                           onChange={(e) => updateItem(idx, { product_id: e.target.value })}
                           required
-                          className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-1.5 text-xs sm:text-sm text-slate-900 dark:text-white font-medium outline-none focus:border-blue-600"
+                          className="w-full bg-slate-50/80 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-1.5 text-xs sm:text-sm text-slate-900 dark:text-white font-medium outline-none focus:border-[#1B4FD8]"
                         >
                           <option value="">Selecciona un producto del catálogo…</option>
                           {products.map(p => (
@@ -522,7 +550,7 @@ export default function NewPurchase() {
                             value={it.quantity}
                             onChange={(e) => updateItem(idx, { quantity: e.target.value })}
                             required
-                            className="w-14 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg py-1 text-center text-xs sm:text-sm font-bold font-mono text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                            className="w-14 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg py-1 text-center text-xs sm:text-sm font-bold font-mono text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8]"
                           />
                           <button
                             type="button"
@@ -546,7 +574,7 @@ export default function NewPurchase() {
                             onChange={(e) => updateItem(idx, { unit_cost: e.target.value })}
                             placeholder="0.00"
                             required
-                            className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl pl-7 pr-2.5 py-1 text-right text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                            className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl pl-7 pr-2.5 py-1 text-right text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8]"
                           />
                         </div>
                       </td>
@@ -586,7 +614,7 @@ export default function NewPurchase() {
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800">
                 <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
-                  <Truck size={14} className="text-blue-600 dark:text-blue-400" />
+                  <Truck size={14} className="text-[#1B4FD8] dark:text-blue-400" />
                   Estado de Recepción & Almacén
                 </span>
                 <span className="text-[11px] text-slate-400 font-medium">Control de Kardex</span>
@@ -599,7 +627,7 @@ export default function NewPurchase() {
                   onClick={() => setStatus('recibido')}
                   className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-2 ${
                     status === 'recibido'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-extrabold shadow-xs'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-extrabold shadow-2xs'
                       : 'bg-slate-50 dark:bg-zinc-800/80 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
                   }`}
                 >
@@ -615,7 +643,7 @@ export default function NewPurchase() {
                   onClick={() => setStatus('pendiente')}
                   className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-2 ${
                     status === 'pendiente'
-                      ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-700 dark:text-amber-300 font-extrabold shadow-xs'
+                      ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-700 dark:text-amber-300 font-extrabold shadow-2xs'
                       : 'bg-slate-50 dark:bg-zinc-800/80 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
                   }`}
                 >
@@ -647,12 +675,12 @@ export default function NewPurchase() {
               </div>
             </div>
 
-            <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
+            <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-100 dark:border-zinc-800/60">
               <span className="flex items-center gap-1">
-                <ShieldCheck size={13} className="text-blue-500" />
+                <ShieldCheck size={13} className="text-[#1B4FD8]" />
                 Auditoría trazable por usuario: {user?.email || 'admin'}
               </span>
-              <span>Moneda: Soles (PEN)</span>
+              <span className="font-mono">Moneda: Soles (PEN)</span>
             </div>
           </div>
 
@@ -661,7 +689,7 @@ export default function NewPurchase() {
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800">
                 <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
-                  <DollarSign size={14} className="text-blue-600 dark:text-blue-400" />
+                  <DollarSign size={14} className="text-[#1B4FD8] dark:text-blue-400" />
                   Liquidación de Compra
                 </span>
                 <span className="text-xs font-mono font-bold text-slate-400">PEN (S/)</span>
@@ -683,23 +711,31 @@ export default function NewPurchase() {
                   </span>
                 </div>
 
-                {/* Total */}
-                <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 flex justify-between items-center">
-                  <div>
-                    <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider block">
-                      TOTAL A PAGAR:
+                {/* Total Box */}
+                <div className="mt-3 p-3.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/20 border border-blue-200/90 dark:border-blue-900/40 space-y-1">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider block">
+                        TOTAL A PAGAR:
+                      </span>
+                      <span className="text-[10px] text-slate-400">Inversión neta en compra</span>
+                    </div>
+                    <span className="text-2xl sm:text-3xl font-bold font-mono text-[#1B4FD8] dark:text-blue-400 tracking-tight">
+                      {fmt(total)}
                     </span>
-                    <span className="text-[10px] text-slate-400">Inversión neta en compra</span>
                   </div>
-                  <span className="text-2xl sm:text-3xl font-black font-mono text-blue-600 dark:text-blue-400 tracking-tight">
-                    {fmt(total)}
-                  </span>
+
+                  {total > 0 && (
+                    <p className="text-[10px] font-mono font-semibold text-blue-700 dark:text-blue-300 pt-1 border-t border-blue-200/50 dark:border-blue-900/30 uppercase">
+                      SON: {numberToWordsPE(total)}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
 
             {error && (
-              <div className="p-2.5 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-1.5">
+              <div className="p-2.5 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-1.5 animate-shake">
                 <AlertCircle size={15} className="shrink-0" />
                 <span className="truncate">{error}</span>
               </div>
@@ -711,14 +747,15 @@ export default function NewPurchase() {
                 type="button"
                 disabled={isProcessing}
                 onClick={handleSubmit}
-                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                className="w-full py-3 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-98 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
                 {isProcessing ? (
                   <span>Registrando orden de compra…</span>
                 ) : (
                   <>
-                    <Check size={16} strokeWidth={3} />
+                    <Check size={16} strokeWidth={2.5} />
                     <span>Registrar y Procesar Compra</span>
+                    <kbd className="px-1.5 py-0.5 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
                   </>
                 )}
               </button>
@@ -726,9 +763,9 @@ export default function NewPurchase() {
               <button
                 type="button"
                 onClick={() => requestLeave('/compras')}
-                className="w-full py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+                className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
               >
-                Cancelar y Volver
+                Cancelar y Volver [Esc]
               </button>
             </div>
           </div>
@@ -741,12 +778,12 @@ export default function NewPurchase() {
         {isProcessing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-fade-in">
             <div className="bg-white dark:bg-[#18181b] rounded-2xl border border-slate-200 dark:border-zinc-700 p-6 max-w-sm w-full text-center shadow-2xl space-y-4 animate-slide-up">
-              <div className="w-14 h-14 rounded-full border-3 border-blue-600 border-t-transparent animate-spin mx-auto flex items-center justify-center">
-                <Truck size={22} className="text-blue-600 animate-pulse" />
+              <div className="w-14 h-14 rounded-full border-3 border-[#1B4FD8] border-t-transparent animate-spin mx-auto flex items-center justify-center">
+                <Truck size={22} className="text-[#1B4FD8] animate-pulse" />
               </div>
 
               <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
                   Procesando Orden de Compra
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
@@ -758,7 +795,7 @@ export default function NewPurchase() {
 
               <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
                 <div
-                  className="bg-blue-600 h-full transition-all duration-300"
+                  className="bg-[#1B4FD8] h-full transition-all duration-300"
                   style={{
                     width: processingStep === 1 ? '35%' : processingStep === 2 ? '75%' : '100%'
                   }}
@@ -836,7 +873,7 @@ export default function NewPurchase() {
                   {createdPurchase.invoice_ref && (
                     <div className="flex justify-between">
                       <span className="text-slate-500">Factura / Guía:</span>
-                      <span className="font-mono font-bold text-blue-600">{createdPurchase.invoice_ref}</span>
+                      <span className="font-mono font-bold text-[#1B4FD8]">{createdPurchase.invoice_ref}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
@@ -887,7 +924,7 @@ export default function NewPurchase() {
                   <span className="text-xs font-bold text-blue-950 dark:text-blue-200 uppercase tracking-wide">
                     Total Invertido:
                   </span>
-                  <span className="text-xl font-black font-mono text-blue-600 dark:text-blue-400">
+                  <span className="text-xl font-bold font-mono text-[#1B4FD8] dark:text-blue-400">
                     {fmt(createdPurchase.total)}
                   </span>
                 </div>
@@ -909,7 +946,7 @@ export default function NewPurchase() {
                 <button
                   type="button"
                   onClick={handleResetForm}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold transition-colors cursor-pointer shadow-xs"
                 >
                   Nueva Orden
                 </button>
@@ -926,7 +963,7 @@ export default function NewPurchase() {
             <div className="relative w-full max-w-md bg-white dark:bg-[#141417] rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden flex flex-col animate-scale-in">
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-800/50">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-[#1B4FD8] dark:text-blue-400 flex items-center justify-center font-bold">
                     <Building2 size={16} />
                   </div>
                   <div>
@@ -958,7 +995,7 @@ export default function NewPurchase() {
                     placeholder="Ej. DISTRIBUIDORA TECNOLÓGICA S.A.C."
                     required
                     autoFocus
-                    className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium"
+                    className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] font-medium"
                   />
                 </div>
 
@@ -973,7 +1010,7 @@ export default function NewPurchase() {
                       onChange={(e) => setQuickSupplierRuc(e.target.value)}
                       placeholder="20601234567"
                       maxLength={11}
-                      className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono"
+                      className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] font-mono"
                     />
                   </div>
 
@@ -986,7 +1023,7 @@ export default function NewPurchase() {
                       value={quickSupplierPhone}
                       onChange={(e) => setQuickSupplierPhone(e.target.value)}
                       placeholder="987654321"
-                      className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono"
+                      className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] font-mono"
                     />
                   </div>
                 </div>
@@ -1000,7 +1037,7 @@ export default function NewPurchase() {
                     value={quickSupplierContact}
                     onChange={(e) => setQuickSupplierContact(e.target.value)}
                     placeholder="Ej. Ing. Carlos Mendoza"
-                    className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium"
+                    className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] font-medium"
                   />
                 </div>
 
@@ -1022,7 +1059,7 @@ export default function NewPurchase() {
                   <button
                     type="submit"
                     disabled={savingQuickSupplier}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
+                    className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
                   >
                     {savingQuickSupplier ? 'Guardando…' : 'Guardar y Seleccionar'}
                   </button>
