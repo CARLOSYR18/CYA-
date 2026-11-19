@@ -1,12 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Plus, Trash2, ShoppingCart, User, Phone,
   Calendar, Clock, Package, Check, AlertCircle, FileText,
-  Building2, DollarSign, Sparkles, CheckCircle2, ShieldCheck,
-  QrCode, Smartphone, CreditCard, Banknote, Copy, Upload, Maximize2,
-  Home, ChevronDown, Minus, Search, AlertTriangle, X, Printer,
-  RotateCcw, Zap, CheckCircle
+  Building2, DollarSign, ShieldCheck, QrCode, CreditCard,
+  Banknote, ChevronDown, Minus, Search, X, Zap, CornerDownLeft,
+  Barcode, CheckCircle2, Info
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import PaymentQrModal from '../components/PaymentQrModal'
@@ -20,6 +19,7 @@ import { companySettingsService } from '../services/companySettingsService'
 import { paymentMethodsService } from '../services/paymentMethodsService'
 import { useAuth } from '../context/AuthContext'
 import { getDisplayUserName } from '../lib/userDisplay'
+import { numberToWordsPE } from '../utils/numberToWords'
 
 const fmt = (n) =>
   `S/ ${(Number(n) || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -42,9 +42,10 @@ export default function NewSale() {
   const [purchaseOrder, setPurchaseOrder] = useState('')
   const [sellerName, setSellerName] = useState(user?.full_name || user?.email || '')
 
-  // Customer Data
+  // Customer Data (Separated cleanly for senior enterprise ERP)
   const [clientName, setClientName] = useState('')
-  const [clientPhone, setClientPhone] = useState('')
+  const [clientDoc, setClientDoc] = useState('')
+  const [clientContactPhone, setClientContactPhone] = useState('')
   const [selectedClientId, setSelectedClientId] = useState('')
 
   // Line items
@@ -68,7 +69,6 @@ export default function NewSale() {
   const [paymentConfig, setPaymentConfig] = useState(null)
   const [showQrModal, setShowQrModal] = useState(false)
   const [cashReceived, setCashReceived] = useState('')
-  const [copiedText, setCopiedText] = useState('')
 
   const [dueDate, setDueDate] = useState('')
   const [notes, setNotes] = useState('')
@@ -83,19 +83,19 @@ export default function NewSale() {
   // Detección de cambios sin guardar en el formulario de venta
   const isDirty = useMemo(() => {
     if (isProcessing || createdSale) return false
-    const hasClient = Boolean(clientName.trim() || clientPhone.trim() || selectedClientId)
+    const hasClient = Boolean(clientName.trim() || clientDoc.trim() || clientContactPhone.trim() || selectedClientId)
     const hasItems = items.some(
       (it) => it.product_id || (it.unit_price !== '' && Number(it.unit_price) > 0) || Number(it.quantity) > 1
     )
     const hasExtra = Boolean(purchaseOrder.trim() || cashReceived.trim() || notes.trim() || discount)
     return hasClient || hasItems || hasExtra
-  }, [isProcessing, createdSale, clientName, clientPhone, selectedClientId, items, purchaseOrder, cashReceived, notes, discount])
+  }, [isProcessing, createdSale, clientName, clientDoc, clientContactPhone, selectedClientId, items, purchaseOrder, cashReceived, notes, discount])
 
   const { requestLeave, DiscardModalComponent } = useFormLeaveGuard({
     isDirty,
     defaultRedirectUrl: '/ventas',
-    modalTitle: '¿Descartar comprobante de venta?',
-    modalDescription: 'Tienes datos de cliente o productos agregados a esta venta. Si sales ahora o recargas la página, toda la información escrita se perderá.'
+    modalTitle: '¿Descartar emisión de comprobante?',
+    modalDescription: 'Tienes datos de cliente o productos agregados a este comprobante. Si sales ahora, la información ingresada se perderá.'
   })
 
   // Sync serie and labels with docType
@@ -103,23 +103,27 @@ export default function NewSale() {
     setDocType(type)
     if (type === 'FACTURA') {
       setSerie('F001')
-      if (clientName === 'Cliente General') setClientName('')
-      if (clientPhone === '00000000') setClientPhone('')
+      if (clientName === 'CLIENTE GENERAL' || clientName === 'Cliente General') {
+        setClientName('')
+        setClientDoc('')
+      }
     } else if (type === 'BOLETA') {
       setSerie('B001')
     } else {
-      setSerie('001')
+      setSerie('NV01')
     }
   }
 
-  // Quick Customer Autofill (Cliente General)
+  // Quick Customer Autofill (Consumidor Final / Cliente General)
   const handleQuickClient = () => {
     if (docType === 'FACTURA') {
       setClientName('INVERSIONES & SERVICIOS S.A.C.')
-      setClientPhone('20608912345')
+      setClientDoc('20608912345')
+      setClientContactPhone('')
     } else {
-      setClientName('Cliente General')
-      setClientPhone('00000000')
+      setClientName('CLIENTE GENERAL')
+      setClientDoc('00000000')
+      setClientContactPhone('')
     }
     setSelectedClientId('')
   }
@@ -151,13 +155,6 @@ export default function NewSale() {
     return () => window.removeEventListener('cya-payment-methods-updated', handleUpdate)
   }, [])
 
-  const handleCopy = (text) => {
-    if (!text) return
-    navigator.clipboard.writeText(text)
-    setCopiedText(text)
-    setTimeout(() => setCopiedText(''), 2500)
-  }
-
   // Auto-fill when selecting an existing client
   const handleClientSelect = (clientId) => {
     setSelectedClientId(clientId)
@@ -165,7 +162,8 @@ export default function NewSale() {
     const found = clients.find((c) => c.id === clientId)
     if (found) {
       setClientName(found.name || '')
-      setClientPhone(found.phone || found.ruc || '')
+      setClientDoc(found.ruc || found.dni || '')
+      setClientContactPhone(found.phone || '')
     }
   }
 
@@ -188,9 +186,9 @@ export default function NewSale() {
   }, [user, sellerName])
 
   // Line item helpers
-  const addItemRow = () => {
-    setItems([...items, { product_id: '', quantity: 1, unit_price: '' }])
-  }
+  const addItemRow = useCallback(() => {
+    setItems((prev) => [...prev, { product_id: '', quantity: 1, unit_price: '' }])
+  }, [])
 
   const removeItemRow = (idx) => {
     if (items.length <= 1) return
@@ -258,23 +256,30 @@ export default function NewSale() {
     return total - igvAmount
   }, [total, igvAmount])
 
+  const totalUnits = useMemo(() => {
+    return items.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0)
+  }, [items])
+
   // Submit sale creation with visual animation and instant boleta modal
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = useCallback(async (e) => {
+    if (e && e.preventDefault) e.preventDefault()
     setError('')
 
     if (!clientName.trim()) {
       setError(
         docType === 'FACTURA'
           ? 'Por favor ingresa la Razón Social de la empresa'
-          : 'Por favor ingresa o selecciona el nombre del cliente'
+          : 'Por favor ingresa el nombre del cliente o presiona "Consumidor Final"'
       )
       return
     }
 
-    if (docType === 'FACTURA' && (!clientPhone.trim() || clientPhone.trim().length < 11)) {
-      setError('Para emitir una Factura es obligatorio ingresar un R.U.C. válido de 11 dígitos')
-      return
+    if (docType === 'FACTURA') {
+      const cleanDoc = clientDoc.trim().replace(/\D/g, '')
+      if (cleanDoc.length !== 11) {
+        setError('Para emitir una Factura Electrónica es obligatorio ingresar un R.U.C. válido de 11 dígitos')
+        return
+      }
     }
 
     const validItems = items.filter((it) => it.product_id && Number(it.quantity) > 0)
@@ -288,7 +293,7 @@ export default function NewSale() {
       const prod = products.find((p) => p.id === it.product_id)
       if (prod && Number(it.quantity) > Number(prod.stock)) {
         setError(
-          `Stock insuficiente para "${prod.name}". Stock actual disponible: ${prod.stock} ${
+          `Stock insuficiente para "${prod.name}". Stock actual en almacén: ${prod.stock} ${
             prod.unit || 'uds.'
           }`
         )
@@ -332,9 +337,16 @@ export default function NewSale() {
         .filter(Boolean)
         .join(' - ')
 
+      // Format clientPhone cleanly so parseClientInfo in Receipt extracts document & phone cleanly
+      const docLabel = docType === 'FACTURA' ? 'RUC: ' : 'DNI: '
+      const composedPhone = [
+        clientDoc.trim() ? `${docLabel}${clientDoc.trim()}` : '',
+        clientContactPhone.trim() ? `Tel: ${clientContactPhone.trim()}` : ''
+      ].filter(Boolean).join(' - ')
+
       const created = await salesService.create({
         client_name: clientName.trim(),
-        client_phone: clientPhone.trim() || undefined,
+        client_phone: composedPhone || undefined,
         user_id: user?.id,
         status: paymentStatus,
         receipt_type: docType.toLowerCase(),
@@ -342,7 +354,7 @@ export default function NewSale() {
         discount: discountVal,
         due_date: paymentStatus === 'pendiente' ? dueDate || null : null,
         notes: finalNotes || null,
-        serie: serie || 'B001',
+        serie: serie || (docType === 'FACTURA' ? 'F001' : docType === 'BOLETA' ? 'B001' : 'NV01'),
         order_type: orderType || 'COMPRA VENTA',
         seller_name: sellerName || getDisplayUserName(user, 'Administrador')
       })
@@ -354,24 +366,53 @@ export default function NewSale() {
       setCreatedSale({
         ...created,
         items: created?.items?.length ? created.items : saleItems,
-        serie: serie || 'B001',
+        serie: serie || (docType === 'FACTURA' ? 'F001' : docType === 'BOLETA' ? 'B001' : 'NV01'),
         client:
           created?.client ||
           clients.find((c) => c.name === clientName.trim()) || {
             name: clientName.trim(),
-            phone: clientPhone.trim()
+            ruc: clientDoc.trim() || undefined,
+            phone: clientContactPhone.trim() || undefined
           }
       })
     } catch (err) {
       setIsProcessing(false)
       setError(err.message || 'No se pudo registrar la venta')
     }
-  }
+  }, [
+    clientName, clientDoc, clientContactPhone, docType, items, products, paymentStatus,
+    paymentMethod, sellerName, user, purchaseOrder, notes, serie, orderType, dueDate,
+    discountVal, clients
+  ])
+
+  // Global Keyboard Shortcuts (F2: Emitir, F3: Agregar Fila, Alt+C: Consumidor Final)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger if inside modals
+      if (isProcessing || createdSale || showQrModal || pickerOpen || clientPickerOpen || sellerPickerOpen) {
+        return
+      }
+
+      if (e.key === 'F2') {
+        e.preventDefault()
+        handleSubmit()
+      } else if (e.key === 'F3') {
+        e.preventDefault()
+        addItemRow()
+      } else if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault()
+        handleQuickClient()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleSubmit, addItemRow, isProcessing, createdSale, showQrModal, pickerOpen, clientPickerOpen, sellerPickerOpen])
 
   const handleResetForm = () => {
     setCreatedSale(null)
     setClientName('')
-    setClientPhone('')
+    setClientDoc('')
+    setClientContactPhone('')
     setSelectedClientId('')
     setItems([{ product_id: '', quantity: 1, unit_price: '' }])
     setPaymentStatus('pagado')
@@ -385,196 +426,223 @@ export default function NewSale() {
     setIsProcessing(false)
   }
 
+  // Quick cash bill helper
+  const handleQuickCash = (amount) => {
+    setCashReceived(String(amount))
+  }
+
   return (
     <AppLayout title="Nueva Venta">
-      <div className="max-w-[1440px] mx-auto space-y-3.5 pb-4 animate-fade-in">
+      <div className="max-w-[1440px] mx-auto space-y-3 pb-6 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
-            0. HEADER BAR (Executive Design & Mobile Optimized)
+            0. INSTITUTIONAL HEADER BAR
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/90 dark:border-white/10 p-3.5 sm:p-5 shadow-[0_1px_3px_0_rgba(15,23,42,0.04),0_6px_20px_-3px_rgba(15,23,42,0.05)] flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 transition-all">
-          {/* Top/Left: Back button & Title with Badges */}
-          <div className="flex items-center justify-between gap-3 min-w-0">
-            <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-              <button
-                type="button"
-                onClick={() => requestLeave('/ventas')}
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/80 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-zinc-200 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
-                title="Volver a Ventas"
-              >
-                <ArrowLeft size={16} />
-              </button>
-
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 font-medium truncate">
-                  <span className="hover:underline cursor-pointer" onClick={() => requestLeave('/ventas')}>Ventas</span>
-                  <span>›</span>
-                  <span className="font-semibold text-slate-700 dark:text-zinc-300">
-                    Emitir Comprobante
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <h1 className="text-base sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none truncate">
-                    Nueva Venta & Facturación
-                  </h1>
-                  <span className="hidden xs:inline-flex text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-white/10 dark:text-indigo-300 border border-indigo-200/50 dark:border-white/10 shrink-0">
-                    POS PRO
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick general customer shortcut on mobile right */}
+        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3.5 sm:p-4.5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+          {/* Left: Back button & Breadcrumbs & Title */}
+          <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
-              onClick={handleQuickClient}
-              className="md:hidden px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-500/10 border border-amber-200/80 dark:border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95"
-              title="Llenar cliente mostrador"
+              onClick={() => requestLeave('/ventas')}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 transition-all cursor-pointer shrink-0 active:scale-95"
+              title="Volver a Ventas (Esc)"
             >
-              <Zap size={13} className="text-amber-500 fill-amber-500" />
-              <span>Rápido</span>
+              <ArrowLeft size={16} strokeWidth={2.5} />
             </button>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider truncate">
+                <span className="hover:underline cursor-pointer" onClick={() => requestLeave('/ventas')}>
+                  MÓDULO COMERCIAL
+                </span>
+                <span>/</span>
+                <span className="text-slate-600 dark:text-zinc-400">
+                  FACTURACIÓN ELECTRÓNICA
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-tight truncate">
+                  Punto de Venta (POS) & Facturación
+                </h1>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  TERMINAL ACTIVO
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Bottom/Right: Document Type Segmented Control + Desktop Quick Client */}
-          <div className="flex items-center gap-2 sm:gap-2.5 w-full md:w-auto">
-            <div className="w-full md:w-auto grid grid-cols-3 sm:flex p-1 bg-slate-100 dark:bg-zinc-800/80 rounded-xl border border-slate-200/80 dark:border-zinc-700/80 text-xs sm:text-sm font-bold gap-1">
+          {/* Right: Document Type Segmented Control + Quick Fill */}
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap sm:flex-nowrap">
+            {/* Segmented Control */}
+            <div className="inline-flex p-1 bg-slate-100 dark:bg-zinc-800/90 rounded-lg border border-slate-200/90 dark:border-zinc-700 text-xs font-semibold gap-1 w-full sm:w-auto justify-between sm:justify-start">
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('BOLETA')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   docType === 'BOLETA'
-                    ? 'bg-[#5550F2] text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <span>Boleta</span>
-                <span className={`text-[10px] sm:text-xs font-mono font-medium ${docType === 'BOLETA' ? 'text-indigo-100' : 'text-slate-400'}`}>(B001)</span>
+                <span className={`text-[10px] font-mono ${docType === 'BOLETA' ? 'opacity-80' : 'text-slate-400'}`}>B001</span>
               </button>
+
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('FACTURA')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   docType === 'FACTURA'
-                    ? 'bg-[#5550F2] text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <span>Factura</span>
-                <span className={`text-[10px] sm:text-xs font-mono font-medium ${docType === 'FACTURA' ? 'text-indigo-100' : 'text-slate-400'}`}>(F001)</span>
+                <span className={`text-[10px] font-mono ${docType === 'FACTURA' ? 'opacity-80' : 'text-slate-400'}`}>F001</span>
               </button>
+
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('NOTA')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   docType === 'NOTA'
-                    ? 'bg-[#5550F2] text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <span>Nota Venta</span>
-                <span className={`text-[10px] sm:text-xs font-mono font-medium ${docType === 'NOTA' ? 'text-indigo-100' : 'text-slate-400'}`}>(Ticket)</span>
+                <span className={`text-[10px] font-mono ${docType === 'NOTA' ? 'opacity-80' : 'text-slate-400'}`}>NV01</span>
               </button>
             </div>
 
-            {/* Quick general customer shortcut button on desktop */}
+            {/* Quick Consumer fill button */}
             <button
               type="button"
               onClick={handleQuickClient}
-              className="hidden md:inline-flex px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-bold items-center gap-1.5 transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95"
-              title="Llenar automáticamente con datos de cliente mostrador"
+              className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95"
+              title="Llenar cliente consumidor final rápido [Alt + C]"
             >
-              <Zap size={14} className="text-amber-500 fill-amber-500" />
-              <span>Cliente Rápido</span>
+              <Zap size={13} className="text-amber-500 fill-amber-500" />
+              <span>Consumidor Final</span>
+              <kbd className="hidden lg:inline text-[9px] font-mono text-slate-400 bg-white dark:bg-zinc-900 px-1 py-0.2 rounded border border-slate-200 dark:border-zinc-700">Alt+C</kbd>
             </button>
           </div>
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            1. CUSTOMER & ORDER ATTRIBUTES BAR (COMFORTABLE SIZING)
+            1. RECEPTOR / CLIENT METADATA SECTION
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5 items-end text-xs sm:text-sm">
-
-            {/* Client Name / Razón Social */}
-            <div className="lg:col-span-4">
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
-                  <User size={13} className="text-blue-600" />
-                  <span>
-                    {docType === 'FACTURA' ? 'Razón Social (Empresa) *' : 'Nombre del Cliente *'}
-                  </span>
-                </label>
-                {clients.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setClientPickerSearch('')
-                      setClientPickerOpen(true)
-                    }}
-                    className="text-xs text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <Search size={12} />
-                    <span>{selectedClientId ? 'Cambiar cliente' : 'Buscar en catálogo…'}</span>
-                  </button>
-                )}
-              </div>
-              <input
-                type="text"
-                value={clientName}
-                onChange={(e) => {
-                  setClientName(e.target.value)
-                  setSelectedClientId('')
-                }}
-                placeholder={
-                  docType === 'FACTURA'
-                    ? 'Ej. DISTRIBUIDORA INDUSTRIAL S.A.C.'
-                    : 'Ej. Juan Pérez / Cliente General'
-                }
-                required
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-zinc-900 font-medium"
-              />
+        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-xs">
+          <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-100 dark:border-zinc-800 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                DATOS DEL ADQUIRIENTE / CLIENTE
+              </span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                SERIE {serie}
+              </span>
             </div>
 
-            {/* RUC / DNI */}
+            {clients.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setClientPickerSearch('')
+                  setClientPickerOpen(true)
+                }}
+                className="text-xs font-semibold text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer"
+              >
+                <Search size={13} className="text-slate-400" />
+                <span>{selectedClientId ? 'Cambiar cliente registrado' : 'Buscar en directorio…'}</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 text-xs sm:text-sm items-start">
+            {/* Field 1: Document (DNI or RUC) */}
             <div className="lg:col-span-3">
-              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                {docType === 'FACTURA' ? 'R.U.C. (11 dígitos) *' : 'D.N.I. / Celular'}
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                {docType === 'FACTURA' ? 'R.U.C. (11 DÍGITOS) *' : 'D.N.I. / DOC IDENTIDAD'}
               </label>
               <div className="relative">
-                <FileText size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <FileText size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  value={clientPhone}
-                  onChange={(e) => setClientPhone(e.target.value)}
-                  placeholder={docType === 'FACTURA' ? '20601234567' : '72345678 / 987654321'}
-                  className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-8 pr-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono"
+                  maxLength={docType === 'FACTURA' ? 11 : 12}
+                  value={clientDoc}
+                  onChange={(e) => setClientDoc(e.target.value.replace(/\D/g, ''))}
+                  placeholder={docType === 'FACTURA' ? '20601234567' : '72345678'}
+                  className="w-full bg-slate-50/70 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-lg pl-8 pr-2.5 py-1.5 text-xs sm:text-sm font-mono text-slate-900 dark:text-white outline-none focus:border-slate-900 dark:focus:border-white focus:bg-white dark:focus:bg-zinc-900 transition-colors"
                 />
               </div>
             </div>
 
-            {/* Vendedor Asignado */}
-            <div className="lg:col-span-3">
-              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                Vendedor Asignado
+            {/* Field 2: Name / Razón Social */}
+            <div className="lg:col-span-4">
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                {docType === 'FACTURA' ? 'RAZÓN SOCIAL (EMPRESA) *' : 'NOMBRES Y APELLIDOS / RAZÓN *'}
               </label>
-              {/* Mobile Touch Button */}
+              <div className="relative">
+                <User size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={clientName}
+                  onChange={(e) => {
+                    setClientName(e.target.value)
+                    setSelectedClientId('')
+                  }}
+                  placeholder={
+                    docType === 'FACTURA'
+                      ? 'Ej. DISTRIBUIDORA INDUSTRIAL S.A.C.'
+                      : 'Ej. JUAN PÉREZ / CLIENTE GENERAL'
+                  }
+                  required
+                  className="w-full bg-slate-50/70 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-lg pl-8 pr-2.5 py-1.5 text-xs sm:text-sm text-slate-900 dark:text-white font-medium outline-none focus:border-slate-900 dark:focus:border-white focus:bg-white dark:focus:bg-zinc-900 transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Field 3: Teléfono / WhatsApp Contacto */}
+            <div className="lg:col-span-2">
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                TELÉFONO / CELULAR
+              </label>
+              <div className="relative">
+                <Phone size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  maxLength={15}
+                  value={clientContactPhone}
+                  onChange={(e) => setClientContactPhone(e.target.value)}
+                  placeholder="987654321"
+                  className="w-full bg-slate-50/70 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-lg pl-8 pr-2.5 py-1.5 text-xs sm:text-sm font-mono text-slate-900 dark:text-white outline-none focus:border-slate-900 dark:focus:border-white focus:bg-white dark:focus:bg-zinc-900 transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Field 4: Vendedor Responsable */}
+            <div className="lg:col-span-3">
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-1">
+                VENDEDOR / CAJERO
+              </label>
+              {/* Mobile button */}
               <div className="md:hidden">
                 <button
                   type="button"
                   onClick={() => setSellerPickerOpen(true)}
-                  className="w-full bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white flex items-center justify-between font-medium cursor-pointer shadow-2xs"
+                  className="w-full bg-slate-50/70 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white flex items-center justify-between font-medium cursor-pointer"
                 >
                   <span className="truncate">{sellerName || 'Seleccionar vendedor'}</span>
                   <ChevronDown size={14} className="text-slate-400 shrink-0 ml-1.5" />
                 </button>
               </div>
-              {/* Desktop standard select */}
+              {/* Desktop select */}
               <div className="hidden md:block">
                 <select
                   value={sellerName}
                   onChange={(e) => setSellerName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-medium cursor-pointer"
+                  className="w-full bg-slate-50/70 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-slate-900 dark:focus:border-white font-medium cursor-pointer"
                 >
                   {sellerOptions.map((s, idx) => (
                     <option key={idx} value={s}>
@@ -584,87 +652,84 @@ export default function NewSale() {
                 </select>
               </div>
             </div>
-
-            {/* O.C. / Referencia */}
-            <div className="lg:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
-                O.C. / Referencia
-              </label>
-              <input
-                type="text"
-                value={purchaseOrder}
-                onChange={(e) => setPurchaseOrder(e.target.value)}
-                placeholder="Ej. OC-1029"
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600 font-mono uppercase"
-              />
-            </div>
-
           </div>
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            2. PRODUCTS TABLE (CLEAN, SPACIOUS ROWS, INTERNAL SCROLL)
+            2. PRODUCTS & ITEMS TABLE (HIGH-DENSITY POS GRID)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 overflow-hidden shadow-xs">
-          <div className="py-2.5 px-4 bg-slate-50/80 dark:bg-zinc-800/60 border-b border-slate-200/80 dark:border-zinc-800 flex items-center justify-between text-xs sm:text-sm">
+        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 overflow-hidden shadow-xs">
+          {/* Table Header Bar */}
+          <div className="py-2.5 px-4 bg-slate-50/90 dark:bg-zinc-800/70 border-b border-slate-200/80 dark:border-zinc-800 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
-              <Package size={15} className="text-blue-600" />
-              <span className="font-bold text-slate-800 dark:text-zinc-200">
-                Artículos Facturados
+              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                DETALLE DE MERCADERÍA FACTURADA
               </span>
-              <span className="text-xs text-slate-400 font-mono">({items.length} ítems)</span>
+              <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono font-medium">
+                ({items.length} {items.length === 1 ? 'línea' : 'líneas'} · {totalUnits} {totalUnits === 1 ? 'unidad' : 'unidades'})
+              </span>
             </div>
 
             <button
               type="button"
               onClick={addItemRow}
-              className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer active:scale-95"
+              title="Agregar fila de producto [F3]"
             >
-              <Plus size={14} strokeWidth={2.5} />
-              <span>Agregar Fila</span>
+              <Plus size={13} strokeWidth={2.5} />
+              <span>Agregar Producto</span>
+              <kbd className="hidden sm:inline text-[9px] font-mono text-slate-300 dark:text-slate-600 bg-slate-800 dark:bg-slate-200 px-1 py-0.2 rounded">F3</kbd>
             </button>
           </div>
 
-          {/* Desktop Table View (>= 768px): wide horizontal data table */}
-          <div className="hidden md:block max-h-[260px] overflow-x-auto overflow-y-auto">
-            <table className="w-full text-left border-collapse text-xs sm:text-sm">
-              <thead className="sticky top-0 z-10 bg-white dark:bg-[#141417] border-b border-slate-200 dark:border-zinc-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+          {/* Desktop POS Table View (>= 768px) */}
+          <div className="hidden md:block overflow-x-auto max-h-[300px]">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 z-10 bg-white dark:bg-[#141417] border-b border-slate-200 dark:border-zinc-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 <tr>
-                  <th className="py-2.5 px-3.5 w-10 text-center">#</th>
-                  <th className="py-2.5 px-3 min-w-[320px]">Producto / Descripción</th>
-                  <th className="py-2.5 px-3 w-36 text-center">Stock</th>
-                  <th className="py-2.5 px-3 w-32 text-center">Cant.</th>
-                  <th className="py-2.5 px-3 w-36 text-right">P. Unitario (S/)</th>
-                  <th className="py-2.5 px-3 w-32 text-right">Subtotal</th>
-                  <th className="py-2.5 px-3 w-12 text-center"></th>
+                  <th className="py-2.5 px-3 w-10 text-center">#</th>
+                  <th className="py-2.5 px-3 w-28">SKU / CÓDIGO</th>
+                  <th className="py-2.5 px-3 min-w-[280px]">DESCRIPCIÓN DE MERCADERÍA</th>
+                  <th className="py-2.5 px-3 w-32 text-center">STOCK ALMACÉN</th>
+                  <th className="py-2.5 px-3 w-32 text-center">CANTIDAD</th>
+                  <th className="py-2.5 px-3 w-36 text-right">P. UNITARIO</th>
+                  <th className="py-2.5 px-3 w-32 text-right">SUBTOTAL</th>
+                  <th className="py-2.5 px-3 w-10 text-center"></th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
+              <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/80">
                 {items.map((it, idx) => {
                   const prod = products.find((p) => p.id === it.product_id)
                   const lineTotal = (Number(it.unit_price) || 0) * (Number(it.quantity) || 0)
                   const isOverStock = prod && Number(prod.stock) < Number(it.quantity || 1)
 
                   return (
-                    <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 transition-colors">
+                    <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 transition-colors">
                       {/* # */}
-                      <td className="py-2.5 px-3.5 text-center font-bold text-slate-400">
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-400">
                         {idx + 1}
                       </td>
 
-                      {/* Product select */}
+                      {/* SKU */}
+                      <td className="py-2.5 px-3">
+                        <span className="font-mono text-[11px] font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                          {prod?.sku || (prod ? `SKU-${String(prod.id).slice(-4).toUpperCase()}` : '—')}
+                        </span>
+                      </td>
+
+                      {/* Product selector */}
                       <td className="py-2.5 px-3">
                         <select
                           value={it.product_id}
                           onChange={(e) => updateItem(idx, { product_id: e.target.value })}
                           required
-                          className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-900 dark:text-white font-medium outline-none focus:border-blue-600"
+                          className="w-full bg-slate-50/80 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white font-medium outline-none focus:border-slate-900 dark:focus:border-white transition-colors cursor-pointer"
                         >
                           <option value="">Selecciona un producto del catálogo…</option>
                           {products.map((p) => (
                             <option key={p.id} value={p.id}>
-                              {p.sku ? `[${p.sku}] ` : ''}{p.name} — {fmt(p.sale_price)} (Stock: {p.stock})
+                              {p.sku ? `[${p.sku}] ` : ''}{p.name} — {fmt(p.sale_price)} ({p.stock} disp.)
                             </option>
                           ))}
                         </select>
@@ -674,27 +739,27 @@ export default function NewSale() {
                       <td className="py-2.5 px-3 text-center whitespace-nowrap">
                         {prod ? (
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold ${
                               isOverStock
-                                ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
-                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50'
+                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50'
                             }`}
                           >
-                            <span className={`w-1.5 h-1.5 rounded-full ${isOverStock ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                            <span>{prod.stock} {prod.unit || 'uds.'}</span>
+                            <span className={`w-1.5 h-1.5 rounded-full ${isOverStock ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+                            <span className="font-mono">{prod.stock}</span> {prod.unit || 'uds.'}
                           </span>
                         ) : (
-                          <span className="text-slate-300">—</span>
+                          <span className="text-slate-300 dark:text-zinc-600">—</span>
                         )}
                       </td>
 
                       {/* Cantidad Stepper */}
                       <td className="py-2.5 px-3">
-                        <div className="flex items-center justify-center border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800 overflow-hidden w-28 mx-auto">
+                        <div className="flex items-center justify-center border border-slate-200 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-800 overflow-hidden w-26 mx-auto">
                           <button
                             type="button"
                             onClick={() => updateItem(idx, { quantity: Math.max(1, Number(it.quantity || 1) - 1) })}
-                            className="px-2 py-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                           >
                             <Minus size={12} />
                           </button>
@@ -704,12 +769,12 @@ export default function NewSale() {
                             value={it.quantity}
                             onChange={(e) => updateItem(idx, { quantity: e.target.value })}
                             required
-                            className="w-12 bg-transparent text-center font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-white outline-none"
+                            className="w-10 bg-transparent text-center font-mono font-bold text-xs text-slate-900 dark:text-white outline-none"
                           />
                           <button
                             type="button"
                             onClick={() => updateItem(idx, { quantity: Number(it.quantity || 1) + 1 })}
-                            className="px-2 py-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                            className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                           >
                             <Plus size={12} />
                           </button>
@@ -718,8 +783,8 @@ export default function NewSale() {
 
                       {/* Unit Price */}
                       <td className="py-2.5 px-3 text-right">
-                        <div className="relative inline-block w-32">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
+                        <div className="relative inline-block w-28">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-[11px]">
                             S/
                           </span>
                           <input
@@ -730,13 +795,13 @@ export default function NewSale() {
                             onChange={(e) => updateItem(idx, { unit_price: e.target.value })}
                             placeholder="0.00"
                             required
-                            className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl pl-7 pr-2.5 py-1.5 text-right font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                            className="w-full bg-slate-50/80 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-lg pl-7 pr-2 py-1 text-right font-mono font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-slate-900 dark:focus:border-white transition-colors"
                           />
                         </div>
                       </td>
 
                       {/* Subtotal */}
-                      <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-white text-xs sm:text-sm">
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white text-xs">
                         {fmt(lineTotal)}
                       </td>
 
@@ -746,10 +811,10 @@ export default function NewSale() {
                           type="button"
                           onClick={() => removeItemRow(idx)}
                           disabled={items.length <= 1}
-                          className="p-1.5 text-slate-300 hover:text-red-600 disabled:opacity-20 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                          title="Quitar"
+                          className="p-1 text-slate-400 hover:text-rose-600 disabled:opacity-20 rounded-md hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                          title="Quitar ítem"
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={14} />
                         </button>
                       </td>
                     </tr>
@@ -759,7 +824,7 @@ export default function NewSale() {
             </table>
           </div>
 
-          {/* Mobile Cards View (< 768px): ZERO horizontal scroll, optimized for thumb touches */}
+          {/* Mobile Cards View (< 768px) */}
           <div className="md:hidden divide-y divide-slate-100 dark:divide-zinc-800">
             {items.map((it, idx) => {
               const prod = products.find((p) => p.id === it.product_id)
@@ -767,10 +832,9 @@ export default function NewSale() {
               const isOverStock = prod && Number(prod.stock) < Number(it.quantity || 1)
 
               return (
-                <div key={idx} className="p-3.5 space-y-2.5 bg-white dark:bg-[#141417]">
-                  {/* Row 1: Index badge + Product dropdown + Delete button */}
+                <div key={idx} className="p-3 space-y-2 bg-white dark:bg-[#141417]">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 text-xs font-bold flex items-center justify-center shrink-0 font-mono">
+                    <span className="w-6 h-6 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-mono font-bold flex items-center justify-center shrink-0">
                       #{idx + 1}
                     </span>
                     <div className="flex-1 min-w-0">
@@ -781,12 +845,12 @@ export default function NewSale() {
                           setPickerSearch('')
                           setPickerOpen(true)
                         }}
-                        className="w-full text-left bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800/90 border border-slate-200 dark:border-zinc-700 rounded-xl px-2.5 py-2 flex items-center justify-between text-xs text-slate-900 dark:text-white font-medium outline-none transition-all cursor-pointer shadow-2xs active:scale-[0.99]"
+                        className="w-full text-left bg-slate-50 dark:bg-zinc-800/90 border border-slate-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 flex items-center justify-between text-xs text-slate-900 dark:text-white font-medium outline-none cursor-pointer"
                       >
                         {prod ? (
                           <div className="min-w-0 flex items-center gap-1.5 truncate">
                             {prod.sku && (
-                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-slate-200/80 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded shrink-0">
+                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-slate-200 dark:bg-zinc-700 rounded shrink-0">
                                 {prod.sku}
                               </span>
                             )}
@@ -806,53 +870,48 @@ export default function NewSale() {
                       type="button"
                       onClick={() => removeItemRow(idx)}
                       disabled={items.length <= 1}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-300 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-20 transition-colors shrink-0 cursor-pointer"
-                      title="Eliminar fila"
+                      className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 disabled:opacity-20 transition-colors shrink-0 cursor-pointer"
                     >
-                      <Trash2 size={15} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
 
-                  {/* Row 2: Stock status on left, Subtotal on right */}
-                  <div className="flex items-center justify-between text-xs px-0.5">
+                  <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-slate-400 font-semibold">Stock:</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Stock:</span>
                       {prod ? (
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-mono font-bold ${
                             isOverStock
-                              ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                              ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
                               : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
                           }`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${isOverStock ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                          <span>{prod.stock} {prod.unit || 'uds.'}</span>
+                          {prod.stock} {prod.unit || 'uds.'}
                         </span>
                       ) : (
-                        <span className="text-slate-400 text-[11px]">—</span>
+                        <span className="text-slate-400">—</span>
                       )}
                     </div>
 
                     <div className="flex items-baseline gap-1 font-mono">
-                      <span className="text-[11px] text-slate-400 font-sans font-semibold">Subtotal:</span>
-                      <span className="text-sm font-black text-slate-900 dark:text-white">
+                      <span className="text-[10px] text-slate-400 font-sans font-semibold">Subtotal:</span>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">
                         {fmt(lineTotal)}
                       </span>
                     </div>
                   </div>
 
-                  {/* Row 3: Stepper Quantity (Left) + Unit Price (Right) */}
                   <div className="flex items-center justify-between gap-3 pt-0.5">
-                    {/* Quantity Stepper */}
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-slate-400 font-semibold">Cant:</span>
-                      <div className="flex items-center border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-800 overflow-hidden">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">Cant:</span>
+                      <div className="flex items-center border border-slate-200 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-800 overflow-hidden">
                         <button
                           type="button"
                           onClick={() => updateItem(idx, { quantity: Math.max(1, Number(it.quantity || 1) - 1) })}
-                          className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white active:bg-slate-200 transition-colors"
+                          className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white"
                         >
-                          <Minus size={13} />
+                          <Minus size={12} />
                         </button>
                         <input
                           type="number"
@@ -860,21 +919,20 @@ export default function NewSale() {
                           value={it.quantity}
                           onChange={(e) => updateItem(idx, { quantity: e.target.value })}
                           required
-                          className="w-10 bg-transparent text-center font-mono font-bold text-xs text-slate-900 dark:text-white outline-none"
+                          className="w-9 bg-transparent text-center font-mono font-bold text-xs text-slate-900 dark:text-white outline-none"
                         />
                         <button
                           type="button"
                           onClick={() => updateItem(idx, { quantity: Number(it.quantity || 1) + 1 })}
-                          className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white active:bg-slate-200 transition-colors"
+                          className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white"
                         >
-                          <Plus size={13} />
+                          <Plus size={12} />
                         </button>
                       </div>
                     </div>
 
-                    {/* Unit Price */}
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-slate-400 font-semibold">P. Unit:</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">P. Unit:</span>
                       <div className="relative w-24">
                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
                           S/
@@ -887,7 +945,7 @@ export default function NewSale() {
                           onChange={(e) => updateItem(idx, { unit_price: e.target.value })}
                           placeholder="0.00"
                           required
-                          className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl pl-6 pr-2 py-1.5 text-right font-mono font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                          className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg pl-6 pr-2 py-1 text-right font-mono font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-slate-900"
                         />
                       </div>
                     </div>
@@ -899,28 +957,27 @@ export default function NewSale() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            3. BALANCED BOTTOM SECTION (PAYMENT ON LEFT | TOTALS ON RIGHT)
+            3. SPLIT BOTTOM: PAYMENT COND & CASH REGISTER (LEFT) | TAX LIQUIDATION (RIGHT)
            ═════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
 
-          {/* LEFT: CONDICIÓN & MÉTODO DE PAGO (COL 7) */}
-          <div className="lg:col-span-7 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs flex flex-col justify-between space-y-3.5">
+          {/* LEFT: PAYMENT CONTROL & CASH CALCULATOR (COL 7) */}
+          <div className="lg:col-span-7 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-xs flex flex-col justify-between space-y-3.5">
             <div className="space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800">
-                <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
-                  <Clock size={14} className="text-blue-600" />
-                  Forma & Condición de Pago
+              {/* Header with Contado vs Crédito */}
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                  CONDICIONES COMERCIALES Y PAGO
                 </span>
 
-                {/* Contado / Crédito switch */}
-                <div className="inline-flex items-center p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-lg text-xs font-bold">
+                <div className="inline-flex p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-lg text-xs font-semibold">
                   <button
                     type="button"
                     onClick={() => setPaymentStatus('pagado')}
                     className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
                       paymentStatus === 'pagado'
-                        ? 'bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
-                        : 'text-slate-500'
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                     }`}
                   >
                     Al Contado
@@ -930,8 +987,8 @@ export default function NewSale() {
                     onClick={() => setPaymentStatus('pendiente')}
                     className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
                       paymentStatus === 'pendiente'
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'text-slate-500'
+                        ? 'bg-amber-600 text-white shadow-xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                     }`}
                   >
                     A Crédito
@@ -939,21 +996,21 @@ export default function NewSale() {
                 </div>
               </div>
 
-              {/* Payment Methods (5 compact horizontal pills) */}
+              {/* Payment Methods */}
               {paymentStatus === 'pagado' ? (
                 <div className="space-y-2.5">
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
                     {/* Efectivo */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('efectivo')}
-                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'efectivo'
-                          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold shadow-xs'
-                          : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
+                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white font-bold shadow-xs'
+                          : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
                       }`}
                     >
-                      <Banknote size={15} />
+                      <Banknote size={14} />
                       <span className="text-xs font-semibold">Efectivo</span>
                     </button>
 
@@ -961,38 +1018,38 @@ export default function NewSale() {
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('yape')}
-                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'yape'
                           ? 'bg-[#742284] border-[#742284] text-white font-bold shadow-xs'
-                          : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-purple-50'
+                          : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-purple-50 dark:hover:bg-purple-950/20'
                       }`}
                     >
-                      <img src="/yape-logo.png" alt="Yape" className="w-4 h-4 rounded-md object-cover" />
-                      <span className="text-xs font-black">Yape</span>
+                      <img src="/yape-logo.png" alt="Yape" className="w-3.5 h-3.5 rounded object-cover" />
+                      <span className="text-xs font-bold">Yape</span>
                     </button>
 
                     {/* Plin */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('plin')}
-                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'plin'
                           ? 'bg-[#00b49f] border-[#00b49f] text-white font-bold shadow-xs'
-                          : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-teal-50'
+                          : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-teal-50 dark:hover:bg-teal-950/20'
                       }`}
                     >
-                      <img src="/plin-logo.png" alt="Plin" className="w-4 h-4 rounded-full object-cover" />
-                      <span className="text-xs font-black">Plin</span>
+                      <img src="/plin-logo.png" alt="Plin" className="w-3.5 h-3.5 rounded-full object-cover" />
+                      <span className="text-xs font-bold">Plin</span>
                     </button>
 
                     {/* Transferencia */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('transferencia')}
-                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'transferencia'
-                          ? 'bg-blue-600 border-blue-600 text-white font-bold shadow-xs'
-                          : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
+                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white font-bold shadow-xs'
+                          : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
                       }`}
                     >
                       <Building2 size={14} />
@@ -1003,10 +1060,10 @@ export default function NewSale() {
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('tarjeta')}
-                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'tarjeta'
-                          ? 'bg-indigo-600 border-indigo-600 text-white font-bold shadow-xs'
-                          : 'bg-slate-50 dark:bg-zinc-800 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100'
+                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white font-bold shadow-xs'
+                          : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
                       }`}
                     >
                       <CreditCard size={14} />
@@ -1014,58 +1071,97 @@ export default function NewSale() {
                     </button>
                   </div>
 
-                  {/* Compact payment interactive feedback row */}
+                  {/* Cash Register: Bill Presets & Change Calculator */}
                   {paymentMethod === 'efectivo' && (
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-between text-xs sm:text-sm">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-slate-500 font-medium">Monto recibido:</span>
-                        <div className="relative w-28">
-                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">S/</span>
-                          <input
-                            type="number"
-                            step="0.50"
-                            value={cashReceived}
-                            onChange={(e) => setCashReceived(e.target.value)}
-                            placeholder={total > 0 ? total.toFixed(2) : '0.00'}
-                            className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg pl-6 pr-2 py-1 text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-blue-600"
-                          />
+                    <div className="p-3 rounded-lg bg-slate-50/90 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700/80 space-y-2.5">
+                      {/* Fast Bill Denominations */}
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          BILLETES RÁPIDOS:
+                        </span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => handleQuickCash(total > 0 ? total.toFixed(2) : 0)}
+                            className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 cursor-pointer shadow-2xs"
+                          >
+                            Exacto
+                          </button>
+                          {[20, 50, 100, 200].map((b) => (
+                            <button
+                              key={b}
+                              type="button"
+                              onClick={() => handleQuickCash(b)}
+                              className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 cursor-pointer shadow-2xs"
+                            >
+                              S/ {b}
+                            </button>
+                          ))}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500 font-medium">Vuelto:</span>
-                        <span
-                          className={`font-mono font-black text-xs sm:text-sm ${
-                            Number(cashReceived) >= total ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
-                          }`}
-                        >
-                          {Number(cashReceived) >= total ? fmt(Number(cashReceived) - total) : 'S/ 0.00'}
-                        </span>
+                      {/* Cash Input & Change Output */}
+                      <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-200/60 dark:border-zinc-700/60 items-center">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                            EFECTIVO RECIBIDO
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">S/</span>
+                            <input
+                              type="number"
+                              step="0.50"
+                              value={cashReceived}
+                              onChange={(e) => setCashReceived(e.target.value)}
+                              placeholder={total > 0 ? total.toFixed(2) : '0.00'}
+                              className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg pl-7 pr-2.5 py-1 text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-slate-900 dark:focus:border-white transition-colors"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-right">
+                          <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            VUELTO A ENTREGAR
+                          </span>
+                          <span
+                            className={`font-mono font-black text-base sm:text-lg leading-tight ${
+                              Number(cashReceived) >= total && total > 0
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-slate-400'
+                            }`}
+                          >
+                            {Number(cashReceived) >= total && total > 0
+                              ? fmt(Number(cashReceived) - total)
+                              : 'S/ 0.00'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
 
                   {(paymentMethod === 'yape' || paymentMethod === 'plin') && (
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-slate-700 dark:text-zinc-200 font-medium">
-                        {paymentMethod === 'yape' ? 'Pago móvil con Yape' : 'Pago móvil con Plin'}
+                    <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 flex items-center justify-between text-xs">
+                      <span className="text-slate-700 dark:text-zinc-200 font-semibold">
+                        {paymentMethod === 'yape' ? 'Pago con código QR o número Yape' : 'Pago con código QR o número Plin'}
                       </span>
                       {paymentConfig?.[paymentMethod]?.qr_image && (
                         <button
                           type="button"
                           onClick={() => setShowQrModal(true)}
-                          className="px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                          className="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
                         >
                           <QrCode size={13} />
-                          <span>Ver QR</span>
+                          <span>Mostrar QR</span>
                         </button>
                       )}
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 text-xs sm:text-sm">
-                  <span className="text-amber-800 dark:text-amber-300 font-semibold">Vencimiento:</span>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 text-xs">
+                  <div className="text-amber-800 dark:text-amber-300 font-semibold shrink-0">
+                    Fecha Límite de Pago:
+                  </div>
                   <input
                     type="date"
                     value={dueDate}
@@ -1076,83 +1172,102 @@ export default function NewSale() {
               )}
             </div>
 
-            {/* Notes in 1 slim input */}
-            <div className="pt-1.5 border-t border-slate-100 dark:border-zinc-800">
+            {/* Notes / Order reference input */}
+            <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <input
+                type="text"
+                value={purchaseOrder}
+                onChange={(e) => setPurchaseOrder(e.target.value)}
+                placeholder="N° O.C. / Guía Remisión / Ref. interna…"
+                className="w-full bg-slate-50 dark:bg-zinc-800/70 border border-slate-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs font-mono uppercase text-slate-800 dark:text-white outline-none focus:border-slate-900"
+              />
               <input
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Observaciones / Instrucciones de entrega (opcional)…"
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3 py-1.5 text-xs sm:text-sm text-slate-800 dark:text-white outline-none focus:border-blue-600"
+                placeholder="Glosa / Observación impresa en el comprobante…"
+                className="w-full bg-slate-50 dark:bg-zinc-800/70 border border-slate-200 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 dark:text-white outline-none focus:border-slate-900"
               />
             </div>
           </div>
 
-          {/* RIGHT: RESUMEN FINANCIERO & EMISIÓN (COL 5) */}
-          <div className="lg:col-span-5 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs flex flex-col justify-between space-y-3.5">
+          {/* RIGHT: FINANCIAL LIQUIDATION & EMISSION (COL 5) */}
+          <div className="lg:col-span-5 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-xs flex flex-col justify-between space-y-3.5">
             <div>
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-zinc-800 text-xs sm:text-sm">
-                <span className="font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
-                  <DollarSign size={15} className="text-blue-600" />
-                  Liquidación de Venta
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800 text-xs">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                  LIQUIDACIÓN TRIBUTARIA
                 </span>
-                <span className="font-mono text-xs text-slate-400">PEN (S/)</span>
+                <span className="font-mono text-[11px] font-bold text-slate-500 dark:text-zinc-400">
+                  PEN (S/)
+                </span>
               </div>
 
-              <div className="space-y-2 pt-2.5 text-xs sm:text-sm">
-                <div className="flex justify-between items-center text-slate-500">
+              <div className="space-y-2 pt-2.5 text-xs">
+                <div className="flex justify-between items-center text-slate-600 dark:text-zinc-400">
                   <span>Subtotal / Op. Gravada:</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-white">{fmt(netAmount)}</span>
+                  <span className="font-mono font-bold text-slate-900 dark:text-white">{fmt(netAmount)}</span>
                 </div>
-                <div className="flex justify-between items-center text-slate-500">
+                <div className="flex justify-between items-center text-slate-600 dark:text-zinc-400">
                   <span>I.G.V. (18% Incluido):</span>
                   <span className="font-mono font-semibold">{fmt(igvAmount)}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Descuento Global (S/):</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={discount}
-                    onChange={(e) => setDiscount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-24 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-2 py-1 text-right font-mono font-bold text-xs sm:text-sm text-amber-600 outline-none focus:border-blue-600"
-                  />
+                <div className="flex justify-between items-center text-slate-600 dark:text-zinc-400">
+                  <span>Descuento Global (S/):</span>
+                  <div className="relative w-24">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">S/</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={discount}
+                      onChange={(e) => setDiscount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg pl-6 pr-2 py-0.5 text-right font-mono font-bold text-xs text-amber-600 outline-none focus:border-slate-900"
+                    />
+                  </div>
                 </div>
 
-                <div className="pt-2.5 border-t border-slate-200 dark:border-zinc-800 flex justify-between items-baseline">
-                  <span className="font-black text-xs uppercase text-slate-700 dark:text-zinc-300 tracking-wider">
-                    TOTAL A PAGAR:
-                  </span>
-                  <span className="text-2xl sm:text-3xl font-black font-mono text-blue-600 dark:text-blue-400 tracking-tight">
-                    {fmt(total)}
-                  </span>
+                {/* Dark Executive Total Banner */}
+                <div className="mt-3 p-3.5 rounded-lg bg-slate-900 text-white dark:bg-zinc-950 border border-slate-800 shadow-md">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-300">
+                      TOTAL A COBRAR
+                    </span>
+                    <span className="text-2xl sm:text-3xl font-black font-mono text-emerald-400 tracking-tight">
+                      {fmt(total)}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 pt-1.5 border-t border-slate-800 text-[10px] font-mono text-slate-400 truncate">
+                    {numberToWordsPE(total)}
+                  </div>
                 </div>
               </div>
             </div>
 
             {error && (
-              <div className="p-2.5 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-1.5">
-                <AlertCircle size={15} className="shrink-0" />
+              <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle size={15} className="shrink-0 text-rose-600" />
                 <span className="truncate">{error}</span>
               </div>
             )}
 
             {/* Action Buttons */}
-            <div className="space-y-2 pt-1.5 border-t border-slate-100 dark:border-zinc-800">
+            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800">
               <button
                 type="submit"
                 disabled={isProcessing}
                 onClick={handleSubmit}
-                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                className="w-full py-3 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
+                title="Emitir comprobante [F2]"
               >
                 {isProcessing ? (
                   <span>Emitiendo comprobante…</span>
                 ) : (
                   <>
                     <Check size={16} strokeWidth={3} />
-                    <span>Emitir y Generar Comprobante</span>
+                    <span>Emitir Comprobante</span>
+                    <kbd className="hidden sm:inline text-[10px] font-mono text-slate-300 dark:text-slate-600 bg-slate-800 dark:bg-slate-200 px-1.5 py-0.2 rounded">F2</kbd>
                   </>
                 )}
               </button>
@@ -1160,9 +1275,9 @@ export default function NewSale() {
               <button
                 type="button"
                 onClick={() => requestLeave('/ventas')}
-                className="w-full py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+                className="w-full py-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer text-center"
               >
-                Cancelar y Volver
+                Descartar y volver a ventas
               </button>
             </div>
           </div>
@@ -1170,29 +1285,29 @@ export default function NewSale() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            OVERLAY: SLEEK EMISSION ANIMATION SCREEN
+            OVERLAY: EMISSION PROGRESS SCREEN
            ═════════════════════════════════════════════════════════ */}
         {isProcessing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-fade-in">
             <div className="bg-white dark:bg-[#18181b] rounded-2xl border border-slate-200 dark:border-zinc-700 p-6 max-w-sm w-full text-center shadow-2xl space-y-4 animate-slide-up">
-              <div className="w-14 h-14 rounded-full border-3 border-blue-600 border-t-transparent animate-spin mx-auto flex items-center justify-center">
-                <ShoppingCart size={22} className="text-blue-600 animate-pulse" />
+              <div className="w-12 h-12 rounded-full border-3 border-slate-900 dark:border-white border-t-transparent animate-spin mx-auto flex items-center justify-center">
+                <ShoppingCart size={18} className="text-slate-900 dark:text-white animate-pulse" />
               </div>
 
               <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                   Emitiendo Comprobante Electrónico
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                  {processingStep === 1 && 'Validando stock en tiempo real…'}
-                  {processingStep === 2 && 'Generando serie y registrando venta en base de datos…'}
-                  {processingStep === 3 && '¡Comprobante emitido con éxito! Cargando boleta…'}
+                  {processingStep === 1 && 'Validando existencias en almacén…'}
+                  {processingStep === 2 && 'Registrando comprobante y deduciendo inventario…'}
+                  {processingStep === 3 && '¡Comprobante generado con éxito!'}
                 </p>
               </div>
 
               <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
                 <div
-                  className="bg-blue-600 h-full transition-all duration-300"
+                  className="bg-slate-900 dark:bg-white h-full transition-all duration-300"
                   style={{
                     width:
                       processingStep === 1 ? '35%' : processingStep === 2 ? '75%' : '100%'
@@ -1204,22 +1319,22 @@ export default function NewSale() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            MODAL: BOLETA / FACTURA EMITIDA (CENTERED DIALOG OVERLAY)
+            MODAL: COMPROBANTE EMITIDO CON ÉXITO
            ═════════════════════════════════════════════════════════ */}
         {createdSale && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
-            <div className="relative w-full max-w-md bg-white dark:bg-[#141417] rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden flex flex-col max-h-[92vh] animate-scale-in">
+            <div className="relative w-full max-w-md bg-white dark:bg-[#141417] rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden flex flex-col max-h-[92vh] animate-scale-in">
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-800/50">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                    <Check size={16} strokeWidth={3} />
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-800/50">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <Check size={14} strokeWidth={3} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
-                      ¡Comprobante Emitido con Éxito!
+                    <h3 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
+                      Comprobante Emitido con Éxito
                     </h3>
-                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono">
                       {createdSale.serie || serie || 'B001'}-{String(createdSale.id).slice(-6).toUpperCase()}
                     </p>
                   </div>
@@ -1231,14 +1346,14 @@ export default function NewSale() {
                     setCreatedSale(null)
                     navigate('/ventas', { state: { created: true, clientName } })
                   }}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                   title="Cerrar"
                 >
-                  <X size={18} />
+                  <X size={16} />
                 </button>
               </div>
 
-              {/* Ticket Body (Scrollable in the middle) */}
+              {/* Ticket Body (Scrollable) */}
               <div className="overflow-y-auto p-4 flex-1">
                 <ReceiptModal
                   sale={createdSale}
@@ -1248,15 +1363,15 @@ export default function NewSale() {
                 />
               </div>
 
-              {/* Footer Actions: Ir a Ventas o Emitir Otra Venta */}
-              <div className="p-3.5 bg-slate-50 dark:bg-zinc-800/60 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2.5 text-xs">
+              {/* Footer Actions */}
+              <div className="p-3 bg-slate-50 dark:bg-zinc-800/60 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2.5 text-xs">
                 <button
                   type="button"
                   onClick={() => {
                     setCreatedSale(null)
                     navigate('/ventas', { state: { created: true, clientName } })
                   }}
-                  className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-semibold hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 font-semibold hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   Ir a Lista de Ventas
                 </button>
@@ -1264,9 +1379,9 @@ export default function NewSale() {
                 <button
                   type="button"
                   onClick={handleResetForm}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
                 >
-                  <Plus size={14} strokeWidth={2.5} />
+                  <Plus size={13} strokeWidth={2.5} />
                   <span>Emitir Otra Venta</span>
                 </button>
               </div>
@@ -1274,7 +1389,7 @@ export default function NewSale() {
           </div>
         )}
 
-        {/* FULLSCREEN QR CODE MODAL FOR CUSTOMER SCANNING */}
+        {/* QR MODAL */}
         <PaymentQrModal
           isOpen={showQrModal}
           onClose={() => setShowQrModal(false)}
@@ -1284,55 +1399,45 @@ export default function NewSale() {
           currency="S/"
         />
 
-        {/* MOBILE PRODUCT PICKER (BOTTOM SHEET / DIALOG) */}
+        {/* MOBILE PRODUCT PICKER */}
         {pickerOpen && (
           <div className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 dark:bg-black/75 backdrop-blur-[2px] sm:items-center sm:justify-center p-0 sm:p-4 animate-fade-in">
-            {/* Backdrop dismiss */}
             <div className="absolute inset-0" onClick={() => setPickerOpen(false)} />
-
-            {/* Bottom Sheet Drawer */}
-            <div className="relative w-full sm:max-w-md bg-white dark:bg-[#181B2E] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 max-h-[82vh] flex flex-col overflow-hidden animate-slide-up">
-              {/* Drag bar for mobile */}
-              <div className="sm:hidden pt-3 pb-1 flex justify-center">
-                <div className="w-10 h-1.5 bg-slate-300 dark:bg-zinc-600 rounded-full" />
-              </div>
-
-              {/* Header */}
+            <div className="relative w-full sm:max-w-md bg-white dark:bg-[#181B2E] rounded-t-2xl sm:rounded-xl shadow-2xl border border-slate-200 dark:border-white/10 max-h-[82vh] flex flex-col overflow-hidden animate-slide-up">
               <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">
-                    Seleccionar Producto
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Catálogo de Productos
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-medium">
-                    Fila #{pickerItemIdx !== null ? pickerItemIdx + 1 : 1} · {products.length} disponibles
+                  <p className="text-[11px] text-slate-400">
+                    Fila #{pickerItemIdx !== null ? pickerItemIdx + 1 : 1} · {products.length} productos
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setPickerOpen(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
                 >
-                  <X size={18} />
+                  <X size={16} />
                 </button>
               </div>
 
-              {/* Search Bar */}
-              <div className="p-3 border-b border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02]">
+              <div className="p-2.5 border-b border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02]">
                 <div className="relative">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     value={pickerSearch}
                     onChange={(e) => setPickerSearch(e.target.value)}
-                    placeholder="Buscar por nombre, código o SKU…"
+                    placeholder="Buscar por código, nombre o categoría…"
                     autoFocus
-                    className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#121420] border border-slate-200 dark:border-white/10 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-blue-600 shadow-2xs"
+                    className="w-full pl-8 pr-7 py-1.5 bg-white dark:bg-[#121420] border border-slate-200 dark:border-white/10 rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-slate-900"
                   />
                   {pickerSearch && (
                     <button
                       type="button"
                       onClick={() => setPickerSearch('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400"
                     >
                       ✕
                     </button>
@@ -1340,13 +1445,11 @@ export default function NewSale() {
                 </div>
               </div>
 
-              {/* Product List */}
               <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5 p-2 max-h-[50vh]">
                 {filteredPickerProducts.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400">
-                    <Package size={26} className="mx-auto mb-2 opacity-40 text-slate-400" />
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No se encontraron productos</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Prueba con otro término o código</p>
+                  <div className="p-6 text-center text-slate-400">
+                    <Package size={22} className="mx-auto mb-1 opacity-40" />
+                    <p className="text-xs font-bold">No se encontraron productos</p>
                   </div>
                 ) : (
                   filteredPickerProducts.map((p) => {
@@ -1363,14 +1466,14 @@ export default function NewSale() {
                           }
                           setPickerOpen(false)
                         }}
-                        className={`w-full text-left p-3 rounded-xl flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                        className={`w-full text-left p-2.5 rounded-lg flex items-center justify-between gap-2.5 transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-blue-50/80 dark:bg-blue-900/25 border border-blue-200 dark:border-blue-500/30'
-                            : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
+                            ? 'bg-slate-100 dark:bg-zinc-800'
+                            : 'hover:bg-slate-50 dark:hover:bg-white/5'
                         }`}
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className="flex items-center gap-1.5">
                             {p.sku && (
                               <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded">
                                 {p.sku}
@@ -1380,30 +1483,19 @@ export default function NewSale() {
                               {p.name}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2 mt-1 text-[11px]">
-                            <span className={`inline-flex items-center gap-1 font-semibold ${
-                              isOutOfStock
-                                ? 'text-red-600 dark:text-red-400'
-                                : 'text-emerald-600 dark:text-emerald-400'
-                            }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                              <span>{p.stock} {p.unit || 'uds.'}</span>
+                          <div className="flex items-center gap-2 mt-0.5 text-[10px]">
+                            <span className={isOutOfStock ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
+                              {p.stock} {p.unit || 'uds.'}
                             </span>
                             <span className="text-slate-300 dark:text-zinc-600">·</span>
-                            <span className="text-slate-400 capitalize truncate">{p.category || 'General'}</span>
+                            <span className="text-slate-400 capitalize">{p.category || 'General'}</span>
                           </div>
                         </div>
 
                         <div className="text-right shrink-0">
-                          <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono">
+                          <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
                             {fmt(p.sale_price)}
                           </span>
-                          {isSelected && (
-                            <div className="flex items-center justify-end gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-bold mt-0.5">
-                              <Check size={11} strokeWidth={3} />
-                              <span>Elegido</span>
-                            </div>
-                          )}
                         </div>
                       </button>
                     )
@@ -1414,49 +1506,45 @@ export default function NewSale() {
           </div>
         )}
 
-        {/* MOBILE CLIENT PICKER (BOTTOM SHEET / DIALOG) */}
+        {/* MOBILE CLIENT PICKER */}
         {clientPickerOpen && (
           <div className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 dark:bg-black/75 backdrop-blur-[2px] sm:items-center sm:justify-center p-0 sm:p-4 animate-fade-in">
             <div className="absolute inset-0" onClick={() => setClientPickerOpen(false)} />
-            <div className="relative w-full sm:max-w-md bg-white dark:bg-[#181B2E] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 max-h-[82vh] flex flex-col overflow-hidden animate-slide-up">
-              <div className="sm:hidden pt-3 pb-1 flex justify-center">
-                <div className="w-10 h-1.5 bg-slate-300 dark:bg-zinc-600 rounded-full" />
-              </div>
+            <div className="relative w-full sm:max-w-md bg-white dark:bg-[#181B2E] rounded-t-2xl sm:rounded-xl shadow-2xl border border-slate-200 dark:border-white/10 max-h-[82vh] flex flex-col overflow-hidden animate-slide-up">
               <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">
-                    Buscar Cliente en Catálogo
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Directorio de Clientes
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-medium">
+                  <p className="text-[11px] text-slate-400">
                     {clients.length} clientes registrados
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setClientPickerOpen(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
                 >
-                  <X size={18} />
+                  <X size={16} />
                 </button>
               </div>
 
-              {/* Search Bar */}
-              <div className="p-3 border-b border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02]">
+              <div className="p-2.5 border-b border-slate-100 dark:border-white/10 bg-slate-50/70 dark:bg-white/[0.02]">
                 <div className="relative">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     value={clientPickerSearch}
                     onChange={(e) => setClientPickerSearch(e.target.value)}
-                    placeholder="Buscar por nombre, DNI, RUC o teléfono…"
+                    placeholder="Buscar por nombre, RUC, DNI o teléfono…"
                     autoFocus
-                    className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#121420] border border-slate-200 dark:border-white/10 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-blue-600 shadow-2xs"
+                    className="w-full pl-8 pr-7 py-1.5 bg-white dark:bg-[#121420] border border-slate-200 dark:border-white/10 rounded-lg text-xs text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:border-slate-900"
                   />
                   {clientPickerSearch && (
                     <button
                       type="button"
                       onClick={() => setClientPickerSearch('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400"
                     >
                       ✕
                     </button>
@@ -1464,38 +1552,34 @@ export default function NewSale() {
                 </div>
               </div>
 
-              {/* Client List */}
               <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5 p-2 max-h-[50vh]">
-                {/* General Customer Quick Option */}
+                {/* Consumidor final shortcut */}
                 <button
                   type="button"
                   onClick={() => {
                     handleQuickClient()
                     setClientPickerOpen(false)
                   }}
-                  className="w-full text-left p-3 rounded-xl flex items-center justify-between gap-3 hover:bg-amber-50 dark:hover:bg-amber-950/20 border border-transparent transition-colors cursor-pointer mb-1"
+                  className="w-full text-left p-2.5 rounded-lg flex items-center justify-between gap-2.5 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer mb-1 border border-dashed border-slate-200 dark:border-zinc-700"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                      <Zap size={15} className="fill-amber-500 text-amber-500" />
-                    </div>
-                    <div className="min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Zap size={14} className="text-amber-500 fill-amber-500 shrink-0" />
+                    <div>
                       <p className="text-xs font-bold text-slate-900 dark:text-white">
-                        {docType === 'FACTURA' ? 'INVERSIONES & SERVICIOS S.A.C.' : 'Cliente General'}
+                        {docType === 'FACTURA' ? 'INVERSIONES & SERVICIOS S.A.C.' : 'CLIENTE GENERAL'}
                       </p>
-                      <p className="text-[11px] text-slate-400">Autocompletar venta rápida mostrador</p>
+                      <p className="text-[10px] text-slate-400">Consumidor final rápido</p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 shrink-0">
-                    Rápido
+                  <span className="text-[10px] font-bold font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                    RÁPIDO
                   </span>
                 </button>
 
                 {filteredPickerClients.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400">
-                    <User size={26} className="mx-auto mb-2 opacity-40 text-slate-400" />
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No se encontraron clientes</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Puedes escribir los datos manualmente en el formulario</p>
+                  <div className="p-6 text-center text-slate-400">
+                    <User size={22} className="mx-auto mb-1 opacity-40" />
+                    <p className="text-xs font-bold">No se encontraron clientes</p>
                   </div>
                 ) : (
                   filteredPickerClients.map((c) => {
@@ -1508,26 +1592,25 @@ export default function NewSale() {
                           handleClientSelect(c.id)
                           setClientPickerOpen(false)
                         }}
-                        className={`w-full text-left p-3 rounded-xl flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                        className={`w-full text-left p-2.5 rounded-lg flex items-center justify-between gap-2.5 transition-all cursor-pointer ${
                           isSelected
-                            ? 'bg-blue-50/80 dark:bg-blue-900/25 border border-blue-200 dark:border-blue-500/30'
-                            : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
+                            ? 'bg-slate-100 dark:bg-zinc-800'
+                            : 'hover:bg-slate-50 dark:hover:bg-white/5'
                         }`}
                       >
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
                             {c.name}
                           </p>
-                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
-                            {c.ruc && <span>RUC/DNI: {c.ruc}</span>}
-                            {c.phone && <span>· Tel: {c.phone}</span>}
+                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500 font-mono">
+                            {c.ruc && <span>DOC: {c.ruc}</span>}
+                            {c.phone && <span>· TEL: {c.phone}</span>}
                           </div>
                         </div>
 
                         {isSelected && (
-                          <div className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-bold shrink-0">
+                          <div className="flex items-center gap-1 text-[10px] text-slate-900 dark:text-white font-bold shrink-0">
                             <Check size={12} strokeWidth={3} />
-                            <span>Elegido</span>
                           </div>
                         )}
                       </button>
@@ -1539,29 +1622,26 @@ export default function NewSale() {
           </div>
         )}
 
-        {/* MOBILE SELLER PICKER (BOTTOM SHEET / DIALOG) */}
+        {/* MOBILE SELLER PICKER */}
         {sellerPickerOpen && (
           <div className="fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 dark:bg-black/75 backdrop-blur-[2px] sm:items-center sm:justify-center p-0 sm:p-4 animate-fade-in">
             <div className="absolute inset-0" onClick={() => setSellerPickerOpen(false)} />
-            <div className="relative w-full sm:max-w-md bg-white dark:bg-[#181B2E] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 max-h-[70vh] flex flex-col overflow-hidden animate-slide-up">
-              <div className="sm:hidden pt-3 pb-1 flex justify-center">
-                <div className="w-10 h-1.5 bg-slate-300 dark:bg-zinc-600 rounded-full" />
-              </div>
+            <div className="relative w-full sm:max-w-md bg-white dark:bg-[#181B2E] rounded-t-2xl sm:rounded-xl shadow-2xl border border-slate-200 dark:border-white/10 max-h-[70vh] flex flex-col overflow-hidden animate-slide-up">
               <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                     Vendedor Asignado
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-medium">
-                    Selecciona el responsable de esta venta
+                  <p className="text-[11px] text-slate-400">
+                    Responsable de la emisión
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSellerPickerOpen(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
                 >
-                  <X size={18} />
+                  <X size={16} />
                 </button>
               </div>
 
@@ -1576,22 +1656,17 @@ export default function NewSale() {
                         setSellerName(s)
                         setSellerPickerOpen(false)
                       }}
-                      className={`w-full text-left p-3 rounded-xl flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                      className={`w-full text-left p-2.5 rounded-lg flex items-center justify-between gap-2.5 transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-blue-50/80 dark:bg-blue-900/25 border border-blue-200 dark:border-blue-500/30'
-                          : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
+                          ? 'bg-slate-100 dark:bg-zinc-800'
+                          : 'hover:bg-slate-50 dark:hover:bg-white/5'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold text-xs flex items-center justify-center shrink-0">
-                          {s.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {s}
-                        </span>
-                      </div>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {s}
+                      </span>
                       {isSelected && (
-                        <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" strokeWidth={3} />
+                        <Check size={14} className="text-slate-900 dark:text-white shrink-0" strokeWidth={3} />
                       )}
                     </button>
                   )
