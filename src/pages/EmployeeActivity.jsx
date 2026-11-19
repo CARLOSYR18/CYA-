@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Users, Activity, ShoppingCart, Package, ArrowUpRight, ArrowDownLeft,
   ArrowLeftRight, Clock, Search, Calendar, FileSpreadsheet, Eye, Filter,
   UserCheck, ShieldCheck, DollarSign, CheckCircle2, ChevronRight, RefreshCw,
   X, AlertCircle, ShoppingBag, ArrowUpDown, ChevronLeft, Home, TrendingUp,
   BarChart2, PieChart, Sparkles, LayoutGrid, List, Award, Copy, Check,
-  ChevronDown, Layers, Box, CheckCircle
+  ChevronDown, Layers, Box, CheckCircle, Plus, Boxes, Truck
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import EmptyState from '../components/ui/EmptyState'
 import Modal from '../components/ui/Modal'
-import PageHeaderBadge from '../components/ui/PageHeaderBadge'
 import { salesService } from '../services/salesService'
 import { inventoryMovementsService } from '../services/inventoryMovementsService'
 import { productsService } from '../services/productsService'
@@ -66,6 +66,7 @@ function getAvatarGradient(name = '') {
 }
 
 export default function EmployeeActivity() {
+  const navigate = useNavigate()
   const { user: currentAuthUser } = useAuth()
 
   const [sales, setSales] = useState(() => salesService.getCached?.() || [])
@@ -77,6 +78,7 @@ export default function EmployeeActivity() {
 
   // Executive state
   const [showMetrics, setShowMetrics] = useState(true)
+  const [chartPeriod, setChartPeriod] = useState('6MONTHS')
   const [viewMode, setViewMode] = useState('table') // 'table' | 'grid'
   const [copiedRef, setCopiedRef] = useState(null)
 
@@ -388,6 +390,67 @@ export default function EmployeeActivity() {
     }
   }, [unifiedActivities])
 
+  /* ─── Monthly Activity Chart (Area Spline Chart) ─── */
+  const monthlyChartData = useMemo(() => {
+    const months = ['Ago', 'Set', 'Oct', 'Nov', 'Dic', 'Ene']
+    const totals = [0, 0, 0, 0, 0, 0]
+
+    unifiedActivities.forEach((act) => {
+      if (act.createdAt) {
+        const d = new Date(act.createdAt)
+        const mIdx = d.getMonth()
+        const mappedIdx = (mIdx + 6) % 6
+        if (mappedIdx >= 0 && mappedIdx < totals.length) {
+          totals[mappedIdx] += 1
+        }
+      }
+    })
+
+    return months.map((m, i) => ({ month: m, amount: totals[i] }))
+  }, [unifiedActivities])
+
+  const maxChartVal = useMemo(() => {
+    const max = Math.max(...monthlyChartData.map((d) => d.amount), 0)
+    return max > 0 ? Math.ceil(max / 10) * 10 : 50
+  }, [monthlyChartData])
+
+  const chartSVG = useMemo(() => {
+    const width = 460
+    const height = 150
+    const paddingLeft = 14
+    const paddingRight = 14
+    const paddingTop = 20
+    const paddingBottom = 25
+    const innerW = width - paddingLeft - paddingRight
+    const innerH = height - paddingTop - paddingBottom
+
+    const coords = monthlyChartData.map((d, i) => {
+      const x = paddingLeft + (i / (monthlyChartData.length - 1)) * innerW
+      const y = paddingTop + innerH - (d.amount / maxChartVal) * innerH
+      return { x, y, ...d }
+    })
+
+    let pathD = ''
+    coords.forEach((pt, i) => {
+      if (i === 0) {
+        pathD += `M ${pt.x} ${pt.y}`
+      } else {
+        const prev = coords[i - 1]
+        const cp1x = prev.x + (pt.x - prev.x) / 2
+        const cp1y = prev.y
+        const cp2x = prev.x + (pt.x - prev.x) / 2
+        const cp2y = pt.y
+        pathD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${pt.x} ${pt.y}`
+      }
+    })
+
+    const last = coords[coords.length - 1]
+    const first = coords[0]
+    const areaD = `${pathD} L ${last.x} ${paddingTop + innerH} L ${first.x} ${paddingTop + innerH} Z`
+
+    return { coords, pathD, areaD, width, height, innerH, innerW, paddingTop }
+  }, [monthlyChartData, maxChartVal])
+
   // Collaborator Ranking Leaderboard (Top 3 empleados/vendedores; excluye al dueño/admin y al bot IA)
   const leaderboard = useMemo(() => {
     const map = {}
@@ -528,32 +591,34 @@ export default function EmployeeActivity() {
       <div className="space-y-6 max-w-[1440px] mx-auto pb-16 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
-            0. BREADCRUMB & HEADER ROW (EXECUTIVE STANDARD)
+            0. BREADCRUMB & HEADER ROW (SENIOR ENTERPRISE ARCHITECTURE)
            ═════════════════════════════════════════════════════════ */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-            <Home size={14} className="text-slate-400 dark:text-zinc-500" />
-            <span className="text-slate-300 dark:text-zinc-600">›</span>
-            <span className="font-semibold text-slate-700 dark:text-zinc-300">Administración & Auditoría de Personal</span>
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+            <Home size={12} className="text-slate-400" />
+            <span>/</span>
+            <span>MÓDULO DE ADMINISTRACIÓN</span>
+            <span>/</span>
+            <span>AUDITORÍA DE PERSONAL</span>
+            <span>/</span>
+            <span className="text-[#1B4FD8] dark:text-blue-400">MOVIMIENTOS & ACTIVIDAD DE EMPLEADOS</span>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <PageHeaderBadge type="activity" />
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
-                    Control & Movimientos de Empleados
-                  </h1>
-                  <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-xs">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Auditoría en Vivo
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
-                  Monitorea en tiempo real cada venta, cobro y movimiento de stock que realizan tus colaboradores.
-                </p>
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
+                  Control & Movimientos de Empleados
+                </h1>
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8] animate-pulse" />
+                  {unifiedActivities.length} OPERACIONES AUDITADAS
+                </span>
               </div>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
+                Monitorea en tiempo real cada venta, cobro y movimiento de stock que realizan tus colaboradores.
+              </p>
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0">
@@ -579,143 +644,150 @@ export default function EmployeeActivity() {
               {/* Export Excel Button */}
               <button
                 onClick={handleExportExcel}
-                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
                 title="Descargar reporte en Excel / CSV"
               >
-                <FileSpreadsheet size={16} />
+                <FileSpreadsheet size={16} className="text-emerald-600 dark:text-emerald-400" />
                 <span>Exportar Excel</span>
+              </button>
+
+              {/* Primary Action Button */}
+              <button
+                onClick={() => navigate('/usuarios')}
+                className="px-4 py-2.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+                title="Gestionar usuarios y roles"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+                <span>Nuevo Colaborador</span>
               </button>
             </div>
           </div>
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            1. 4 EXECUTIVE KPIS WITH SVG SPARKLINE GRADIENTS
+            1. 4 TELEMETRY CARDS (SENIOR ENTERPRISE EXACT STANDARD)
            ═════════════════════════════════════════════════════════ */}
         {showMetrics && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
 
-            {/* KPI 1: Ventas por Empleados (Indigo) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-zinc-800 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card transition-all flex flex-col justify-between relative overflow-hidden group">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
-                    Ventas por Empleados
+            {/* KPI 1: Ventas por Empleados */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <ShoppingCart size={13} className="text-[#1B4FD8]" />
+                    VENTAS POR EMPLEADOS
                   </span>
-                  <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight font-mono">
-                    {formatMoney(stats.totalSalesAmount)}
-                  </p>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
+                    INGRESOS COMERCIALES
+                  </span>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-xs">
-                  <ShoppingCart size={20} />
+                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                  {loading ? '…' : formatMoney(stats.totalSalesAmount)}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
-                <span className="text-xs text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1">
-                  <span>{stats.salesCount} ventas registradas</span>
-                </span>
-                <div className="w-20 h-8 shrink-0">
-                  <svg viewBox="0 0 80 32" className="w-full h-full overflow-visible">
-                    <defs>
-                      <linearGradient id="spkIndigo" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366F1" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#6366F1" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M 0 24 Q 20 28, 40 14 T 80 6 L 80 32 L 0 32 Z" fill="url(#spkIndigo)" />
-                    <path d="M 0 24 Q 20 28, 40 14 T 80 6" fill="none" stroke="#6366F1" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span className="flex items-center gap-1 text-[#1B4FD8] dark:text-blue-400 font-semibold">
+                    <CheckCircle2 size={12} /> {stats.salesCount} ventas registradas
+                  </span>
+                  <span className="font-mono text-slate-400">Auditoría comercial</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 w-full" />
                 </div>
               </div>
             </div>
 
-            {/* KPI 2: Movimientos de Stock (Purple) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-zinc-800 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card transition-all flex flex-col justify-between relative overflow-hidden group">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
-                    Movimientos de Stock
+            {/* KPI 2: Movimientos de Stock */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Package size={13} className="text-purple-600" />
+                    MOVIMIENTOS DE STOCK
                   </span>
-                  <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight font-mono">
-                    {stats.movementsCount} <span className="text-sm font-semibold text-slate-400">ops.</span>
-                  </p>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40">
+                    KARDEX OPERATIVO
+                  </span>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 shadow-xs">
-                  <Package size={20} />
+                <div className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight mt-1">
+                  {loading ? '…' : stats.movementsCount}
+                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">ops.</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
-                <span className="text-xs text-purple-600 dark:text-purple-400 font-bold">
-                  {stats.dispatchesCount} salidas / despachos
-                </span>
-                <div className="w-20 h-8 shrink-0">
-                  <svg viewBox="0 0 80 32" className="w-full h-full overflow-visible">
-                    <defs>
-                      <linearGradient id="spkPurple" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#A855F7" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#A855F7" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M 0 26 Q 20 18, 40 22 T 80 8 L 80 32 L 0 32 Z" fill="url(#spkPurple)" />
-                    <path d="M 0 26 Q 20 18, 40 22 T 80 8" fill="none" stroke="#A855F7" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span className="text-purple-600 dark:text-purple-400 font-semibold">
+                    {stats.dispatchesCount} salidas · {stats.entriesCount} ingresos
+                  </span>
+                  <span className="font-mono text-slate-400">Kardex de almacén</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 w-full" />
                 </div>
               </div>
             </div>
 
-            {/* KPI 3: Colaborador Más Activo (Emerald) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-zinc-800 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card transition-all flex flex-col justify-between relative overflow-hidden group">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
-                    Colaborador Más Activo
+            {/* KPI 3: Colaborador Líder */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <UserCheck size={13} className="text-emerald-600" />
+                    COLABORADOR LÍDER
                   </span>
-                  <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1 tracking-tight truncate">
-                    {stats.topEmployee.name || 'Sin registros'}
-                  </p>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">
+                    LÍDER #1
+                  </span>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-xs">
-                  <UserCheck size={20} />
+                <div className="text-xl font-bold font-sans text-slate-900 dark:text-white tracking-tight mt-1 truncate">
+                  {loading ? '…' : (stats.topEmployee.name || 'Sin registros')}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-                  <Award size={13} /> {stats.topEmployee.count} operaciones
-                </span>
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
-                  Líder #1
-                </span>
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <Award size={12} /> {stats.topEmployee.count} operaciones
+                  </span>
+                  <span className="font-mono text-slate-400">Mayor volumen</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 w-full" />
+                </div>
               </div>
             </div>
 
-            {/* KPI 4: Última Actividad (Amber) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-zinc-800 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card transition-all flex flex-col justify-between relative overflow-hidden group">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
-                    Última Actividad en Vivo
+            {/* KPI 4: Última Actividad */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Clock size={13} className="text-amber-500" />
+                    ÚLTIMA ACTIVIDAD
                   </span>
-                  <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white mt-1 tracking-tight truncate">
-                    {stats.latestAction ? stats.latestAction.user.name : 'Al día'}
-                  </p>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900/40">
+                    EN VIVO
+                  </span>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
-                  <Clock size={20} />
+                <div className="text-lg font-bold font-sans text-slate-900 dark:text-white tracking-tight mt-1 truncate">
+                  {loading ? '…' : (stats.latestAction ? stats.latestAction.user.name : 'Al día')}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
-                <span className="text-xs text-amber-600 dark:text-amber-400 font-bold truncate">
-                  {stats.latestAction ? formatRelativeTime(stats.latestAction.createdAt) : 'Sin eventos hoy'}
-                </span>
-                {stats.latestAction && (
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md truncate max-w-[100px]">
-                    {stats.latestAction.actionLabel}
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span className="text-amber-600 dark:text-amber-400 font-semibold truncate max-w-[160px]">
+                    {stats.latestAction ? formatRelativeTime(stats.latestAction.createdAt) : 'Sin eventos hoy'} · {stats.latestAction?.actionLabel || 'En espera'}
                   </span>
-                )}
+                  <span className="font-mono text-slate-400 shrink-0">Auditoría activa</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 w-full" />
+                </div>
               </div>
             </div>
 
@@ -723,159 +795,283 @@ export default function EmployeeActivity() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            2. EXECUTIVE MIDDLE ANALYTICS (DISTRIBUTION & RANKING)
+            2. MIDDLE SECTION: 3 CARDS (AREA CHART, DONUT, ACCIONES RÁPIDAS)
            ═════════════════════════════════════════════════════════ */}
         {showMetrics && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 animate-fade-in">
 
-            {/* CHART 1: DONUT DE DISTRIBUCIÓN OPERATIVA (5 COLS) */}
-            <div className="lg:col-span-5 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+            {/* Card 1: Flujo de Actividad & Trazabilidad (Area Chart Spline) */}
+            <div className="lg:col-span-6 xl:col-span-5 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2">
-                  <PieChart size={16} className="text-indigo-600 dark:text-indigo-400" />
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  <BarChart2 size={16} className="text-[#1B4FD8] shrink-0" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
+                    Flujo de Actividad & Trazabilidad
+                  </h3>
+                </div>
+                <div className="inline-flex items-center bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2 py-0.5 text-xs">
+                  <select
+                    value={chartPeriod}
+                    onChange={(e) => setChartPeriod(e.target.value)}
+                    className="bg-transparent text-[11px] text-slate-600 dark:text-zinc-300 font-semibold outline-none cursor-pointer"
+                  >
+                    <option value="6MONTHS" className="dark:bg-zinc-900">Últimos 6 meses</option>
+                    <option value="30DAYS" className="dark:bg-zinc-900">Últimos 30 días</option>
+                    <option value="WEEK" className="dark:bg-zinc-900">Esta semana</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="relative pt-6 pb-2 w-full">
+                <div className="absolute top-0 right-4 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 text-[10.5px] font-bold">
+                  <span>Pico: {Math.max(...monthlyChartData.map((d) => d.amount), 0)} operaciones</span>
+                  <span className="text-emerald-500 font-extrabold">↑</span>
+                </div>
+
+                <svg
+                  viewBox={`0 0 ${chartSVG.width} ${chartSVG.height}`}
+                  className="w-full h-auto overflow-visible"
+                >
+                  <defs>
+                    <linearGradient id="areaGradientEmp" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#1B4FD8" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#1B4FD8" stopOpacity="0.0" />
+                    </linearGradient>
+                  </defs>
+
+                  {[0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                    const y = chartSVG.paddingTop + chartSVG.innerH * (1 - ratio)
+                    return (
+                      <g key={idx}>
+                        <line
+                          x1={10}
+                          y1={y}
+                          x2={chartSVG.width - 10}
+                          y2={y}
+                          stroke="currentColor"
+                          strokeDasharray="4 4"
+                          className="text-slate-100 dark:text-zinc-800/80"
+                          strokeWidth="1"
+                        />
+                      </g>
+                    )
+                  })}
+
+                  <path d={chartSVG.areaD} fill="url(#areaGradientEmp)" />
+
+                  <path
+                    d={chartSVG.pathD}
+                    fill="none"
+                    stroke="#1B4FD8"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+
+                  {chartSVG.coords.map((pt, idx) => (
+                    <g key={idx} className="group cursor-pointer">
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r="3.5"
+                        fill="#FFFFFF"
+                        stroke="#1B4FD8"
+                        strokeWidth="2.5"
+                        className="transition-all duration-200 group-hover:r-5"
+                      />
+                      <text
+                        x={pt.x}
+                        y={chartSVG.height - 4}
+                        textAnchor="middle"
+                        className="text-[10px] font-bold fill-slate-400 dark:fill-zinc-500"
+                      >
+                        {pt.month}
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+              </div>
+
+              <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                <span>
+                  Volumen medio: <strong className="text-slate-700 dark:text-zinc-200 font-mono">{(unifiedActivities.length / (monthlyChartData.length || 1)).toFixed(1)} op / mes</strong>
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Trazabilidad activa
+                </span>
+              </div>
+            </div>
+
+            {/* Card 2: Distribución de Operaciones (Donut Chart SVG) */}
+            <div className="lg:col-span-6 xl:col-span-4 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <PieChart size={16} className="text-[#5550F2] shrink-0" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
                     Distribución de Operaciones
                   </h3>
                 </div>
-                <span className="text-[11px] font-bold text-slate-400 font-mono">
-                  {unifiedActivities.length} total
+                <span className="text-[11px] font-mono text-slate-400">
+                  {unifiedActivities.length} eventos auditados
                 </span>
               </div>
 
-              <div className="flex items-center justify-center py-4">
+              <div className="flex items-center justify-center py-2">
                 <div className="relative w-36 h-36">
                   <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="#E2E8F0" strokeWidth="12" className="dark:stroke-zinc-800" />
-                    {/* Ventas (Indigo) */}
                     <circle
-                      cx="50" cy="50" r="40" fill="transparent"
-                      stroke="#6366F1" strokeWidth="12"
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke="currentColor"
+                      strokeWidth="11"
+                      className="text-slate-100 dark:text-zinc-800"
+                    />
+                    {/* Ventas (Indigo/Blue) */}
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke="#1B4FD8"
+                      strokeWidth="11"
                       strokeDasharray={`${donutData.salesStroke} ${donutData.C}`}
                       strokeDashoffset="0"
                       strokeLinecap="round"
                     />
                     {/* Salidas (Rose) */}
                     <circle
-                      cx="50" cy="50" r="40" fill="transparent"
-                      stroke="#F43F5E" strokeWidth="12"
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke="#F43F5E"
+                      strokeWidth="11"
                       strokeDasharray={`${donutData.depStroke} ${donutData.C}`}
                       strokeDashoffset={-donutData.salesStroke}
                       strokeLinecap="round"
                     />
                     {/* Entradas (Emerald) */}
                     <circle
-                      cx="50" cy="50" r="40" fill="transparent"
-                      stroke="#10B981" strokeWidth="12"
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke="#10B981"
+                      strokeWidth="11"
                       strokeDasharray={`${donutData.entStroke} ${donutData.C}`}
                       strokeDashoffset={-(donutData.salesStroke + donutData.depStroke)}
                       strokeLinecap="round"
                     />
                   </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                    <span className="text-xl font-black font-mono text-slate-900 dark:text-white leading-none">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                    <span className="text-2xl font-black font-mono text-slate-900 dark:text-white leading-none">
                       {unifiedActivities.length}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">
-                      Eventos
+                    <span className="text-[10px] font-bold text-[#1B4FD8] dark:text-blue-400 uppercase tracking-wider mt-0.5">
+                      EVENTOS
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Legend with exact stats */}
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800 text-center">
-                <div className="p-2 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/20">
-                  <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase block">Ventas</span>
-                  <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
-                    {donutData.salesCount} ({donutData.pctSales}%)
+              <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800 text-[11px]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#1B4FD8] shrink-0" />
+                    <span className="text-slate-600 dark:text-zinc-300 font-medium">Ventas comerciales</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-800 dark:text-white">
+                    {donutData.salesCount} ops ({donutData.pctSales}%)
                   </span>
                 </div>
-                <div className="p-2 rounded-xl bg-rose-50/60 dark:bg-rose-950/20">
-                  <span className="text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase block">Salidas</span>
-                  <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
-                    {donutData.departuresCount} ({donutData.pctDepartures}%)
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                    <span className="text-slate-600 dark:text-zinc-300 font-medium">Salidas / Despachos</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-800 dark:text-white">
+                    {donutData.departuresCount} ops ({donutData.pctDepartures}%)
                   </span>
                 </div>
-                <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20">
-                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase block">Ingresos</span>
-                  <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
-                    {donutData.entriesCount} ({donutData.pctEntries}%)
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="text-slate-600 dark:text-zinc-300 font-medium">Ingresos a bodega</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-800 dark:text-white">
+                    {donutData.entriesCount} ops ({donutData.pctEntries}%)
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* CHART 2: LEADERBOARD / TOP COLABORADORES (7 COLS) */}
-            <div className="lg:col-span-7 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                <div className="flex items-center gap-2">
-                  <Award size={16} className="text-amber-500" />
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Rendimiento por Colaborador (Top Líderes)
-                  </h3>
+            {/* Card 3: Acciones Rápidas (Matriz 2x2) */}
+            <div className="lg:col-span-12 xl:col-span-3 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-amber-500 shrink-0" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
+                      Acciones Rápidas
+                    </h3>
+                  </div>
                 </div>
-                <span className="text-[11px] font-bold text-slate-400">
-                  Actividad Consolidada
-                </span>
-              </div>
+                <p className="text-[11px] text-slate-400 mb-3">
+                  Accesos directos de auditoría y gestión de personal.
+                </p>
 
-              <div className="space-y-3 py-2">
-                {leaderboard.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-4">Sin colaboradores con transacciones aún</p>
-                ) : (
-                  leaderboard.map((item, idx) => (
-                    <div
-                      key={item.user.email || idx}
-                      className="p-3 rounded-xl bg-slate-50/80 dark:bg-zinc-800/40 border border-slate-200/60 dark:border-zinc-700/60 flex items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-zinc-600 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="relative">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-black shadow-sm bg-gradient-to-tr ${getAvatarGradient(item.user.name)} shrink-0`}>
-                            {item.user.initials}
-                          </div>
-                          <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white shadow-xs ${
-                            idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-slate-400' : 'bg-amber-700'
-                          }`}>
-                            #{idx + 1}
-                          </span>
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                            {item.user.name}
-                          </p>
-                          <p className="text-[11px] text-slate-400 font-mono truncate">
-                            {item.user.email}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 shrink-0 text-right">
-                        <div>
-                          <p className="text-[10px] text-slate-400 uppercase font-bold">Ventas</p>
-                          <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                            {formatMoney(item.salesAmount)}
-                          </p>
-                        </div>
-                        <div className="pl-3 border-l border-slate-200 dark:border-zinc-700">
-                          <p className="text-[10px] text-slate-400 uppercase font-bold">Operaciones</p>
-                          <p className="text-xs font-black text-slate-900 dark:text-white font-mono">
-                            {item.totalOps} <span className="text-[10px] font-normal text-slate-400">acts</span>
-                          </p>
-                        </div>
-                      </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => navigate('/usuarios')}
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-[#1B4FD8] flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <Users size={14} />
                     </div>
-                  ))
-                )}
+                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Nuevo Usuario</p>
+                    <p className="text-[10px] text-slate-400">Gestión de roles</p>
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/movimientos/nuevo')}
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-left transition-all group cursor-pointer"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-purple-50 dark:bg-purple-900/40 text-purple-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <Package size={14} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Ajuste Kardex</p>
+                    <p className="text-[10px] text-slate-400">Entrada / Salida</p>
+                  </button>
+
+                  <button
+                    onClick={handleExportExcel}
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 text-left transition-all group cursor-pointer"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <FileSpreadsheet size={14} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Exportar CSV</p>
+                    <p className="text-[10px] text-slate-400">Descargar datos</p>
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/productos')}
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 text-left transition-all group cursor-pointer"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <Boxes size={14} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Ver Catálogo</p>
+                    <p className="text-[10px] text-slate-400">Todos los SKUs</p>
+                  </button>
+                </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-400">
-                <span>
-                  Empleados: <strong>{collaborators.filter((c) => c.role !== 'admin').length}</strong> · Administrador: <strong>{Math.max(collaborators.filter((c) => c.role === 'admin').length, 1)}</strong>
-                </span>
-                <span className="text-indigo-600 dark:text-indigo-400 font-semibold cursor-pointer hover:underline" onClick={() => setSelectedUser('ALL')}>
-                  Ver todos los registros →
-                </span>
+              <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-400">
+                <span>Auditoría de personal</span>
+                <span className="font-mono font-bold text-slate-500 dark:text-zinc-400">ERP v2.4</span>
               </div>
             </div>
 
@@ -896,7 +1092,7 @@ export default function EmployeeActivity() {
                 placeholder="Buscar por cliente, comprobante, producto o colaborador..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
-                className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-xl pl-10 pr-9 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-xl pl-10 pr-9 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1B4FD8] transition-all font-medium"
               />
               {search && (
                 <button
@@ -916,7 +1112,7 @@ export default function EmployeeActivity() {
               <select
                 value={selectedUser}
                 onChange={(e) => { setSelectedUser(e.target.value); setCurrentPage(1) }}
-                className="bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 cursor-pointer"
+                className="bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-[#1B4FD8] cursor-pointer"
               >
                 <option value="ALL">Todos los colaboradores</option>
                 {collaborators.map((c) => {
@@ -943,7 +1139,7 @@ export default function EmployeeActivity() {
                   onClick={() => { setPeriodPreset(p.id); setCurrentPage(1) }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     periodPreset === p.id
-                      ? 'bg-white dark:bg-indigo-600 text-slate-900 dark:text-white shadow-xs'
+                      ? 'bg-white dark:bg-[#1B4FD8] text-[#1B4FD8] dark:text-white shadow-xs'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white'
                   }`}
                 >
@@ -959,7 +1155,7 @@ export default function EmployeeActivity() {
                 onClick={() => setViewMode('table')}
                 className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   viewMode === 'table'
-                    ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-white shadow-xs'
+                    ? 'bg-white dark:bg-zinc-700 text-[#1B4FD8] dark:text-white shadow-xs'
                     : 'text-slate-400 hover:text-slate-700'
                 }`}
                 title="Vista en tabla"
@@ -971,7 +1167,7 @@ export default function EmployeeActivity() {
                 onClick={() => setViewMode('grid')}
                 className={`p-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   viewMode === 'grid'
-                    ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-white shadow-xs'
+                    ? 'bg-white dark:bg-zinc-700 text-[#1B4FD8] dark:text-white shadow-xs'
                     : 'text-slate-400 hover:text-slate-700'
                 }`}
                 title="Vista en tarjetas ejecutivas"
@@ -999,7 +1195,7 @@ export default function EmployeeActivity() {
                   onClick={() => { setActionFilter(tab.id); setCurrentPage(1) }}
                   className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     actionFilter === tab.id
-                      ? 'bg-indigo-600 text-white shadow-xs font-bold'
+                      ? 'bg-[#1B4FD8] text-white shadow-xs font-bold'
                       : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700'
                   }`}
                 >
@@ -1011,7 +1207,7 @@ export default function EmployeeActivity() {
             {hasActiveFilters && (
               <button
                 onClick={handleResetFilters}
-                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0 cursor-pointer ml-auto"
+                className="text-xs font-bold text-[#1B4FD8] dark:text-blue-400 hover:underline shrink-0 cursor-pointer ml-auto"
               >
                 Restablecer filtros
               </button>
@@ -1067,7 +1263,7 @@ export default function EmployeeActivity() {
                             <span className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5 font-mono">
                               <Clock size={11} /> {time}
                             </span>
-                            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold mt-0.5">
+                            <span className="text-[10px] text-[#1B4FD8] dark:text-blue-400 font-bold mt-0.5">
                               {rel}
                             </span>
                           </div>
@@ -1102,7 +1298,7 @@ export default function EmployeeActivity() {
                         {/* 3. Acción Realizada */}
                         <td className="py-4 px-4 whitespace-nowrap">
                           {act.category === 'VENTA' ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-xs">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-blue-50 dark:bg-blue-950/40 text-[#1B4FD8] dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-xs">
                               <ShoppingCart size={13} />
                               <span>Venta Realizada</span>
                             </span>
@@ -1193,7 +1389,7 @@ export default function EmployeeActivity() {
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setDetailItem(act) }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                             title="Ver detalles de la auditoría"
                           >
                             <Eye size={16} />
@@ -1225,7 +1421,7 @@ export default function EmployeeActivity() {
                     {/* Top: Header de acción + tiempo */}
                     <div className="flex items-center justify-between gap-2 mb-3">
                       {act.category === 'VENTA' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black bg-blue-50 dark:bg-blue-950/40 text-[#1B4FD8] dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                           <ShoppingCart size={13} /> Venta
                         </span>
                       ) : act.category === 'SALIDA' ? (
