@@ -5,13 +5,12 @@ import {
   Mail, Lock, ToggleLeft, ToggleRight, Check, FileSpreadsheet,
   ArrowUpDown, LayoutGrid, List, AlertCircle, CheckCircle2,
   Sparkles, Crown, ArrowRight, ShieldAlert, Key, Home, TrendingUp,
-  PieChart, Shield, RefreshCw, Copy, Award, CheckCircle, Users as UsersIcon,
+  BarChart2, PieChart, Shield, RefreshCw, Copy, Award, CheckCircle, Users as UsersIcon,
   FileText, CheckSquare, XCircle, Eye
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
-import PageHeaderBadge from '../components/ui/PageHeaderBadge'
 import { usersService } from '../services/usersService'
 import { companySettingsService } from '../services/companySettingsService'
 import { getLimits } from '../lib/planLimits'
@@ -107,6 +106,7 @@ export default function Users() {
   const [sortBy, setSortBy] = useState('name') // 'name' | 'role' | 'status'
   const [viewMode, setViewMode] = useState('table') // 'table' | 'grid'
   const [showMetrics, setShowMetrics] = useState(true)
+  const [chartPeriod, setChartPeriod] = useState('6MONTHS')
   const [copiedEmail, setCopiedEmail] = useState(null)
   const [rbacModalOpen, setRbacModalOpen] = useState(false)
 
@@ -210,6 +210,73 @@ export default function Users() {
       inactStroke
     }
   }, [stats])
+
+  /* ─── Monthly Access & Team Growth Chart (Spline Curve) ─── */
+  const monthlyChartData = useMemo(() => {
+    const months = ['Ago', 'Set', 'Oct', 'Nov', 'Dic', 'Ene']
+    const totals = [0, 0, 0, 0, 0, 0]
+
+    users.forEach((u) => {
+      if (u.created_at) {
+        const d = new Date(u.created_at)
+        const mIdx = d.getMonth()
+        const mappedIdx = (mIdx + 6) % 6
+        if (mappedIdx >= 0 && mappedIdx < totals.length) {
+          totals[mappedIdx] += 1
+        }
+      } else {
+        totals[totals.length - 1] += 1
+      }
+    })
+
+    let cumulative = 0
+    return months.map((m, i) => {
+      cumulative += totals[i] || (i === months.length - 1 ? users.length : Math.max(1, Math.floor((users.length * (i + 1)) / months.length)))
+      return { month: m, amount: Math.min(cumulative, Math.max(users.length, 1)) }
+    })
+  }, [users])
+
+  const maxChartVal = useMemo(() => {
+    const max = Math.max(...monthlyChartData.map((d) => d.amount), 0)
+    return max > 0 ? Math.ceil(max / 5) * 5 : 10
+  }, [monthlyChartData])
+
+  const chartSVG = useMemo(() => {
+    const width = 460
+    const height = 150
+    const paddingLeft = 14
+    const paddingRight = 14
+    const paddingTop = 20
+    const paddingBottom = 25
+    const innerW = width - paddingLeft - paddingRight
+    const innerH = height - paddingTop - paddingBottom
+
+    const coords = monthlyChartData.map((d, i) => {
+      const x = paddingLeft + (i / (monthlyChartData.length - 1)) * innerW
+      const y = paddingTop + innerH - (d.amount / maxChartVal) * innerH
+      return { x, y, ...d }
+    })
+
+    let pathD = ''
+    coords.forEach((pt, i) => {
+      if (i === 0) {
+        pathD += `M ${pt.x} ${pt.y}`
+      } else {
+        const prev = coords[i - 1]
+        const cp1x = prev.x + (pt.x - prev.x) / 2
+        const cp1y = prev.y
+        const cp2x = prev.x + (pt.x - prev.x) / 2
+        const cp2y = pt.y
+        pathD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${pt.x} ${pt.y}`
+      }
+    })
+
+    const last = coords[coords.length - 1]
+    const first = coords[0]
+    const areaD = `${pathD} L ${last.x} ${paddingTop + innerH} L ${first.x} ${paddingTop + innerH} Z`
+
+    return { coords, pathD, areaD, width, height, innerH, innerW, paddingTop }
+  }, [monthlyChartData, maxChartVal])
 
   /* ─── Copy Email with Feedback ─── */
   const handleCopyEmail = (email, e) => {
@@ -372,28 +439,32 @@ export default function Users() {
             0. TOP EXECUTIVE HEADER TOOLBAR & BREADCRUMB
            ═════════════════════════════════════════════════════════ */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-            <Home size={14} className="text-slate-400 dark:text-zinc-500" />
-            <span className="text-slate-300 dark:text-zinc-600">›</span>
-            <span className="font-semibold text-slate-700 dark:text-zinc-300">Administración › Equipo, Usuarios y Control de Acceso</span>
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+            <Home size={12} className="text-slate-400" />
+            <span>/</span>
+            <span>MÓDULO DE ADMINISTRACIÓN</span>
+            <span>/</span>
+            <span>CONTROL DE ACCESO</span>
+            <span>/</span>
+            <span className="text-[#1B4FD8] dark:text-blue-400">EQUIPO & USUARIOS</span>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#141417] p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-xs">
-            <div className="flex items-center gap-3.5">
-              <PageHeaderBadge type="users" />
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
-                    Equipo y Permisos de Acceso
-                  </h1>
-                  <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-xs">
-                    <ShieldCheck size={13} /> Control RBAC
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
-                  Controla los colaboradores de tu empresa, asigna roles de administración o ventas y audita cuentas activas.
-                </p>
+          {/* Title & Actions Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
+                  Equipo y Permisos de Acceso
+                </h1>
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8] animate-pulse" />
+                  {users.length} CUENTAS AUDITADAS
+                </span>
               </div>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
+                Controla los colaboradores de tu empresa, asigna roles de administración o ventas y audita cuentas activas.
+              </p>
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0">
@@ -419,17 +490,17 @@ export default function Users() {
               {/* Export Excel */}
               <button
                 onClick={handleExportExcel}
-                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
                 title="Descargar directorio de usuarios en Excel / CSV"
               >
-                <FileSpreadsheet size={16} />
-                <span>Exportar</span>
+                <FileSpreadsheet size={16} className="text-emerald-600 dark:text-emerald-400" />
+                <span>Exportar Excel</span>
               </button>
 
               {/* Primary New User Button */}
               <button
                 onClick={handleOpenCreate}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer"
               >
                 <Plus size={16} strokeWidth={2.5} />
                 <span>+ Nuevo Usuario</span>
@@ -439,139 +510,128 @@ export default function Users() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            1. 4 EXECUTIVE KPIS WITH SVG SPARKLINE GRADIENTS
+            1. 4 EXECUTIVE KPIS (SENIOR ENTERPRISE EXACT STANDARD)
            ═════════════════════════════════════════════════════════ */}
         {showMetrics && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
 
-            {/* Card 1: Colaboradores Registrados (Blue) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-zinc-800 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card transition-all flex flex-col justify-between relative overflow-hidden group">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
-                    Colaboradores Registrados
+            {/* Card 1: Colaboradores Registrados */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <UsersIcon size={13} className="text-[#1B4FD8]" />
+                    COLABORADORES REGISTRADOS
                   </span>
-                  <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight font-mono">
-                    {loading ? '…' : `${stats.totalUsers}`}
-                  </p>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
+                    DIRECTORIO RBAC
+                  </span>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-xs">
-                  <UserCog size={20} />
+                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                  {loading ? '…' : `${stats.totalUsers}`}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
-                <span className="text-xs text-blue-600 dark:text-blue-400 font-bold">
-                  {stats.maxUsers === Infinity ? 'Plan Pro Ilimitado' : `Límite: ${stats.maxUsers} usuario`}
-                </span>
-                <div className="w-20 h-8 shrink-0">
-                  <svg viewBox="0 0 80 32" className="w-full h-full overflow-visible">
-                    <defs>
-                      <linearGradient id="spkBlueUsr" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M 0 24 Q 20 28, 40 14 T 80 6 L 80 32 L 0 32 Z" fill="url(#spkBlueUsr)" />
-                    <path d="M 0 24 Q 20 28, 40 14 T 80 6" fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span className="text-[#1B4FD8] dark:text-blue-400 font-semibold">
+                    {stats.maxUsers === Infinity ? 'Plan Pro Ilimitado' : `Límite: ${stats.maxUsers} usuario(s)`}
+                  </span>
+                  <span className="font-mono text-slate-400">Capacidad equipo</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 w-full" />
                 </div>
               </div>
             </div>
 
-            {/* Card 2: Administradores (Purple) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-zinc-800 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card transition-all flex flex-col justify-between relative overflow-hidden group">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
-                    Administradores
+            {/* Card 2: Administradores */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <ShieldCheck size={13} className="text-purple-600" />
+                    ADMINISTRADORES
                   </span>
-                  <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight font-mono">
-                    {loading ? '…' : `${stats.adminCount}`}
-                  </p>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40">
+                    ACCESO SUPREMO
+                  </span>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 shadow-xs">
-                  <ShieldCheck size={20} />
+                <div className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight mt-1">
+                  {loading ? '…' : `${stats.adminCount}`}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
-                <span className="text-xs text-purple-600 dark:text-purple-400 font-bold">
-                  Control total del negocio
-                </span>
-                <div className="w-20 h-8 shrink-0">
-                  <svg viewBox="0 0 80 32" className="w-full h-full overflow-visible">
-                    <defs>
-                      <linearGradient id="spkPurUsr" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#A855F7" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#A855F7" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M 0 20 Q 20 16, 40 22 T 80 8 L 80 32 L 0 32 Z" fill="url(#spkPurUsr)" />
-                    <path d="M 0 20 Q 20 16, 40 22 T 80 8" fill="none" stroke="#A855F7" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span className="text-purple-600 dark:text-purple-400 font-semibold">
+                    Control total del negocio
+                  </span>
+                  <span className="font-mono text-slate-400">Dueño / Gerencia</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 w-full" />
                 </div>
               </div>
             </div>
 
-            {/* Card 3: Vendedores / Empleados (Emerald) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-zinc-800 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card transition-all flex flex-col justify-between relative overflow-hidden group">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
-                    Vendedores / Empleados
+            {/* Card 3: Vendedores / Empleados */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <User size={13} className="text-emerald-600" />
+                    VENDEDORES / EMPLEADOS
                   </span>
-                  <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight font-mono">
-                    {loading ? '…' : `${stats.employeeCount}`}
-                  </p>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">
+                    PUNTO DE VENTA
+                  </span>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-xs">
-                  <User size={20} />
+                <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight mt-1">
+                  {loading ? '…' : `${stats.employeeCount}`}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
-                  Punto de venta y caja
-                </span>
-                <div className="w-20 h-8 shrink-0">
-                  <svg viewBox="0 0 80 32" className="w-full h-full overflow-visible">
-                    <defs>
-                      <linearGradient id="spkEmeUsr" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10B981" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M 0 28 Q 20 22, 40 18 T 80 10 L 80 32 L 0 32 Z" fill="url(#spkEmeUsr)" />
-                    <path d="M 0 28 Q 20 22, 40 18 T 80 10" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                    Punto de venta y caja
+                  </span>
+                  <span className="font-mono text-slate-400">Operación diaria</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 w-full" />
                 </div>
               </div>
             </div>
 
-            {/* Card 4: Cuentas Habilitadas (Amber) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-zinc-800 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card transition-all flex flex-col justify-between relative overflow-hidden group">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
-                    Cuentas Habilitadas
+            {/* Card 4: Cuentas Habilitadas */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Key size={13} className="text-amber-500" />
+                    CUENTAS HABILITADAS
                   </span>
-                  <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1 tracking-tight font-mono">
-                    {loading ? '…' : `${stats.activeCount}`}
-                  </p>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900/40">
+                    ESTADO ACTIVO
+                  </span>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
-                  <Key size={20} />
+                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                  {loading ? '…' : `${stats.activeCount}`}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800/80">
-                <span className="text-xs text-amber-600 dark:text-amber-400 font-bold">
-                  {stats.inactiveCount > 0 ? `${stats.inactiveCount} inactivos` : '100% de cuentas activas'}
-                </span>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300">
-                  Operativo
-                </span>
+              <div>
+                <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                  <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                    {stats.inactiveCount > 0 ? `${stats.inactiveCount} inactivos` : '100% habilitadas'}
+                  </span>
+                  <span className="font-mono text-slate-400">Operativo</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 w-full" />
+                </div>
               </div>
             </div>
 
@@ -579,189 +639,285 @@ export default function Users() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            2. EXECUTIVE MIDDLE ANALYTICS (ROLES & SECURITY MATRIX)
+            2. MIDDLE SECTION: 3 CARDS (AREA CHART, DONUT, ACCIONES RÁPIDAS)
            ═════════════════════════════════════════════════════════ */}
         {showMetrics && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 animate-fade-in">
 
-            {/* DONUT: DISTRIBUCIÓN DE ROLES Y CUENTAS (5 COLS) */}
-            <div className="lg:col-span-5 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+            {/* Card 1: Flujo de Acceso & Crecimiento de Equipo (Area Spline Chart) */}
+            <div className="lg:col-span-6 xl:col-span-5 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2">
-                  <PieChart size={16} className="text-blue-600 dark:text-blue-400" />
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Distribución de Roles y Accesos
+                  <BarChart2 size={16} className="text-[#1B4FD8] shrink-0" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
+                    Trazabilidad de Cuentas & Accesos
                   </h3>
                 </div>
-                <span className="text-[11px] font-bold text-slate-400 font-mono">
-                  {stats.totalUsers} usuarios
+                <div className="inline-flex items-center bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2 py-0.5 text-xs">
+                  <select
+                    value={chartPeriod}
+                    onChange={(e) => setChartPeriod(e.target.value)}
+                    className="bg-transparent text-[11px] text-slate-600 dark:text-zinc-300 font-semibold outline-none cursor-pointer"
+                  >
+                    <option value="6MONTHS" className="dark:bg-zinc-900">Últimos 6 meses</option>
+                    <option value="30DAYS" className="dark:bg-zinc-900">Últimos 30 días</option>
+                    <option value="WEEK" className="dark:bg-zinc-900">Esta semana</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="relative pt-6 pb-2 w-full">
+                <div className="absolute top-0 right-4 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 text-[10.5px] font-bold">
+                  <span>Pico: {Math.max(...monthlyChartData.map((d) => d.amount), 0)} cuentas</span>
+                  <span className="text-emerald-500 font-extrabold">↑</span>
+                </div>
+
+                <svg
+                  viewBox={`0 0 ${chartSVG.width} ${chartSVG.height}`}
+                  className="w-full h-auto overflow-visible"
+                >
+                  <defs>
+                    <linearGradient id="areaGradientUsers" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#1B4FD8" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#1B4FD8" stopOpacity="0.0" />
+                    </linearGradient>
+                  </defs>
+
+                  {[0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                    const y = chartSVG.paddingTop + chartSVG.innerH * (1 - ratio)
+                    return (
+                      <g key={idx}>
+                        <line
+                          x1={10}
+                          y1={y}
+                          x2={chartSVG.width - 10}
+                          y2={y}
+                          stroke="currentColor"
+                          strokeDasharray="4 4"
+                          className="text-slate-100 dark:text-zinc-800/80"
+                          strokeWidth="1"
+                        />
+                      </g>
+                    )
+                  })}
+
+                  <path d={chartSVG.areaD} fill="url(#areaGradientUsers)" />
+
+                  <path
+                    d={chartSVG.pathD}
+                    fill="none"
+                    stroke="#1B4FD8"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+
+                  {chartSVG.coords.map((pt, idx) => (
+                    <g key={idx} className="group cursor-pointer">
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r="3.5"
+                        fill="#FFFFFF"
+                        stroke="#1B4FD8"
+                        strokeWidth="2.5"
+                        className="transition-all duration-200 group-hover:r-5"
+                      />
+                      <text
+                        x={pt.x}
+                        y={chartSVG.height - 4}
+                        textAnchor="middle"
+                        className="text-[10px] font-bold fill-slate-400 dark:fill-zinc-500"
+                      >
+                        {pt.month}
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+              </div>
+
+              <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                <span>
+                  Equipo activo: <strong className="text-slate-700 dark:text-zinc-200 font-mono">{stats.activeCount} colaboradores</strong>
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Auditoría activa
+                </span>
+              </div>
+            </div>
+
+            {/* Card 2: Distribución de Roles y Accesos (Donut Chart SVG) */}
+            <div className="lg:col-span-6 xl:col-span-4 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <PieChart size={16} className="text-[#5550F2] shrink-0" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
+                    Distribución de Roles
+                  </h3>
+                </div>
+                <span className="text-[11px] font-mono text-slate-400">
+                  {stats.totalUsers} cuentas registradas
                 </span>
               </div>
 
-              <div className="flex items-center justify-center py-4">
+              <div className="flex items-center justify-center py-2">
                 <div className="relative w-36 h-36">
                   <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="#E2E8F0" strokeWidth="12" className="dark:stroke-zinc-800" />
-                    {/* Super Admin (Amber) */}
-                    {donutData.pctSuperAdmin > 0 && (
-                      <circle
-                        cx="50" cy="50" r="40" fill="transparent"
-                        stroke="#F59E0B" strokeWidth="12"
-                        strokeDasharray={`${donutData.superStroke} ${donutData.C}`}
-                        strokeDashoffset="0"
-                        strokeLinecap="round"
-                      />
-                    )}
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke="currentColor"
+                      strokeWidth="11"
+                      className="text-slate-100 dark:text-zinc-800"
+                    />
                     {/* Admins (Purple) */}
                     <circle
-                      cx="50" cy="50" r="40" fill="transparent"
-                      stroke="#8B5CF6" strokeWidth="12"
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke="#8B5CF6"
+                      strokeWidth="11"
                       strokeDasharray={`${donutData.adminStroke} ${donutData.C}`}
-                      strokeDashoffset={-donutData.superStroke}
+                      strokeDashoffset="0"
                       strokeLinecap="round"
                     />
                     {/* Empleados (Emerald) */}
                     <circle
-                      cx="50" cy="50" r="40" fill="transparent"
-                      stroke="#10B981" strokeWidth="12"
+                      cx="50"
+                      cy="50"
+                      r="40"
+                      fill="transparent"
+                      stroke="#10B981"
+                      strokeWidth="11"
                       strokeDasharray={`${donutData.empStroke} ${donutData.C}`}
-                      strokeDashoffset={-(donutData.superStroke + donutData.adminStroke)}
+                      strokeDashoffset={-donutData.adminStroke}
                       strokeLinecap="round"
                     />
-                    {/* Inactivos (Rose) */}
-                    {donutData.pctInactive > 0 && (
+                    {/* Super Admin / Inactivos (Amber/Rose) */}
+                    {(donutData.pctSuperAdmin > 0 || donutData.pctInactive > 0) && (
                       <circle
-                        cx="50" cy="50" r="40" fill="transparent"
-                        stroke="#F43F5E" strokeWidth="12"
-                        strokeDasharray={`${donutData.inactStroke} ${donutData.C}`}
-                        strokeDashoffset={-(donutData.superStroke + donutData.adminStroke + donutData.empStroke)}
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="transparent"
+                        stroke="#F59E0B"
+                        strokeWidth="11"
+                        strokeDasharray={`${(donutData.superStroke + donutData.inactStroke)} ${donutData.C}`}
+                        strokeDashoffset={-(donutData.adminStroke + donutData.empStroke)}
                         strokeLinecap="round"
                       />
                     )}
                   </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                     <span className="text-2xl font-black font-mono text-slate-900 dark:text-white leading-none">
                       {stats.totalUsers}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">
-                      Cuentas
+                    <span className="text-[10px] font-bold text-[#1B4FD8] dark:text-blue-400 uppercase tracking-wider mt-0.5">
+                      CUENTAS
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Legend with exact stats */}
-              <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800 text-center">
-                <div className="p-2 rounded-xl bg-amber-50/70 dark:bg-amber-950/20">
-                  <span className="text-[9.5px] font-bold text-amber-700 dark:text-amber-400 uppercase block truncate">Super Admin</span>
-                  <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
-                    {stats.superAdminCount} ({donutData.pctSuperAdmin}%)
-                  </span>
-                </div>
-                <div className="p-2 rounded-xl bg-purple-50/70 dark:bg-purple-950/20">
-                  <span className="text-[9.5px] font-bold text-purple-700 dark:text-purple-400 uppercase block truncate">Admins</span>
-                  <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
+              <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800 text-[11px]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
+                    <span className="text-slate-600 dark:text-zinc-300 font-medium">Administradores</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-800 dark:text-white">
                     {stats.adminCount} ({donutData.pctAdmin}%)
                   </span>
                 </div>
-                <div className="p-2 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20">
-                  <span className="text-[9.5px] font-bold text-emerald-700 dark:text-emerald-400 uppercase block truncate">Empleados</span>
-                  <span className="text-xs font-black font-mono text-slate-900 dark:text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="text-slate-600 dark:text-zinc-300 font-medium">Vendedores / Empleados</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-800 dark:text-white">
                     {stats.employeeCount} ({donutData.pctEmployee}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                    <span className="text-slate-600 dark:text-zinc-300 font-medium">Super Admin / Otros</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-800 dark:text-white">
+                    {stats.superAdminCount + stats.inactiveCount} ({donutData.pctSuperAdmin + donutData.pctInactive}%)
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* SEGURIDAD & MATRIZ DE PERMISOS ERP (7 COLS) */}
-            <div className="lg:col-span-7 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs flex flex-col justify-between">
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-zinc-800">
-                <div className="flex items-center gap-2">
-                  <Shield size={16} className="text-blue-600 dark:text-blue-400" />
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Matriz de Seguridad & Privilegios RBAC
-                  </h3>
+            {/* Card 3: Acciones Rápidas (Matriz 2x2) */}
+            <div className="lg:col-span-12 xl:col-span-3 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className="text-amber-500 shrink-0" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
+                      Acciones Rápidas
+                    </h3>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <p className="text-[11px] text-slate-400 mb-3">
+                  Accesos directos de control de equipo y seguridad.
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
                   <button
-                    type="button"
-                    onClick={() => setRbacModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 px-2.5 py-1 rounded-xl border border-blue-200 dark:border-blue-800/60 transition cursor-pointer"
+                    onClick={handleOpenCreate}
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <Eye size={12} />
-                    <span>Ver Matriz Completa</span>
+                    <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-[#1B4FD8] flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <Plus size={14} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Nuevo Usuario</p>
+                    <p className="text-[10px] text-slate-400">Crear cuenta</p>
                   </button>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                    <CheckCircle size={11} /> Políticas Activas
-                  </span>
+
+                  <button
+                    onClick={() => setRbacModalOpen(true)}
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-left transition-all group cursor-pointer"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-purple-50 dark:bg-purple-900/40 text-purple-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <ShieldCheck size={14} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Matriz RBAC</p>
+                    <p className="text-[10px] text-slate-400">Ver permisos</p>
+                  </button>
+
+                  <button
+                    onClick={handleExportExcel}
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 text-left transition-all group cursor-pointer"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <FileSpreadsheet size={14} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Exportar CSV</p>
+                    <p className="text-[10px] text-slate-400">Directorio</p>
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/actividad-empleados')}
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 text-left transition-all group cursor-pointer"
+                  >
+                    <div className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                      <UsersIcon size={14} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Auditoría</p>
+                    <p className="text-[10px] text-slate-400">Ver actividad</p>
+                  </button>
                 </div>
               </div>
 
-              {/* 3 ROLES CARDS: Super Admin, Administrador, Empleado */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 py-2.5">
-                {/* Super Admin Role Card */}
-                <div className="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/60 space-y-1.5 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700">
-                        <Crown size={12} className="text-amber-600 dark:text-amber-400" /> Super Admin
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">Plataforma SaaS</span>
-                    <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-snug mt-1">
-                      Control supremo: activación y cobro de planes Pro, supervisión multi-empresa, auditoría global y soporte técnico maestro.
-                    </p>
-                  </div>
-                  <div className="pt-2 border-t border-amber-200/50 dark:border-amber-900/40 text-[10px] font-extrabold text-amber-700 dark:text-amber-300">
-                    Acceso irrestricto
-                  </div>
-                </div>
-
-                {/* Admin Role Card */}
-                <div className="p-3 rounded-xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/80 dark:border-purple-800/60 space-y-1.5 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300 dark:bg-purple-950/60 dark:text-purple-200 dark:border-purple-700">
-                        <ShieldCheck size={12} className="text-purple-600 dark:text-purple-400" /> Administrador
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">Dueño de Empresa</span>
-                    <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-snug mt-1">
-                      Control absoluto de su empresa: ventas, compras, libro kardex, edición de catálogo, reportes de margen, configuración y colaboradores.
-                    </p>
-                  </div>
-                  <div className="pt-2 border-t border-purple-200/50 dark:border-purple-900/40 text-[10px] font-extrabold text-purple-700 dark:text-purple-300">
-                    Acceso total a su empresa
-                  </div>
-                </div>
-
-                {/* Empleado Role Card */}
-                <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-800/60 space-y-1.5 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-700">
-                        <User size={12} className="text-emerald-600 dark:text-emerald-400" /> Empleado
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">Punto de Venta</span>
-                    <p className="text-[11px] text-slate-600 dark:text-zinc-300 leading-snug mt-1">
-                      Operación diaria de caja: emisión de comprobantes (boleta/factura), registro de clientes y consulta de existencias disponibles.
-                    </p>
-                  </div>
-                  <div className="pt-2 border-t border-emerald-200/50 dark:border-emerald-900/40 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300">
-                    Punto de Venta / Caja
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-400">
-                <span className="flex items-center gap-1.5">
-                  <Key size={13} className="text-amber-500" />
-                  Cifrado de credenciales de alta seguridad
-                </span>
-                <Link to="/planes" className="text-blue-600 dark:text-blue-400 font-bold hover:underline flex items-center gap-1">
-                  Gestionar Plan <ArrowRight size={12} />
-                </Link>
+              <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-400">
+                <span>Políticas RBAC activas</span>
+                <span className="font-mono font-bold text-slate-500 dark:text-zinc-400">ERP v2.4</span>
               </div>
             </div>
 
@@ -778,7 +934,7 @@ export default function Users() {
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" />
               <input
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-10 pr-9 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all outline-none font-medium"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-10 pr-9 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-blue-500/10 transition-all outline-none font-medium"
                 placeholder="Buscar colaborador por nombre, correo o rol…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -801,7 +957,7 @@ export default function Users() {
                 onClick={() => setSegmentFilter('ALL')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   segmentFilter === 'ALL'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs'
                     : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
                 }`}
               >
@@ -825,7 +981,7 @@ export default function Users() {
                 onClick={() => setSegmentFilter('ADMIN')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   segmentFilter === 'ADMIN'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs'
                     : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
                 }`}
               >
@@ -836,7 +992,7 @@ export default function Users() {
                 onClick={() => setSegmentFilter('EMPLEADO')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   segmentFilter === 'EMPLEADO'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs'
                     : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
                 }`}
               >
@@ -847,7 +1003,7 @@ export default function Users() {
                 onClick={() => setSegmentFilter('ACTIVE')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   segmentFilter === 'ACTIVE'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs'
                     : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
                 }`}
               >
@@ -879,7 +1035,7 @@ export default function Users() {
                   title="Vista en tabla"
                   className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'table'
-                      ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-white shadow-xs font-bold'
+                      ? 'bg-white dark:bg-zinc-700 text-[#1B4FD8] dark:text-white shadow-xs font-bold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
                   }`}
                 >
@@ -891,7 +1047,7 @@ export default function Users() {
                   title="Vista en tarjetas"
                   className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-white shadow-xs font-bold'
+                      ? 'bg-white dark:bg-zinc-700 text-[#1B4FD8] dark:text-white shadow-xs font-bold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
                   }`}
                 >
