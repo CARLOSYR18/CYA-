@@ -125,8 +125,14 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
   return (
     <div
       ref={ref}
-      className="bg-white text-slate-900 font-sans px-5 sm:px-6 pt-6 pb-7 rounded-sm shadow-xl border-2 border-slate-300 w-[315px] sm:w-[335px] mx-auto text-[11px] leading-tight select-text relative"
-      style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
+      className="bg-white text-slate-900 font-sans px-5 sm:px-6 pt-6 pb-9 rounded-md shadow-2xl border-2 border-slate-300 w-[315px] sm:w-[335px] mx-auto text-[11px] leading-tight select-text relative shrink-0 self-start"
+      style={{
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        backgroundColor: '#ffffff',
+        minHeight: 'fit-content',
+        height: 'fit-content',
+        boxSizing: 'border-box',
+      }}
     >
       {/* ─── Marca de Agua en Caso de Venta Anulada ─── */}
       {isAnulado && (
@@ -289,18 +295,20 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
 
       {/* ─── Código QR Bidimensional & Seguridad SUNAT ─── */}
       <div className="pt-2 text-center space-y-1">
-        <div className="flex justify-center my-1">
-          <QrCodeSvg value={sunatQrString} size={82} />
+        <div className="flex justify-center my-1.5">
+          <div className="p-1 bg-white border border-slate-200 rounded">
+            <QrCodeSvg value={sunatQrString} size={84} />
+          </div>
         </div>
 
-        <p className="font-mono text-[8px] text-slate-500 leading-tight">
+        <p className="font-mono text-[8.5px] font-bold text-slate-700 leading-tight">
           Código Hash: {hashDigest}
         </p>
         <p className="font-mono text-[8px] text-slate-500 leading-tight">
           Representación impresa de la {voucherTitle}
         </p>
         <p className="font-mono text-[8px] text-slate-400 leading-tight">
-          Consulte su comprobante en www.sunat.gob.pe
+          Consulte su validez en: www.sunat.gob.pe
         </p>
       </div>
 
@@ -318,7 +326,7 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
       </div>
 
       {/* Marca de corte de papel térmico al final */}
-      <div className="pt-3 pb-1 text-center select-none opacity-40">
+      <div className="pt-3 pb-2 text-center select-none opacity-40">
         <span className="text-[9px] font-mono text-slate-400 tracking-wider">
           ✂ - - - - - - - - - - - - - - - - - - - - - - - - ✂
         </span>
@@ -403,7 +411,7 @@ ${numberToWordsPE(total)}
   return (
     <div className="space-y-3">
       {/* Visual Ticket Body: Fondo de alto contraste para que el ticket blanco resalte en su totalidad */}
-      <div className="overflow-y-auto max-h-[72vh] p-3 sm:p-5 flex justify-center bg-slate-200/90 dark:bg-zinc-950 rounded-2xl shadow-inner">
+      <div className="overflow-y-auto max-h-[75vh] p-3 sm:p-5 flex justify-center items-start bg-slate-200/90 dark:bg-zinc-950 rounded-2xl shadow-inner">
         <TicketBody
           ref={visibleTicketRef}
           sale={sale}
