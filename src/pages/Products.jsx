@@ -977,7 +977,7 @@ export default function Products() {
           </div>
         ) : viewMode === 'grid' ? (
           /* ═════════════════════════════════════════════════════════
-              VISTA CUADRÍCULA: TARJETAS VERTICALES SENIOR MEJORADAS
+              VISTA CUADRÍCULA: TARJETAS VERTICALES SENIOR ENTERPRISE
              ═════════════════════════════════════════════════════════ */
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-5">
@@ -994,34 +994,40 @@ export default function Products() {
                 const sup = supName(p.supplier_id)
                 const stockRatio = isOutOfStock ? 0 : Math.min(100, Math.max(15, Math.round((stock / Math.max(minStock * 2, 20)) * 100)))
 
+                // Formatted price tokens
+                const salePriceNum = Number(p.sale_price) || 0
+                const intPart = Math.floor(salePriceNum).toLocaleString('es-PE')
+                const decPart = (salePriceNum % 1).toFixed(2).substring(2)
+
                 return (
                   <div
                     key={p.id}
-                    className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/90 dark:border-zinc-800 transition-all duration-200 flex flex-col justify-between group overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_28px_rgba(0,0,0,0.06)] hover:border-[#1B4FD8]/40 hover:-translate-y-1"
+                    className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_6px_16px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_28px_-4px_rgba(0,0,0,0.08),0_4px_10px_-2px_rgba(0,0,0,0.02)] hover:border-blue-500/40 dark:hover:border-blue-500/30 hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between group overflow-hidden"
                   >
-                    <div className="p-4 sm:p-5">
-                      {/* Fila Superior: SKU a la izquierda & Estado con Dot a la derecha */}
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div className="flex flex-col gap-1 items-start">
-                          <span className="font-mono text-xs font-bold text-slate-700 dark:text-zinc-300 bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 px-2.5 py-1 rounded-lg shadow-2xs">
+                    <div>
+                      {/* ─── LIENZO FOTOGRÁFICO INTEGRADO CON BADGES FLOTANTES ─── */}
+                      <div className="relative w-full h-52 bg-gradient-to-b from-slate-50/70 via-slate-50/30 to-white dark:from-zinc-900/60 dark:via-zinc-900/30 dark:to-transparent p-4 flex items-center justify-center overflow-hidden border-b border-slate-100/80 dark:border-zinc-800/60">
+                        {/* Badges Flotantes: SKU & Combo */}
+                        <div className="absolute top-3 left-3 z-10 flex flex-col gap-1 items-start">
+                          <span className="font-mono text-[10.5px] font-bold text-slate-700 dark:text-zinc-300 bg-white/95 dark:bg-zinc-800/95 backdrop-blur-md border border-slate-200/80 dark:border-zinc-700 px-2.5 py-1 rounded-lg shadow-2xs tracking-wide">
                             {p.sku || `PROD-000${idx + 1}`}
                           </span>
                           {p.is_kit && (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#5550F2] text-white shadow-2xs">
-                              Combo / Kit
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#5550F2] text-white shadow-xs tracking-wider">
+                              COMBO / KIT
                             </span>
                           )}
                         </div>
 
-                        {/* Status Badge with Dot */}
-                        <div>
+                        {/* Badge Flotante: Estado de Inventario */}
+                        <div className="absolute top-3 right-3 z-10">
                           <span
-                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold backdrop-blur-md shadow-2xs ${
                               isOutOfStock
-                                ? 'bg-rose-50 text-rose-600 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40'
+                                ? 'bg-rose-50/95 text-rose-700 border border-rose-200 dark:bg-rose-950/80 dark:text-rose-400 dark:border-rose-900/50'
                                 : isLowStock
-                                ? 'bg-amber-50 text-amber-600 border border-amber-200/70 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/40'
-                                : 'bg-emerald-50 text-emerald-600 border border-emerald-200/70 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/40'
+                                ? 'bg-amber-50/95 text-amber-700 border border-amber-200 dark:bg-amber-950/80 dark:text-amber-400 dark:border-amber-900/50'
+                                : 'bg-emerald-50/95 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/80 dark:text-emerald-400 dark:border-emerald-900/50'
                             }`}
                           >
                             <span
@@ -1032,94 +1038,116 @@ export default function Products() {
                             <span>{isOutOfStock ? 'Agotado' : isLowStock ? 'Stock Bajo' : 'Disponible'}</span>
                           </span>
                         </div>
-                      </div>
 
-                      {/* Fotografía del Producto Centrada con Hover Zoom y Botón de Lupa */}
-                      <div
-                        onClick={() => openLightbox(p)}
-                        className={`relative w-full h-44 sm:h-48 rounded-xl bg-white dark:bg-zinc-900 flex items-center justify-center p-2 mb-3 overflow-hidden transition-all group/img ${
-                          p.image_url ? 'cursor-pointer' : ''
-                        }`}
-                        title={p.image_url ? 'Click para ampliar imagen en alta resolución' : ''}
-                      >
-                        {p.image_url ? (
-                          <>
+                        {/* Fotografía de Alta Definición */}
+                        <div
+                          onClick={() => openLightbox(p)}
+                          className={`w-full h-full flex items-center justify-center p-2 ${
+                            p.image_url ? 'cursor-pointer' : ''
+                          }`}
+                          title={p.image_url ? 'Click para ampliar fotografía en alta resolución' : ''}
+                        >
+                          {p.image_url ? (
                             <img
                               src={p.image_url}
                               alt={p.name}
-                              className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                              className="max-h-full max-w-full object-contain drop-shadow-xs transition-transform duration-300 ease-out group-hover:scale-105"
                             />
-                            <div className="absolute bottom-2 right-2 opacity-0 group-hover/img:opacity-100 transition-opacity">
-                              <span className="w-7 h-7 rounded-lg bg-white/95 dark:bg-zinc-800/95 backdrop-blur-xs border border-slate-200 dark:border-zinc-700 text-slate-500 hover:text-[#1B4FD8] flex items-center justify-center shadow-xs">
-                                <Eye size={13} />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-slate-300 dark:text-zinc-600">
+                              <ImageOff size={36} strokeWidth={1.5} />
+                              <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 mt-1">
+                                Sin fotografía
                               </span>
                             </div>
-                          </>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center text-slate-300 dark:text-zinc-600">
-                            <ImageOff size={34} strokeWidth={1.5} />
-                            <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 mt-1">
-                              Sin fotografía
-                            </span>
+                          )}
+                        </div>
+
+                        {/* Botón Flotante de Zoom al Pasar el Cursor */}
+                        {p.image_url && (
+                          <div className="absolute bottom-2.5 right-2.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openLightbox(p)
+                              }}
+                              className="w-8 h-8 rounded-lg bg-white/95 dark:bg-zinc-800/95 backdrop-blur-md border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:text-[#1B4FD8] flex items-center justify-center shadow-xs cursor-pointer transition-colors"
+                              title="Ampliar imagen"
+                            >
+                              <Eye size={14} />
+                            </button>
                           </div>
                         )}
                       </div>
 
-                      {/* Categoría & Proveedor */}
-                      <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1 truncate" title={`${cat} · ${sup}`}>
-                        {cat} <span className="text-slate-300 dark:text-zinc-600">·</span> {sup}
-                      </p>
-
-                      {/* Nombre del Producto */}
-                      <h3
-                        onClick={() => navigate(`/productos/editar/${p.id}`)}
-                        className="font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-1 hover:text-[#1B4FD8] dark:hover:text-blue-400 transition-colors cursor-pointer"
-                        title={p.name}
-                      >
-                        {p.name}
-                      </h3>
-
-                      {/* Existencias y micro-barra */}
-                      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-500 dark:text-zinc-400 font-medium">Existencias:</span>
-                          <span
-                            className={`font-mono font-bold text-xs sm:text-sm ${
-                              isOutOfStock
-                                ? 'text-rose-600 dark:text-rose-400'
-                                : isLowStock
-                                ? 'text-amber-600 dark:text-amber-400'
-                                : 'text-slate-900 dark:text-white'
-                            }`}
-                          >
-                            {stock} {p.unit || 'unidad'}
-                          </span>
+                      {/* ─── CUERPO DE LA TARJETA: JERARQUÍA SENIOR ─── */}
+                      <div className="p-4 sm:p-5 space-y-3">
+                        {/* Categoría & Proveedor */}
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider truncate">
+                          <span className="truncate">{cat}</span>
+                          <span className="text-slate-300 dark:text-zinc-600">·</span>
+                          <span className="truncate text-slate-500 dark:text-zinc-400 font-medium">{sup}</span>
                         </div>
-                        <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
-                          <div
-                            style={{ width: `${stockRatio}%` }}
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              isOutOfStock
-                                ? 'bg-rose-500'
-                                : isLowStock
-                                ? 'bg-amber-500'
-                                : 'bg-emerald-500'
-                            }`}
-                          />
+
+                        {/* Título del Artículo */}
+                        <h3
+                          onClick={() => navigate(`/productos/editar/${p.id}`)}
+                          className="font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-2 min-h-[44px] hover:text-[#1B4FD8] dark:hover:text-blue-400 transition-colors cursor-pointer"
+                          title={p.name}
+                        >
+                          {p.name}
+                        </h3>
+
+                        {/* Módulo de Existencias & Almacén (Enterprise Grade) */}
+                        <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800/80 space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-slate-500 dark:text-zinc-400 font-medium flex items-center gap-1.5">
+                              <Boxes size={13} className="text-slate-400" />
+                              <span>Existencias físicas:</span>
+                            </span>
+                            <span
+                              className={`font-mono font-bold text-xs sm:text-sm ${
+                                isOutOfStock
+                                  ? 'text-rose-600 dark:text-rose-400'
+                                  : isLowStock
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-slate-900 dark:text-white'
+                              }`}
+                            >
+                              {stock} <span className="text-[11px] font-medium text-slate-400 font-sans">{p.unit || 'uds.'}</span>
+                            </span>
+                          </div>
+
+                          {/* Barra de Proporción de Stock */}
+                          <div className="w-full h-1.5 rounded-full bg-slate-200/80 dark:bg-zinc-700/80 overflow-hidden">
+                            <div
+                              style={{ width: `${stockRatio}%` }}
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                isOutOfStock
+                                  ? 'bg-rose-500'
+                                  : isLowStock
+                                  ? 'bg-amber-500'
+                                  : 'bg-emerald-500'
+                              }`}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Fila Inferior: Precio, Margen & Botones de Acción */}
-                    <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-zinc-800/40 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                    {/* ─── BLOQUE COMERCIAL & ACCIONES: ACABADO PROFESIONAL ─── */}
+                    <div className="px-5 py-3.5 bg-slate-50/60 dark:bg-zinc-800/30 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between gap-3">
                       <div>
-                        <p className="font-mono font-black text-base sm:text-lg text-slate-900 dark:text-white leading-tight">
-                          {fmt(p.sale_price)}
-                        </p>
+                        <div className="flex items-baseline font-sans text-slate-900 dark:text-white leading-none">
+                          <span className="text-sm font-bold mr-1 text-slate-600 dark:text-zinc-400">S/</span>
+                          <span className="text-xl sm:text-2xl font-black tracking-tight">{intPart}</span>
+                          <span className="text-xs font-bold self-start ml-0.5">{decPart}</span>
+                        </div>
                         {marginPct !== null && (
-                          <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                          <span className="inline-flex items-center text-[10.5px] font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/40 px-2 py-0.5 rounded-md mt-1">
                             +{marginPct}% margen
-                          </p>
+                          </span>
                         )}
                       </div>
 
@@ -1127,16 +1155,16 @@ export default function Products() {
                         <button
                           onClick={() => navigate(`/productos/editar/${p.id}`)}
                           title="Editar producto"
-                          className="p-2 rounded-xl text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                          className="w-9 h-9 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 hover:border-[#1B4FD8] hover:bg-[#1B4FD8] text-slate-600 dark:text-zinc-300 hover:text-white dark:hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                         >
-                          <Pencil size={15} />
+                          <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => setConfirmDelete(p)}
                           title="Eliminar producto"
-                          className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                          className="w-9 h-9 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 hover:border-rose-200 hover:bg-rose-50 text-slate-400 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-400 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
@@ -1207,7 +1235,7 @@ export default function Products() {
                     className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/90 dark:border-zinc-800 hover:border-[#1B4FD8]/50 hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-200 p-4 sm:p-5 flex flex-col md:flex-row gap-4 sm:gap-6 items-start md:items-center justify-between group overflow-hidden"
                   >
                     {/* ─── COLUMNA 1: FOTO DEL ARTÍCULO (MERCADO LIBRE) ─── */}
-                    <div className="w-full md:w-44 h-44 shrink-0 rounded-xl bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 flex items-center justify-center p-3 relative overflow-hidden">
+                    <div className="w-full md:w-44 h-44 shrink-0 rounded-xl bg-gradient-to-b from-slate-50/70 to-white dark:from-zinc-900 dark:to-zinc-900/60 border border-slate-100 dark:border-zinc-800 flex items-center justify-center p-3 relative overflow-hidden">
                       {/* Floating SKU pill */}
                       <div className="absolute top-2.5 left-2.5 z-10">
                         <span className="font-mono text-[10.5px] font-bold text-slate-700 dark:text-zinc-300 bg-white/95 dark:bg-zinc-800/95 backdrop-blur-md border border-slate-200/90 dark:border-zinc-700 px-2 py-0.5 rounded-md shadow-2xs">
