@@ -977,7 +977,207 @@ export default function Products() {
           </div>
         ) : viewMode === 'grid' ? (
           /* ═════════════════════════════════════════════════════════
-              ESTILO FILA HORIZONTAL MERCADO LIBRE (DESKTOP CLÁSICO)
+              VISTA CUADRÍCULA: TARJETAS VERTICALES SENIOR MEJORADAS
+             ═════════════════════════════════════════════════════════ */
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-5">
+              {paginatedProducts.map((p, idx) => {
+                const stock = Number(p.stock) || 0
+                const minStock = Number(p.min_stock) || 0
+                const isOutOfStock = stock <= 0
+                const isLowStock = stock > 0 && stock <= minStock
+                const marginPct =
+                  p.cost_price > 0 && p.sale_price > p.cost_price
+                    ? Math.round(((p.sale_price - p.cost_price) / p.cost_price) * 100)
+                    : null
+                const cat = catName(p.category_id)
+                const sup = supName(p.supplier_id)
+                const stockRatio = isOutOfStock ? 0 : Math.min(100, Math.max(15, Math.round((stock / Math.max(minStock * 2, 20)) * 100)))
+
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/90 dark:border-zinc-800 transition-all duration-200 flex flex-col justify-between group overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_28px_rgba(0,0,0,0.06)] hover:border-[#1B4FD8]/40 hover:-translate-y-1"
+                  >
+                    <div className="p-4 sm:p-5">
+                      {/* Fila Superior: SKU a la izquierda & Estado con Dot a la derecha */}
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className="font-mono text-xs font-bold text-slate-700 dark:text-zinc-300 bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 px-2.5 py-1 rounded-lg shadow-2xs">
+                            {p.sku || `PROD-000${idx + 1}`}
+                          </span>
+                          {p.is_kit && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-[#5550F2] text-white shadow-2xs">
+                              Combo / Kit
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Status Badge with Dot */}
+                        <div>
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                              isOutOfStock
+                                ? 'bg-rose-50 text-rose-600 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40'
+                                : isLowStock
+                                ? 'bg-amber-50 text-amber-600 border border-amber-200/70 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/40'
+                                : 'bg-emerald-50 text-emerald-600 border border-emerald-200/70 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/40'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isOutOfStock ? 'bg-rose-500' : isLowStock ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
+                              }`}
+                            />
+                            <span>{isOutOfStock ? 'Agotado' : isLowStock ? 'Stock Bajo' : 'Disponible'}</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Fotografía del Producto Centrada con Hover Zoom y Botón de Lupa */}
+                      <div
+                        onClick={() => openLightbox(p)}
+                        className={`relative w-full h-44 sm:h-48 rounded-xl bg-white dark:bg-zinc-900 flex items-center justify-center p-2 mb-3 overflow-hidden transition-all group/img ${
+                          p.image_url ? 'cursor-pointer' : ''
+                        }`}
+                        title={p.image_url ? 'Click para ampliar imagen en alta resolución' : ''}
+                      >
+                        {p.image_url ? (
+                          <>
+                            <img
+                              src={p.image_url}
+                              alt={p.name}
+                              className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div className="absolute bottom-2 right-2 opacity-0 group-hover/img:opacity-100 transition-opacity">
+                              <span className="w-7 h-7 rounded-lg bg-white/95 dark:bg-zinc-800/95 backdrop-blur-xs border border-slate-200 dark:border-zinc-700 text-slate-500 hover:text-[#1B4FD8] flex items-center justify-center shadow-xs">
+                                <Eye size={13} />
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-slate-300 dark:text-zinc-600">
+                            <ImageOff size={34} strokeWidth={1.5} />
+                            <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 mt-1">
+                              Sin fotografía
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Categoría & Proveedor */}
+                      <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1 truncate" title={`${cat} · ${sup}`}>
+                        {cat} <span className="text-slate-300 dark:text-zinc-600">·</span> {sup}
+                      </p>
+
+                      {/* Nombre del Producto */}
+                      <h3
+                        onClick={() => navigate(`/productos/editar/${p.id}`)}
+                        className="font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-1 hover:text-[#1B4FD8] dark:hover:text-blue-400 transition-colors cursor-pointer"
+                        title={p.name}
+                      >
+                        {p.name}
+                      </h3>
+
+                      {/* Existencias y micro-barra */}
+                      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 dark:text-zinc-400 font-medium">Existencias:</span>
+                          <span
+                            className={`font-mono font-bold text-xs sm:text-sm ${
+                              isOutOfStock
+                                ? 'text-rose-600 dark:text-rose-400'
+                                : isLowStock
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-slate-900 dark:text-white'
+                            }`}
+                          >
+                            {stock} {p.unit || 'unidad'}
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
+                          <div
+                            style={{ width: `${stockRatio}%` }}
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              isOutOfStock
+                                ? 'bg-rose-500'
+                                : isLowStock
+                                ? 'bg-amber-500'
+                                : 'bg-emerald-500'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Fila Inferior: Precio, Margen & Botones de Acción */}
+                    <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-zinc-800/40 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                      <div>
+                        <p className="font-mono font-black text-base sm:text-lg text-slate-900 dark:text-white leading-tight">
+                          {fmt(p.sale_price)}
+                        </p>
+                        {marginPct !== null && (
+                          <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                            +{marginPct}% margen
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => navigate(`/productos/editar/${p.id}`)}
+                          title="Editar producto"
+                          className="p-2 rounded-xl text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(p)}
+                          title="Eliminar producto"
+                          className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 text-xs text-slate-500">
+                <span>
+                  Mostrando {((currentPage - 1) * pageSize) + 1} a {Math.min(currentPage * pageSize, filtered.length)} de {filtered.length} productos
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <span className="px-3 py-1 font-mono font-bold text-slate-900 dark:text-white">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ═════════════════════════════════════════════════════════
+              VISTA LISTADO: FILAS HORIZONTALES ESTILO MERCADO LIBRE
              ═════════════════════════════════════════════════════════ */
           <div className="space-y-3.5">
             <div className="space-y-3">
@@ -1204,160 +1404,6 @@ export default function Products() {
                 </div>
               </div>
             )}
-          </div>
-        ) : (
-          /* ─── TABLE VIEW (ALTERNATIVE LIST) ─── */
-          <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 overflow-hidden shadow-xs">
-            <div className="hidden sm:grid sm:grid-cols-12 gap-4 px-6 py-3.5 bg-slate-50/80 dark:bg-zinc-800/50 border-b border-slate-200/80 dark:border-zinc-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider items-center">
-              <div className="sm:col-span-6">Artículo / Producto</div>
-              <div className="sm:col-span-2 text-right">Existencias / Estado</div>
-              <div className="sm:col-span-2 text-right">Precio Comercial</div>
-              <div className="sm:col-span-2 text-right">Acciones</div>
-            </div>
-
-            <div className="divide-y divide-slate-100 dark:divide-zinc-800">
-              {paginatedProducts.map((p) => {
-                const stock = Number(p.stock) || 0
-                const minStock = Number(p.min_stock) || 0
-                const isOutOfStock = stock <= 0
-                const isLowStock = stock > 0 && stock <= minStock
-                const marginPct =
-                  p.cost_price > 0 && p.sale_price > p.cost_price
-                    ? Math.round(((p.sale_price - p.cost_price) / p.cost_price) * 100)
-                    : null
-                const cat = catName(p.category_id)
-                const sup = supName(p.supplier_id)
-
-                return (
-                  <div
-                    key={p.id}
-                    className="p-4 sm:px-6 sm:py-4.5 hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 transition-colors group flex flex-col sm:grid sm:grid-cols-12 gap-3 sm:gap-4 sm:items-center"
-                  >
-                    <div className="sm:col-span-6 flex items-center gap-4 min-w-0">
-                      <div
-                        onClick={() => openLightbox(p)}
-                        className={`relative w-[68px] h-[68px] rounded-2xl overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 p-1.5 shrink-0 shadow-xs transition-all ${
-                          p.image_url ? 'cursor-pointer hover:border-[#1B4FD8] hover:scale-105' : ''
-                        }`}
-                        title={p.image_url ? 'Click para ampliar fotografía' : 'Sin imagen'}
-                      >
-                        {p.image_url ? (
-                          <img
-                            src={p.image_url}
-                            alt={p.name}
-                            className="w-full h-full object-contain"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 dark:text-zinc-600">
-                            <ImageOff size={22} strokeWidth={1.5} />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4
-                            onClick={() => navigate(`/productos/editar/${p.id}`)}
-                            className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base hover:text-[#1B4FD8] dark:hover:text-blue-400 transition-colors cursor-pointer leading-tight truncate"
-                          >
-                            {p.name}
-                          </h4>
-                          {p.is_kit && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#5550F2] text-white">
-                              Combo / Kit
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500 dark:text-zinc-400 font-medium">
-                          <span className="font-mono text-[11.5px] font-bold text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">
-                            {p.sku}
-                          </span>
-                          <span className="text-slate-300 dark:text-zinc-600">·</span>
-                          <span className="inline-flex items-center gap-1 text-[11.5px]">
-                            <Layers size={12} className="text-slate-400 shrink-0" />
-                            <span>{cat}</span>
-                          </span>
-                          <span className="text-slate-300 dark:text-zinc-600">·</span>
-                          <span className="inline-flex items-center gap-1 text-[11.5px]">
-                            <Building2 size={12} className="text-slate-400 shrink-0" />
-                            <span>{sup}</span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="sm:col-span-2 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1.5 text-right">
-                      <span className="sm:hidden text-xs text-slate-400 font-medium">Existencias:</span>
-                      <div className="text-right">
-                        <p
-                          className={`font-mono font-black text-sm sm:text-base leading-none ${
-                            isOutOfStock
-                              ? 'text-rose-600 dark:text-rose-400'
-                              : isLowStock
-                              ? 'text-amber-600 dark:text-amber-400'
-                              : 'text-slate-900 dark:text-white'
-                          }`}
-                        >
-                          {stock}{' '}
-                          <span className="text-xs font-normal text-slate-400">
-                            {p.unit || 'uds.'}
-                          </span>
-                        </p>
-
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 mt-1.5 rounded-full text-[10.5px] font-bold ${
-                            isOutOfStock
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40'
-                              : isLowStock
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200/70 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/40'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200/70 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/40'
-                          }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              isOutOfStock ? 'bg-rose-500' : isLowStock ? 'bg-amber-500' : 'bg-emerald-500'
-                            }`}
-                          />
-                          <span>{isOutOfStock ? 'Agotado' : isLowStock ? 'Stock Bajo' : 'Disponible'}</span>
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="sm:col-span-2 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center text-right">
-                      <span className="sm:hidden text-xs text-slate-400 font-medium">Precio Venta:</span>
-                      <div className="text-right">
-                        <p className="font-mono font-black text-base sm:text-lg text-slate-900 dark:text-white leading-tight">
-                          {fmt(p.sale_price)}
-                        </p>
-                        {Number(p.cost_price) > 0 && marginPct !== null && (
-                          <p className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
-                            +{marginPct}% margen
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="sm:col-span-2 flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => navigate(`/productos/editar/${p.id}`)}
-                        title="Editar producto"
-                        className="p-2 rounded-xl text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer transition-colors"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDelete(p)}
-                        title="Eliminar producto"
-                        className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 cursor-pointer transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
           </div>
         )}
 
