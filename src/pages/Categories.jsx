@@ -28,9 +28,9 @@ const COLOR_THEMES = [
     label: 'Azul Finnova',
     bg: 'bg-blue-50 dark:bg-blue-500/10',
     border: 'border-blue-200 dark:border-blue-500/20',
-    text: 'text-brand dark:text-blue-400',
-    bar: 'from-blue-600 to-indigo-600',
-    badge: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30'
+    text: 'text-[#1B4FD8] dark:text-blue-400',
+    bar: 'from-[#1B4FD8] to-indigo-600',
+    badge: 'bg-blue-50 text-[#1B4FD8] border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30'
   },
   {
     id: 'purple',
@@ -331,7 +331,7 @@ export default function Categories() {
     const height = 150
     const paddingLeft = 14
     const paddingRight = 14
-    const paddingTop = 20
+    const paddingTop = 36
     const paddingBottom = 25
     const innerW = width - paddingLeft - paddingRight
     const innerH = height - paddingTop - paddingBottom
@@ -514,7 +514,7 @@ export default function Categories() {
 
   return (
     <AppLayout title="Clasificación y Familias de Productos">
-      <div className="space-y-6 max-w-[1440px] mx-auto pb-16">
+      <div className="space-y-6 max-w-[1440px] mx-auto pb-32 sm:pb-40">
 
         {/* ═════════════════════════════════════════════════════════
             SUCCESS TOAST NOTIFICATION
@@ -540,9 +540,11 @@ export default function Categories() {
         <div className="space-y-3">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-            <Home size={14} className="text-slate-400 dark:text-zinc-500" />
-            <span className="text-slate-300 dark:text-zinc-600">›</span>
-            <span className="font-semibold text-slate-700 dark:text-zinc-300">Inventario & Familias de Productos</span>
+            <Home size={13} className="text-slate-400 dark:text-zinc-500" />
+            <span className="text-slate-300 dark:text-zinc-600">/</span>
+            <span className="text-slate-500 dark:text-zinc-400">Módulo de Inventario</span>
+            <span className="text-slate-300 dark:text-zinc-600">/</span>
+            <span className="font-semibold text-slate-800 dark:text-zinc-200">Clasificación & Familias</span>
           </div>
 
           {/* Title & Actions Row */}
@@ -550,9 +552,15 @@ export default function Categories() {
             <div className="flex items-center gap-3.5">
               <PageHeaderBadge type="categories" />
               <div>
-                <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
-                  Categorías de Catálogo
-                </h1>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
+                    Categorías de Catálogo
+                  </h1>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 dark:bg-blue-500/10 text-[#1B4FD8] dark:text-blue-400 border border-blue-200/80 dark:border-blue-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8] animate-pulse" />
+                    {stats.totalCategories} LÍNEAS ACTIVAS
+                  </span>
+                </div>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
                   Organiza las líneas de tu inventario, controla valorizaciones y audita existencias por familia.
                 </p>
@@ -583,10 +591,10 @@ export default function Categories() {
               {/* Primary New Category Button */}
               <button
                 onClick={openCreate}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-blue-600/25 transition-all cursor-pointer"
               >
                 <Plus size={16} strokeWidth={2.5} />
-                <span>+ Nueva Categoría</span>
+                <span>Registrar Categoría</span>
               </button>
             </div>
           </div>
@@ -601,7 +609,7 @@ export default function Categories() {
             {/* Card 1: Total Familias (Blue) */}
             <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
               <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
+                <div className="w-11 h-11 rounded-full bg-[#1B4FD8] text-white flex items-center justify-center shadow-md shadow-blue-600/25 shrink-0">
                   <FolderTree size={20} />
                 </div>
                 <div>
@@ -624,8 +632,8 @@ export default function Categories() {
                 <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
                   <defs>
                     <linearGradient id="sparkBlueCat" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
+                      <stop offset="0%" stopColor="#1B4FD8" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#1B4FD8" stopOpacity="0" />
                     </linearGradient>
                   </defs>
                   <path
@@ -635,7 +643,7 @@ export default function Categories() {
                   <path
                     d="M 0 32 Q 20 30 35 22 T 60 16 T 80 6"
                     fill="none"
-                    stroke="#3B82F6"
+                    stroke="#1B4FD8"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                   />
@@ -785,7 +793,7 @@ export default function Categories() {
             <div className="lg:col-span-6 xl:col-span-5 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2">
-                  <BarChart2 size={18} className="text-blue-600 shrink-0" />
+                  <BarChart2 size={18} className="text-[#1B4FD8] shrink-0" />
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
                     Distribución por Familia
                   </h3>
@@ -806,7 +814,7 @@ export default function Categories() {
               {/* Interactive SVG Chart */}
               <div className="relative pt-6 pb-2 w-full">
                 {/* Floating Peak Badge */}
-                <div className="absolute top-0 right-6 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold">
+                <div className="absolute top-0 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-[#1B4FD8] dark:text-blue-300 text-[11px] font-bold shadow-xs">
                   <span>
                     Pico: {chartMetric === 'VALUATION'
                       ? fmt(Math.max(...chartItems.map((d) => d.amount), 0))
@@ -821,8 +829,8 @@ export default function Categories() {
                 >
                   <defs>
                     <linearGradient id="areaGradientCat" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.35" />
-                      <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.0" />
+                      <stop offset="0%" stopColor="#1B4FD8" stopOpacity="0.30" />
+                      <stop offset="100%" stopColor="#1B4FD8" stopOpacity="0.0" />
                     </linearGradient>
                   </defs>
 
@@ -852,7 +860,7 @@ export default function Categories() {
                   <path
                     d={chartSVG.pathD}
                     fill="none"
-                    stroke="#2563EB"
+                    stroke="#1B4FD8"
                     strokeWidth="3"
                     strokeLinecap="round"
                   />
@@ -865,7 +873,7 @@ export default function Categories() {
                         cy={pt.y}
                         r="4"
                         fill="#FFFFFF"
-                        stroke="#2563EB"
+                        stroke="#1B4FD8"
                         strokeWidth="2.5"
                         className="transition-all duration-200 group-hover:r-6"
                       />
@@ -924,7 +932,7 @@ export default function Categories() {
                       cy="50"
                       r="40"
                       fill="transparent"
-                      stroke="#2563EB"
+                      stroke="#1B4FD8"
                       strokeWidth="12"
                       strokeDasharray={`${donutData.topStroke} ${donutData.C}`}
                       strokeDashoffset="0"
@@ -959,7 +967,7 @@ export default function Categories() {
               <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800 text-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#1B4FD8] shrink-0" />
                     <span className="text-slate-600 dark:text-zinc-300 font-medium truncate max-w-[150px]">
                       {stats.topValCategory ? stats.topValCategory.name : 'Sin líder'}
                     </span>
@@ -996,7 +1004,7 @@ export default function Categories() {
                     onClick={openCreate}
                     className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-[#1B4FD8] flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
                       <Plus size={15} />
                     </div>
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Nueva Categoría</p>
@@ -1040,7 +1048,7 @@ export default function Categories() {
 
               <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-400 mt-2">
                 <span>Estructura de inventario</span>
-                <span className="text-blue-600 dark:text-blue-400 font-bold">ERP v2.4</span>
+                <span className="text-[#1B4FD8] dark:text-blue-400 font-bold">ERP v2.4</span>
               </div>
             </div>
 
@@ -1060,7 +1068,7 @@ export default function Categories() {
             <div className="relative flex-1 w-full lg:max-w-md">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" />
               <input
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-10 pr-9 py-2 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all outline-none"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-10 pr-9 py-2 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10 transition-all outline-none"
                 placeholder="Buscar por nombre de familia o descripción…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -1083,7 +1091,7 @@ export default function Categories() {
                 onClick={() => setSegmentFilter('ALL')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   segmentFilter === 'ALL'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs'
                     : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
                 }`}
               >
@@ -1094,7 +1102,7 @@ export default function Categories() {
                 onClick={() => setSegmentFilter('ACTIVE')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   segmentFilter === 'ACTIVE'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs'
                     : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
                 }`}
               >
@@ -1105,7 +1113,7 @@ export default function Categories() {
                 onClick={() => setSegmentFilter('ALERT')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   segmentFilter === 'ALERT'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs'
                     : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
                 }`}
               >
@@ -1116,7 +1124,7 @@ export default function Categories() {
                 onClick={() => setSegmentFilter('EMPTY')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   segmentFilter === 'EMPTY'
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-[#1B4FD8] text-white shadow-xs'
                     : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
                 }`}
               >
@@ -1149,7 +1157,7 @@ export default function Categories() {
                   title="Vista en tarjetas"
                   className={`p-1.5 rounded-lg transition-all ${
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      ? 'bg-white dark:bg-zinc-900 text-[#1B4FD8] dark:text-blue-400 shadow-xs font-bold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
                   }`}
                 >
@@ -1161,7 +1169,7 @@ export default function Categories() {
                   title="Vista en tabla"
                   className={`p-1.5 rounded-lg transition-all ${
                     viewMode === 'table'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      ? 'bg-white dark:bg-zinc-900 text-[#1B4FD8] dark:text-blue-400 shadow-xs font-bold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
                   }`}
                 >
@@ -1178,7 +1186,7 @@ export default function Categories() {
            ═════════════════════════════════════════════════════════ */}
         {loading ? (
           <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-16 flex flex-col items-center justify-center text-center shadow-xs">
-            <div className="w-10 h-10 rounded-full border-2 border-blue-600 border-t-transparent animate-spin mb-3" />
+            <div className="w-10 h-10 rounded-full border-2 border-[#1B4FD8] border-t-transparent animate-spin mb-3" />
             <p className="text-xs font-semibold text-slate-600 dark:text-zinc-400">
               Sincronizando familias de categorías…
             </p>
@@ -1240,7 +1248,7 @@ export default function Categories() {
                         <div className="min-w-0">
                           <h3
                             onClick={() => setSelectedCategory(c)}
-                            className="font-bold text-slate-900 dark:text-zinc-100 text-base leading-snug truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors cursor-pointer"
+                            className="font-bold text-slate-900 dark:text-zinc-100 text-base leading-snug truncate group-hover:text-[#1B4FD8] dark:group-hover:text-blue-400 transition-colors cursor-pointer"
                           >
                             {c.name}
                           </h3>
@@ -1263,7 +1271,7 @@ export default function Categories() {
                         <button
                           onClick={() => openEdit(c)}
                           title="Editar categoría"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors cursor-pointer"
                         >
                           <Pencil size={15} />
                         </button>
@@ -1351,7 +1359,7 @@ export default function Categories() {
 
                       <button
                         onClick={() => setSelectedCategory(c)}
-                        className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 inline-flex items-center gap-1 group/btn cursor-pointer shrink-0"
+                        className="text-xs font-bold text-[#1B4FD8] dark:text-blue-400 hover:text-[#163FBF] inline-flex items-center gap-1 group/btn cursor-pointer shrink-0"
                       >
                         <span>Ver productos</span>
                         <ChevronRight size={13} className="group-hover/btn:translate-x-0.5 transition-transform" />
@@ -1400,7 +1408,7 @@ export default function Categories() {
                               {getCategoryIcon(c.name, 18)}
                             </div>
                             <div>
-                              <span className="font-bold text-slate-900 dark:text-zinc-100 text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                              <span className="font-bold text-slate-900 dark:text-zinc-100 text-sm group-hover:text-[#1B4FD8] dark:group-hover:text-blue-400 transition-colors">
                                 {c.name}
                               </span>
                             </div>
@@ -1456,14 +1464,14 @@ export default function Categories() {
                             <button
                               onClick={() => setSelectedCategory(c)}
                               title="Explorar productos"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors cursor-pointer"
                             >
                               <Eye size={15} />
                             </button>
                             <button
                               onClick={() => openEdit(c)}
                               title="Editar categoría"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors cursor-pointer"
                             >
                               <Pencil size={15} />
                             </button>
@@ -1520,7 +1528,7 @@ export default function Categories() {
                   <span>·</span>
                   <span><strong>{fmtN(selectedCategory.totalStock)}</strong> unidades</span>
                   <span>·</span>
-                  <span className="text-blue-600 dark:text-blue-400 font-bold">{fmt(selectedCategory.valuation)}</span>
+                  <span className="text-[#1B4FD8] dark:text-blue-400 font-bold">{fmt(selectedCategory.valuation)}</span>
                 </div>
               </div>
 
@@ -1528,7 +1536,7 @@ export default function Categories() {
                 onClick={() => {
                   navigate('/productos/nuevo', { state: { defaultCategory: selectedCategory.id } })
                 }}
-                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors shrink-0 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors shrink-0 cursor-pointer"
               >
                 <Plus size={14} /> Añadir Producto
               </button>
@@ -1539,7 +1547,7 @@ export default function Categories() {
               <div className="relative">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600/20"
+                  className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 outline-none focus:border-[#1B4FD8] focus:ring-1 focus:ring-[#1B4FD8]/20"
                   placeholder="Filtrar por SKU o nombre de producto dentro de esta familia…"
                   value={categorySearch}
                   onChange={(e) => setCategorySearch(e.target.value)}
@@ -1567,7 +1575,7 @@ export default function Categories() {
                 </p>
                 <button
                   onClick={() => navigate('/productos/nuevo', { state: { defaultCategory: selectedCategory.id } })}
-                  className="mt-3 text-xs font-bold text-blue-600 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                  className="mt-3 text-xs font-bold text-[#1B4FD8] hover:underline inline-flex items-center gap-1 cursor-pointer"
                 >
                   <Plus size={14} /> Crear primer producto aquí
                 </button>
@@ -1629,7 +1637,7 @@ export default function Categories() {
                                 navigate('/productos', { state: { search: p.name } })
                               }}
                               title="Ver en inventario principal"
-                              className="p-1 rounded-md text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer"
+                              className="p-1 rounded-md text-[#1B4FD8] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer"
                             >
                               <ExternalLink size={13} />
                             </button>

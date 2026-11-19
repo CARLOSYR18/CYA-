@@ -23,11 +23,11 @@ const COLOR_THEMES = [
     label: 'Azul Finnova',
     bg: 'bg-blue-50 dark:bg-blue-500/10',
     border: 'border-blue-200 dark:border-blue-500/20',
-    text: 'text-blue-600 dark:text-blue-400',
-    ring: 'ring-blue-600',
-    dot: 'bg-blue-600',
-    bar: 'from-blue-600 to-indigo-600',
-    badge: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30'
+    text: 'text-[#1B4FD8] dark:text-blue-400',
+    ring: 'ring-[#1B4FD8]',
+    dot: 'bg-[#1B4FD8]',
+    bar: 'from-[#1B4FD8] to-indigo-600',
+    badge: 'bg-blue-50 text-[#1B4FD8] border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30'
   },
   {
     id: 'purple',
@@ -241,6 +241,30 @@ export default function NewCategory() {
     return { skuCount, totalUnits, totalValuation }
   }, [categoryProducts])
 
+  // Conformity validations for enterprise category
+  const validations = useMemo(() => [
+    { label: 'Nombre de familia registrado (min. 2 caracteres)', valid: name.trim().length >= 2 },
+    { label: `Paleta cromática asignada (${selectedTheme.label})`, valid: colorIndex >= 0 },
+    { label: 'Icono corporativo representativo', valid: Boolean(iconId) },
+    { label: 'Descripción comercial de catálogo', valid: Boolean(description.trim()), optional: true },
+    { label: 'Vínculo automático al kardex de inventario', valid: true }
+  ], [name, colorIndex, selectedTheme, iconId, description])
+
+  // Global Keyboard Shortcuts (F2: Guardar, Esc: Cancelar)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'F2') {
+        e.preventDefault()
+        handleSubmit()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        requestLeave('/categorias')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [name, description, colorIndex, iconId, isProcessing])
+
   // 3-step animated submit flow
   async function handleSubmit(e) {
     if (e && e.preventDefault) e.preventDefault()
@@ -291,7 +315,7 @@ export default function NewCategory() {
 
   return (
     <AppLayout title={isEditing ? 'Modificar Categoría' : 'Nueva Categoría'}>
-      <div className="space-y-4 max-w-6xl mx-auto pb-8 animate-fade-in">
+      <div className="space-y-4 max-w-6xl mx-auto pb-32 sm:pb-40 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
             0. COMPACT BREADCRUMB & TOP HEADER BAR
@@ -302,17 +326,17 @@ export default function NewCategory() {
               type="button"
               onClick={() => requestLeave('/categorias')}
               className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95 shadow-xs"
-              title="Regresar a Categorías"
+              title="Regresar a Categorías (Esc)"
             >
               <ArrowLeft size={16} />
             </button>
             <div>
               <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <span className="hover:text-blue-600 cursor-pointer" onClick={() => requestLeave('/categorias')}>
+                <span className="hover:text-[#1B4FD8] cursor-pointer" onClick={() => requestLeave('/categorias')}>
                   Categorías
                 </span>
                 <span>/</span>
-                <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                <span className="text-[#1B4FD8] dark:text-blue-400 font-semibold">
                   {isEditing ? 'Modificar Familia' : 'Nueva Familia'}
                 </span>
               </div>
@@ -322,10 +346,25 @@ export default function NewCategory() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30">
-              <FolderTree size={14} /> Clasificación de Catálogo
-            </span>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => requestLeave('/categorias')}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+            >
+              <span>Cancelar</span>
+              <kbd className="hidden sm:inline-block text-[10px] bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 px-1.5 py-0.5 rounded font-mono">Esc</kbd>
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isProcessing || !name.trim()}
+              className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-600/25 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Check size={14} strokeWidth={2.5} />
+              <span>{isEditing ? 'Guardar Cambios' : 'Guardar y Registrar'}</span>
+              <kbd className="hidden sm:inline-block text-[10px] bg-blue-500/30 text-white px-1.5 py-0.5 rounded font-mono">F2</kbd>
+            </button>
           </div>
         </div>
 
@@ -352,7 +391,7 @@ export default function NewCategory() {
               <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs space-y-3">
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <Tag size={15} className="text-blue-600 dark:text-blue-400" />
+                    <Tag size={15} className="text-[#1B4FD8] dark:text-blue-400" />
                     <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
                       1. Identificación y Nomenclatura
                     </h3>
@@ -373,7 +412,7 @@ export default function NewCategory() {
                       placeholder="Ej: Cómputo, Laptops, Audio & Video, Accesorios…"
                       required
                       autoFocus
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 font-semibold outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 font-semibold outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                     />
                     <p className="text-[10.5px] text-slate-400 dark:text-zinc-500 mt-1">
                       Usa un término claro para agrupar artículos similares en inventario y ventas.
@@ -396,7 +435,7 @@ export default function NewCategory() {
                       maxLength={200}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Especifica los tipos de productos que pertenecen a esta categoría, materiales o líneas comerciales…"
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500 leading-relaxed resize-none"
+                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500 leading-relaxed resize-none"
                     />
                   </div>
                 </div>
@@ -406,12 +445,12 @@ export default function NewCategory() {
               <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs space-y-3.5">
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <Palette size={15} className="text-blue-600 dark:text-blue-400" />
+                    <Palette size={15} className="text-[#1B4FD8] dark:text-blue-400" />
                     <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
                       2. Identidad Visual y Color
                     </h3>
                   </div>
-                  <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                  <span className="text-[11px] font-bold text-[#1B4FD8] dark:text-blue-400">
                     {selectedTheme.label}
                   </span>
                 </div>
@@ -496,7 +535,7 @@ export default function NewCategory() {
               <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-5 shadow-xs space-y-3">
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <Eye size={15} className="text-blue-600 dark:text-blue-400" />
+                    <Eye size={15} className="text-[#1B4FD8] dark:text-blue-400" />
                     <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
                       Vista Previa en Tiempo Real
                     </h3>
@@ -569,11 +608,52 @@ export default function NewCategory() {
                 </div>
               </div>
 
+              {/* CARD: CONFORMITY VALIDATIONS CHECKLIST */}
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-[#1B4FD8] dark:text-blue-400" />
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
+                      Validación de Catalogación
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                    {validations.filter((v) => v.valid).length} / {validations.length} Completado
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  {validations.map((v, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs py-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                          v.valid
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold'
+                            : 'bg-slate-100 text-slate-400 dark:bg-zinc-800 dark:text-zinc-500'
+                        }`}>
+                          {v.valid ? '✓' : '•'}
+                        </span>
+                        <span className={v.valid ? 'text-slate-800 dark:text-zinc-200 font-medium' : 'text-slate-400 dark:text-zinc-500'}>
+                          {v.label}
+                        </span>
+                      </div>
+                      {v.optional && !v.valid ? (
+                        <span className="text-[10px] text-slate-400 italic">Opcional</span>
+                      ) : (
+                        <span className={`text-[10px] font-bold ${v.valid ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                          {v.valid ? 'Listo' : 'Pendiente'}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* CARD: CONTEXTUAL STATS (IF EDITING) */}
               {isEditing && (
                 <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-xs space-y-2.5">
                   <div className="flex items-center gap-2 text-slate-900 dark:text-zinc-100 font-bold text-xs sm:text-sm">
-                    <Package size={15} className="text-blue-600 dark:text-blue-400" />
+                    <Package size={15} className="text-[#1B4FD8] dark:text-blue-400" />
                     <span>Productos Vinculados Actualmente</span>
                   </div>
 
@@ -599,7 +679,7 @@ export default function NewCategory() {
                 <button
                   type="submit"
                   disabled={isProcessing || !name.trim()}
-                  className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-600/25 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isProcessing ? (
                     <span>Guardando datos…</span>
@@ -607,6 +687,7 @@ export default function NewCategory() {
                     <>
                       <Check size={16} strokeWidth={2.5} />
                       <span>{isEditing ? 'Guardar Modificaciones' : 'Crear y Publicar Categoría'}</span>
+                      <kbd className="hidden sm:inline-block text-[10px] bg-blue-500/30 text-white px-1.5 py-0.5 rounded font-mono ml-1">F2</kbd>
                     </>
                   )}
                 </button>
@@ -614,9 +695,10 @@ export default function NewCategory() {
                 <button
                   type="button"
                   onClick={() => requestLeave('/categorias')}
-                  className="w-full py-2 px-4 rounded-xl bg-slate-50 dark:bg-zinc-800/80 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer border border-slate-200 dark:border-zinc-700"
+                  className="w-full py-2 px-4 rounded-xl bg-slate-50 dark:bg-zinc-800/80 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-200 dark:border-zinc-700"
                 >
-                  Cancelar y Regresar
+                  <span>Cancelar y Regresar</span>
+                  <kbd className="hidden sm:inline-block text-[10px] bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 px-1.5 py-0.5 rounded font-mono">Esc</kbd>
                 </button>
 
                 <div className="pt-1 text-center text-[10.5px] text-slate-400 flex items-center justify-center gap-1">
@@ -636,8 +718,8 @@ export default function NewCategory() {
         {isProcessing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-fade-in">
             <div className="bg-white dark:bg-[#18181b] rounded-2xl border border-slate-200 dark:border-zinc-700 p-6 max-w-sm w-full text-center shadow-2xl space-y-4 animate-slide-up">
-              <div className="w-14 h-14 rounded-full border-3 border-blue-600 border-t-transparent animate-spin mx-auto flex items-center justify-center">
-                <FolderTree size={22} className="text-blue-600 animate-pulse" />
+              <div className="w-14 h-14 rounded-full border-3 border-[#1B4FD8] border-t-transparent animate-spin mx-auto flex items-center justify-center">
+                <FolderTree size={22} className="text-[#1B4FD8] animate-pulse" />
               </div>
 
               <div>
@@ -653,7 +735,7 @@ export default function NewCategory() {
 
               <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
                 <div
-                  className="bg-blue-600 h-full transition-all duration-300"
+                  className="bg-[#1B4FD8] h-full transition-all duration-300"
                   style={{
                     width: processingStep === 1 ? '35%' : processingStep === 2 ? '75%' : '100%'
                   }}
