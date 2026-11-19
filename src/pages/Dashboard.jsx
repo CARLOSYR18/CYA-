@@ -103,6 +103,8 @@ function DashboardContent() {
   const [notifications, setNotifications] = useState([])
   const userMenuRef = useRef(null)
   const notifMenuRef = useRef(null)
+  const userMenuRefMobile = useRef(null)
+  const notifMenuRefMobile = useRef(null)
 
   // Modals & Action States
   const [receiptOpen, setReceiptOpen] = useState(false)
@@ -178,10 +180,14 @@ function DashboardContent() {
   // Close menus on outside click or touch
   useEffect(() => {
     const handleOutside = (e) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+      const clickedUser = (userMenuRef.current && userMenuRef.current.contains(e.target)) ||
+                          (userMenuRefMobile.current && userMenuRefMobile.current.contains(e.target))
+      if (!clickedUser) {
         setUserDropdownOpen(false)
       }
-      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target)) {
+      const clickedNotif = (notifMenuRef.current && notifMenuRef.current.contains(e.target)) ||
+                           (notifMenuRefMobile.current && notifMenuRefMobile.current.contains(e.target))
+      if (!clickedNotif) {
         setNotifDropdownOpen(false)
       }
     }
@@ -634,6 +640,256 @@ function DashboardContent() {
     setCreateModalOpen(false)
   }
 
+  // Helper renderer for Notification Menu (Used for clean desktop & mobile layouts)
+  const renderNotifMenu = (isMobile = false) => (
+    <div className="relative" ref={isMobile ? notifMenuRefMobile : notifMenuRef}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setUserDropdownOpen(false)
+          setNotifDropdownOpen(o => !o)
+        }}
+        className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 flex items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 relative transition-all cursor-pointer shadow-2xs"
+        title="Notificaciones y alertas"
+        aria-label="Notificaciones"
+      >
+        <Bell size={15} className="shrink-0 pointer-events-none" />
+        {unreadCount > 0 && (
+          <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center absolute -top-1 -right-1 ring-2 ring-white dark:ring-[#121420] pointer-events-none">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+      {notifDropdownOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-slate-900/30 dark:bg-black/50 backdrop-blur-[2px] z-40 sm:hidden"
+            onClick={(e) => {
+              e.stopPropagation()
+              setNotifDropdownOpen(false)
+            }}
+          />
+
+          <div
+            className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-88 max-w-sm mx-auto sm:mx-0 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-3 z-50 animate-scale-in"
+            style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}
+          >
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-white/10">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-bold text-slate-900 dark:text-white">Notificaciones</p>
+                {unreadCount > 0 ? (
+                  <span className="text-[10px] font-extrabold px-1.5 py-0.2 bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300 rounded-full font-mono">
+                    {unreadCount}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300 rounded-full font-mono">
+                    0
+                  </span>
+                )}
+              </div>
+              {unreadCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={handleMarkAllRead}
+                  className="text-[10.5px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Marcar todas como leídas"
+                >
+                  <CheckCheck size={13} />
+                  <span>Marcar todas leídas</span>
+                </button>
+              ) : (
+                <span className="text-[10px] text-emerald-500 dark:text-emerald-400 font-medium flex items-center gap-1">
+                  <Check size={11} strokeWidth={2.5} />
+                  <span>Todas leídas</span>
+                </span>
+              )}
+            </div>
+
+            {notifications.length === 0 ? (
+              <div className="p-4 text-center">
+                <CheckCircle2 size={24} className="text-emerald-500 mx-auto mb-1.5 opacity-80" />
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">No hay alertas pendientes</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Inventario y cobros al día</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {notifications.slice(0, 8).map((n, i) => {
+                  const isDanger = n.type === 'danger'
+                  const isRead = !!n.isRead
+                  return (
+                    <div
+                      key={n.id || i}
+                      onClick={() => handleItemClick(n)}
+                      className={`w-full text-left p-2.5 rounded-xl transition-all cursor-pointer group flex items-start gap-2.5 border ${
+                        isRead
+                          ? 'bg-slate-50/60 dark:bg-white/[0.02] border-slate-100 dark:border-white/5 opacity-70 hover:opacity-100'
+                          : 'bg-slate-50 dark:bg-white/5 border-transparent hover:border-blue-200 dark:hover:border-blue-500/30 hover:bg-blue-50/50 dark:hover:bg-blue-900/20'
+                      }`}
+                    >
+                      <span
+                        className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
+                          isRead
+                            ? 'bg-slate-300 dark:bg-zinc-600'
+                            : isDanger
+                            ? 'bg-rose-500 animate-pulse'
+                            : 'bg-amber-500'
+                        }`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <p className={`text-xs font-bold truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors ${
+                            isRead
+                              ? 'text-slate-500 dark:text-slate-400 font-medium'
+                              : isDanger
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : 'text-slate-800 dark:text-slate-200'
+                          }`}>
+                            {n.title}
+                          </p>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                              isRead
+                                ? 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+                                : isDanger
+                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
+                            }`}>
+                              {isRead ? 'Leída' : isDanger ? 'Crítico' : 'Atención'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleToggleRead(n.id, isRead)
+                              }}
+                              title={isRead ? 'Marcar como no leída' : 'Marcar como leída'}
+                              className={`p-1 rounded-md transition-colors cursor-pointer ${
+                                isRead
+                                  ? 'text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                                  : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                              }`}
+                            >
+                              <Check size={13} strokeWidth={isRead ? 2.5 : 2} className={isRead ? 'text-emerald-500' : 'text-slate-400'} />
+                            </button>
+                          </div>
+                        </div>
+                        <p className={`text-[11px] mt-0.5 line-clamp-2 leading-tight ${isRead ? 'text-slate-400 dark:text-zinc-500' : 'text-slate-600 dark:text-slate-300'}`}>
+                          {n.message}
+                        </p>
+                        <span className={`text-[10px] font-medium inline-flex items-center gap-0.5 mt-1 group-hover:underline ${isRead ? 'text-slate-400 dark:text-zinc-500' : 'text-blue-500'}`}>
+                          Ir al producto / detalle →
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="pt-2 mt-2 border-t border-slate-100 dark:border-white/10">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setNotifDropdownOpen(false)
+                  navigate('/notificaciones')
+                }}
+                className="w-full text-center py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <span>Ver todas las notificaciones y registro</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+
+  // Helper renderer for User Profile Dropdown
+  const renderUserMenu = (isMobile = false) => (
+    <div className="relative" ref={isMobile ? userMenuRefMobile : userMenuRef}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          setNotifDropdownOpen(false)
+          setUserDropdownOpen(o => !o)
+        }}
+        className="flex items-center cursor-pointer focus:outline-none"
+        title="Perfil de usuario"
+      >
+        <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl overflow-hidden ring-2 ring-indigo-500/25 hover:ring-indigo-500 transition-all shadow-2xs bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 flex items-center justify-center">
+          {((company?.logo_url && !logoError) || user?.avatar_url) ? (
+            <img
+              src={(company?.logo_url && !logoError) ? company.logo_url : user.avatar_url}
+              alt={company?.name || 'Usuario'}
+              className="max-h-full max-w-full w-auto h-auto object-contain"
+              onError={(e) => {
+                if (company?.logo_url && !logoError) setLogoError(true)
+                else e.currentTarget.style.display = 'none'
+              }}
+            />
+          ) : (
+            <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase font-display">
+              {company?.name?.charAt(0) || user?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase() || 'E'}
+            </span>
+          )}
+        </div>
+      </button>
+      {userDropdownOpen && (
+        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-2 z-40">
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-white/10 flex items-center gap-2.5">
+            {(company?.logo_url || user?.avatar_url) && (
+              <div className="h-8 min-w-[32px] max-w-[48px] rounded-lg overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 shrink-0 flex items-center justify-center p-0.5">
+                <img src={company?.logo_url || user?.avatar_url} alt="Logo" className="max-h-full max-w-full w-auto h-auto object-contain" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                {user?.full_name || company?.name || 'Administrador'}
+              </p>
+              <p className="text-[11px] text-slate-400 truncate">{user?.email || ''}</p>
+            </div>
+          </div>
+          <div className="pt-1 space-y-0.5">
+            <button
+              onClick={() => {
+                setUserDropdownOpen(false)
+                navigate('/perfil')
+              }}
+              className="w-full text-left px-3 py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg flex items-center gap-2 font-medium cursor-pointer"
+            >
+              <User size={13} /> Mi Perfil y Cuenta
+            </button>
+            {(user?.role === 'admin' || user?.role === 'superadmin' || isPlatformAdmin) && (
+              <button
+                onClick={() => {
+                  setUserDropdownOpen(false)
+                  navigate('/configuracion')
+                }}
+                className="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg flex items-center gap-2 cursor-pointer"
+              >
+                <Settings size={13} /> Configuración de Empresa
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setUserDropdownOpen(false)
+                if (requestLogout) requestLogout()
+                else logout()
+              }}
+              className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg flex items-center gap-2 font-semibold cursor-pointer"
+            >
+              <LogOut size={13} /> Cerrar Sesión
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <>
       <div className="finnova-root space-y-4 sm:space-y-6 max-w-[1440px] mx-auto pb-24 sm:pb-16">
@@ -648,15 +904,17 @@ function DashboardContent() {
           /* Metric KPI Cards (Enterprise Grade) */
           .fn-card {
             background: #ffffff;
-            border-radius: 20px;
-            border: 1px solid #E2E8F0;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
-            padding: 18px;
-            min-height: 180px;
+            border-radius: 16px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 4px 16px -2px rgba(15, 23, 42, 0.06);
+            padding: 12px;
+            min-height: 125px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
           }
           @media (min-width: 640px) {
             .fn-card {
@@ -667,7 +925,7 @@ function DashboardContent() {
           }
           .fn-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 12px 28px -4px rgba(15, 23, 42, 0.1);
             border-color: #CBD5E1;
           }
           html.dark .fn-card,
@@ -685,7 +943,8 @@ function DashboardContent() {
           /* Filter Pills */
           .fn-filter-pill {
             background: #ffffff;
-            border: 1px solid #E2E8F0;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
             border-radius: 12px;
             padding: 7px 14px;
             font-size: 12px;
@@ -702,12 +961,14 @@ function DashboardContent() {
             border-color: #94A3B8;
             color: #0F172A;
             background: #F8FAFC;
+            box-shadow: 0 2px 5px 0 rgba(15, 23, 42, 0.08);
           }
           html.dark .fn-filter-pill,
           .dark .fn-filter-pill {
             background: #121420 !important;
             border: 1px solid rgba(255, 255, 255, 0.10) !important;
             color: #E2E8F0 !important;
+            box-shadow: none !important;
           }
           html.dark .fn-filter-pill:hover,
           .dark .fn-filter-pill:hover {
@@ -721,8 +982,8 @@ function DashboardContent() {
             background: #ffffff;
             border-radius: 24px;
             padding: 18px 14px;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-            border: 1px solid #E2E8F0;
+            box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 8px 24px -4px rgba(15, 23, 42, 0.06);
+            border: 1px solid rgba(226, 232, 240, 0.9);
             transition: all 0.25s;
             color: #0F172A;
           }
@@ -786,10 +1047,10 @@ function DashboardContent() {
 
           /* Right Workspace Detail Card */
           .fn-detail-card {
-            background: #F8FAFC;
+            background: #F1F5F9;
             border-radius: 20px;
             padding: 20px 18px;
-            border: 1px solid #E2E8F0;
+            border: 1px solid #CBD5E1;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -865,23 +1126,25 @@ function DashboardContent() {
         {/* ═══════════════════════════════════════════════════════════
             1. EXECUTIVE COMMAND BAR CARD (Spacious & Commanding)
            ═══════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-200/90 dark:border-white/10 shadow-xs transition-all">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
-            {/* Left: Mobile hamburger + Company identity + ERP Title & Status */}
-            <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+        <div className="bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-200/90 dark:border-white/10 shadow-[0_1px_3px_0_rgba(15,23,42,0.04),0_6px_20px_-3px_rgba(15,23,42,0.06)] transition-all">
+          {/* Main Top Row: Left has hamburger + logo + identity; Right has bell + avatar on mobile, full control bar on desktop */}
+          <div className="flex items-center justify-between gap-3 sm:gap-6">
+            
+            {/* Left: Hamburger + Logo + Company identity */}
+            <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
               <button
                 type="button"
                 onClick={openSidebar}
-                className="lg:hidden p-2.5 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+                className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
                 title="Abrir menú lateral"
                 aria-label="Abrir menú lateral"
               >
                 <Menu size={20} />
               </button>
 
-              <div className={`h-12 w-12 sm:h-14 sm:w-14 rounded-2xl overflow-hidden ${!company ? 'bg-slate-200/70 dark:bg-zinc-800 animate-pulse' : 'bg-slate-50 dark:bg-zinc-800'} border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-2xs shrink-0 p-1`}>
+              <div className={`h-10 w-10 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl overflow-hidden ${!company ? 'bg-slate-200/70 dark:bg-zinc-800 animate-pulse' : 'bg-slate-50 dark:bg-zinc-800'} border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-2xs shrink-0 p-1`}>
                 {!company ? (
-                  <div className="w-6 h-6 rounded-md bg-slate-300/60 dark:bg-zinc-700" />
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-slate-300/60 dark:bg-zinc-700" />
                 ) : company.logo_url && !logoError ? (
                   <img
                     src={company.logo_url}
@@ -890,8 +1153,8 @@ function DashboardContent() {
                     onError={() => setLogoError(true)}
                   />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-tr from-[#5550F2] to-[#7974FF] flex items-center justify-center rounded-xl">
-                    <span className="text-sm font-black text-white tracking-tight">
+                  <div className="w-full h-full bg-gradient-to-tr from-[#5550F2] to-[#7974FF] flex items-center justify-center rounded-lg sm:rounded-xl">
+                    <span className="text-xs sm:text-sm font-black text-white tracking-tight">
                       {(company.name || 'E').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()}
                     </span>
                   </div>
@@ -899,11 +1162,11 @@ function DashboardContent() {
               </div>
 
               <div className="min-w-0">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h1 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight truncate">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-base sm:text-xl lg:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight truncate">
                     {company?.name || 'Cleanig Service'}
                   </h1>
-                  <span className="text-[10.5px] font-black px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-white/10 dark:text-indigo-300 border border-indigo-200/50 dark:border-white/10 shrink-0">
+                  <span className="text-[10px] sm:text-[10.5px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-white/10 dark:text-indigo-300 border border-indigo-200/50 dark:border-white/10 shrink-0">
                     ERP PRO
                   </span>
                   <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-200/50 dark:border-emerald-500/20">
@@ -911,14 +1174,20 @@ function DashboardContent() {
                     Operativo
                   </span>
                 </div>
-                <p className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 font-medium mt-1 truncate">
+                <p className="text-[11px] sm:text-[13px] text-slate-500 dark:text-slate-400 font-medium mt-0.5 sm:mt-1 truncate hidden sm:block">
                   Control de Ventas & Facturación · Monitoreo y rotación comercial
                 </p>
               </div>
             </div>
 
-            {/* Right: Quick actions, currency, theme, notifications, POS shortcut & CTA */}
-            <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap justify-between sm:justify-end">
+            {/* Mobile Header Right: Notification Bell & Profile Avatar */}
+            <div className="flex lg:hidden items-center gap-1.5 shrink-0">
+              {renderNotifMenu(true)}
+              {renderUserMenu(true)}
+            </div>
+
+            {/* Desktop Header Right: Full tool suite and CTA */}
+            <div className="hidden lg:flex items-center gap-2 sm:gap-2.5">
               {/* Currency Selector */}
               <button
                 onClick={toggleCurrency}
@@ -932,7 +1201,7 @@ function DashboardContent() {
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer shadow-2xs flex"
+                className="w-9 h-9 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer shadow-2xs flex"
                 title="Cambiar Modo Claro / Oscuro"
               >
                 {isDark ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} />}
@@ -943,258 +1212,18 @@ function DashboardContent() {
                 type="button"
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-60 flex"
+                className="w-9 h-9 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-60 flex"
                 title="Actualizar Datos del ERP"
                 aria-label="Actualizar Datos"
               >
                 <RefreshCw size={14} className={refreshing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''} />
               </button>
 
-              {/* Notification Bell with Badge & Popover */}
-              <div className="relative" ref={notifMenuRef}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setUserDropdownOpen(false)
-                    setNotifDropdownOpen(o => !o)
-                  }}
-                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 flex items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 relative transition-all cursor-pointer shadow-2xs"
-                  title="Notificaciones y alertas"
-                  aria-label="Notificaciones"
-                >
-                  <Bell size={15} className="shrink-0 pointer-events-none" />
-                  {unreadCount > 0 && (
-                    <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center absolute -top-1 -right-1 ring-2 ring-white dark:ring-[#121420] pointer-events-none">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </button>
-                {notifDropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 bg-slate-900/30 dark:bg-black/50 backdrop-blur-[2px] z-40 sm:hidden"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setNotifDropdownOpen(false)
-                      }}
-                    />
+              {/* Notification Bell */}
+              {renderNotifMenu(false)}
 
-                    <div
-                      className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-88 max-w-sm mx-auto sm:mx-0 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-3 z-50 animate-scale-in"
-                      style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}
-                    >
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-white/10">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-bold text-slate-900 dark:text-white">Notificaciones</p>
-                          {unreadCount > 0 ? (
-                            <span className="text-[10px] font-extrabold px-1.5 py-0.2 bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300 rounded-full font-mono">
-                              {unreadCount}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold px-1.5 py-0.2 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300 rounded-full font-mono">
-                              0
-                            </span>
-                          )}
-                        </div>
-                        {unreadCount > 0 ? (
-                          <button
-                            type="button"
-                            onClick={handleMarkAllRead}
-                            className="text-[10.5px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
-                            title="Marcar todas como leídas"
-                          >
-                            <CheckCheck size={13} />
-                            <span>Marcar todas leídas</span>
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-emerald-500 dark:text-emerald-400 font-medium flex items-center gap-1">
-                            <Check size={11} strokeWidth={2.5} />
-                            <span>Todas leídas</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {notifications.length === 0 ? (
-                        <div className="p-4 text-center">
-                          <CheckCircle2 size={24} className="text-emerald-500 mx-auto mb-1.5 opacity-80" />
-                          <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">No hay alertas pendientes</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Inventario y cobros al día</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                          {notifications.slice(0, 8).map((n, i) => {
-                            const isDanger = n.type === 'danger'
-                            const isRead = !!n.isRead
-                            return (
-                              <div
-                                key={n.id || i}
-                                onClick={() => handleItemClick(n)}
-                                className={`w-full text-left p-2.5 rounded-xl transition-all cursor-pointer group flex items-start gap-2.5 border ${
-                                  isRead
-                                    ? 'bg-slate-50/60 dark:bg-white/[0.02] border-slate-100 dark:border-white/5 opacity-70 hover:opacity-100'
-                                    : 'bg-slate-50 dark:bg-white/5 border-transparent hover:border-blue-200 dark:hover:border-blue-500/30 hover:bg-blue-50/50 dark:hover:bg-blue-900/20'
-                                }`}
-                              >
-                                <span
-                                  className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
-                                    isRead
-                                      ? 'bg-slate-300 dark:bg-zinc-600'
-                                      : isDanger
-                                      ? 'bg-rose-500 animate-pulse'
-                                      : 'bg-amber-500'
-                                  }`}
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between gap-1">
-                                    <p className={`text-xs font-bold truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors ${
-                                      isRead
-                                        ? 'text-slate-500 dark:text-slate-400 font-medium'
-                                        : isDanger
-                                        ? 'text-rose-600 dark:text-rose-400'
-                                        : 'text-slate-800 dark:text-slate-200'
-                                    }`}>
-                                      {n.title}
-                                    </p>
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                                        isRead
-                                          ? 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
-                                          : isDanger
-                                          ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300'
-                                          : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
-                                      }`}>
-                                        {isRead ? 'Leída' : isDanger ? 'Crítico' : 'Atención'}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          handleToggleRead(n.id, isRead)
-                                        }}
-                                        title={isRead ? 'Marcar como no leída' : 'Marcar como leída'}
-                                        className={`p-1 rounded-md transition-colors cursor-pointer ${
-                                          isRead
-                                            ? 'text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-zinc-700'
-                                            : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
-                                        }`}
-                                      >
-                                        <Check size={13} strokeWidth={isRead ? 2.5 : 2} className={isRead ? 'text-emerald-500' : 'text-slate-400'} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <p className={`text-[11px] mt-0.5 line-clamp-2 leading-tight ${isRead ? 'text-slate-400 dark:text-zinc-500' : 'text-slate-600 dark:text-slate-300'}`}>
-                                    {n.message}
-                                  </p>
-                                  <span className={`text-[10px] font-medium inline-flex items-center gap-0.5 mt-1 group-hover:underline ${isRead ? 'text-slate-400 dark:text-zinc-500' : 'text-blue-500'}`}>
-                                    Ir al producto / detalle →
-                                  </span>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                      <div className="pt-2 mt-2 border-t border-slate-100 dark:border-white/10">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setNotifDropdownOpen(false)
-                            navigate('/notificaciones')
-                          }}
-                          className="w-full text-center py-2 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                          <span>Ver todas las notificaciones y registro</span>
-                          <ArrowRight size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* User Profile Avatar Dropdown */}
-              <div className="relative" ref={userMenuRef}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setNotifDropdownOpen(false)
-                    setUserDropdownOpen(o => !o)
-                  }}
-                  className="flex items-center cursor-pointer focus:outline-none"
-                  title="Perfil de usuario"
-                >
-                  <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl overflow-hidden ring-2 ring-indigo-500/25 hover:ring-indigo-500 transition-all shadow-2xs bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 flex items-center justify-center">
-                    {((company?.logo_url && !logoError) || user?.avatar_url) ? (
-                      <img
-                        src={(company?.logo_url && !logoError) ? company.logo_url : user.avatar_url}
-                        alt={company?.name || 'Usuario'}
-                        className="max-h-full max-w-full w-auto h-auto object-contain"
-                        onError={(e) => {
-                          if (company?.logo_url && !logoError) setLogoError(true)
-                          else e.currentTarget.style.display = 'none'
-                        }}
-                      />
-                    ) : (
-                      <span className="text-[11px] font-bold text-slate-800 dark:text-white uppercase font-display">
-                        {company?.name?.charAt(0) || user?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase() || 'E'}
-                      </span>
-                    )}
-                  </div>
-                </button>
-                {userDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-2 z-40">
-                    <div className="px-3 py-2 border-b border-slate-100 dark:border-white/10 flex items-center gap-2.5">
-                      {(company?.logo_url || user?.avatar_url) && (
-                        <div className="h-8 min-w-[32px] max-w-[48px] rounded-lg overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 shrink-0 flex items-center justify-center p-0.5">
-                          <img src={company?.logo_url || user?.avatar_url} alt="Logo" className="max-h-full max-w-full w-auto h-auto object-contain" />
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {user?.full_name || company?.name || 'Administrador'}
-                        </p>
-                        <p className="text-[11px] text-slate-400 truncate">{user?.email || ''}</p>
-                      </div>
-                    </div>
-                    <div className="pt-1 space-y-0.5">
-                      <button
-                        onClick={() => {
-                          setUserDropdownOpen(false)
-                          navigate('/perfil')
-                        }}
-                        className="w-full text-left px-3 py-1.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg flex items-center gap-2 font-medium cursor-pointer"
-                      >
-                        <User size={13} /> Mi Perfil y Cuenta
-                      </button>
-                      {(user?.role === 'admin' || user?.role === 'superadmin' || isPlatformAdmin) && (
-                        <button
-                          onClick={() => {
-                            setUserDropdownOpen(false)
-                            navigate('/configuracion')
-                          }}
-                          className="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 rounded-lg flex items-center gap-2 cursor-pointer"
-                        >
-                          <Settings size={13} /> Configuración de Empresa
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          setUserDropdownOpen(false)
-                          if (requestLogout) requestLogout()
-                          else logout()
-                        }}
-                        className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg flex items-center gap-2 font-semibold cursor-pointer"
-                      >
-                        <LogOut size={13} /> Cerrar Sesión
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* User Profile Avatar */}
+              {renderUserMenu(false)}
 
               {/* POS Shortcut */}
               <button
@@ -1209,12 +1238,56 @@ function DashboardContent() {
               {/* Primary Action: + Nueva Venta */}
               <button
                 onClick={() => navigate('/ventas/nueva')}
-                className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#5550F2] text-white text-xs sm:text-sm font-bold shadow-md shadow-indigo-600/30 hover:bg-[#4742E8] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#5550F2] text-white text-sm font-bold shadow-md shadow-indigo-600/30 hover:bg-[#4742E8] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
               >
                 <Plus size={16} strokeWidth={2.5} />
                 <span>Nueva Venta</span>
               </button>
             </div>
+          </div>
+
+          {/* Mobile Bottom Action Bar (Row 2 on mobile: Left has currency, theme, refresh; Right has + Nueva Venta) */}
+          <div className="flex lg:hidden items-center justify-between gap-2 pt-2.5 mt-2.5 border-t border-slate-100 dark:border-white/5">
+            <div className="flex items-center gap-1.5">
+              {/* Currency Selector */}
+              <button
+                onClick={toggleCurrency}
+                className="px-2.5 py-1.5 text-xs font-bold rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer shadow-2xs flex items-center gap-1"
+                title="Cambiar Moneda"
+              >
+                <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{currency === 'S/' ? 'S/' : '$'}</span>
+                <span className="text-[11px] font-semibold text-slate-500">{currency === 'S/' ? 'PEN' : 'USD'}</span>
+              </button>
+
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="w-8 h-8 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer shadow-2xs flex"
+                title="Modo Claro/Oscuro"
+              >
+                {isDark ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} />}
+              </button>
+
+              {/* Reload Button */}
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="w-8 h-8 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-60 flex"
+                title="Actualizar"
+              >
+                <RefreshCw size={13} className={refreshing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''} />
+              </button>
+            </div>
+
+            {/* Primary Action Button: + Nueva Venta */}
+            <button
+              onClick={() => navigate('/ventas/nueva')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#5550F2] text-white text-xs font-bold shadow-md shadow-indigo-600/25 hover:bg-[#4742E8] active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+            >
+              <Plus size={15} strokeWidth={2.5} />
+              <span>Nueva Venta</span>
+            </button>
           </div>
         </div>
 
@@ -1224,28 +1297,38 @@ function DashboardContent() {
         {loading ? (
           <DashboardKpiSkeleton />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-5">
 
-            {/* Card 1: Facturación del Mes (Clean Executive Metric) */}
-            <div className="fn-card">
+            {/* Card 1: Facturación del Mes */}
+            <div className="fn-card border-t-[3px] border-t-emerald-500">
               <div>
-                <div className="flex items-start justify-between">
-                  <span className="text-xs sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400">Facturación del Mes</span>
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-2xs">
-                    <TrendingUp size={15} />
+                <div className="flex items-start justify-between gap-1">
+                  <span className="text-[11px] sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                    Facturación
+                  </span>
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-2xs shrink-0">
+                    <TrendingUp size={14} />
                   </div>
                 </div>
-                <div className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight mt-1.5 font-sans">
+                <div className="text-base xs:text-lg sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight mt-1 sm:mt-1.5 font-sans truncate">
                   {formatMoney(currentMonthMetrics.facturacionMes)}
                 </div>
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                  <ArrowUpRight size={13} strokeWidth={2.5} />
-                  <span>{currentMonthMetrics.ventasMesCount} venta{currentMonthMetrics.ventasMesCount !== 1 ? 's' : ''} este mes</span>
+                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 sm:mt-1 truncate">
+                  <ArrowUpRight size={12} strokeWidth={2.5} className="shrink-0" />
+                  <span className="truncate">{currentMonthMetrics.ventasMesCount} venta{currentMonthMetrics.ventasMesCount !== 1 ? 's' : ''}</span>
                 </div>
               </div>
 
-              {/* Clean Executive Ticket Promedio Bar (No Stock Photos) */}
-              <div className="mt-4 p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-100 dark:border-white/5 flex items-center justify-between">
+              {/* Mobile Ticket Compact Pill */}
+              <div className="sm:hidden mt-2 pt-1.5 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px]">
+                <span className="text-slate-400 font-semibold truncate">Ticket:</span>
+                <span className="font-extrabold text-slate-700 dark:text-slate-200 font-mono truncate">
+                  {formatMoney(currentMonthMetrics.ticketPromedio)}
+                </span>
+              </div>
+
+              {/* Desktop Clean Executive Ticket Promedio Bar */}
+              <div className="hidden sm:flex mt-4 p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-100 dark:border-white/5 items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                     <Receipt size={13} />
@@ -1263,26 +1346,36 @@ function DashboardContent() {
               </div>
             </div>
 
-            {/* Card 2: Capital en Inventario con las 7 Barras */}
-            <div className="fn-card">
+            {/* Card 2: Capital en Inventario */}
+            <div className="fn-card border-t-[3px] border-t-indigo-500">
               <div>
-                <div className="flex items-start justify-between">
-                  <span className="text-xs sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400">Capital en Inventario</span>
-                  <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200/80 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs">
-                    <Wallet size={15} />
+                <div className="flex items-start justify-between gap-1">
+                  <span className="text-[11px] sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                    Capital Inv.
+                  </span>
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200/80 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs shrink-0">
+                    <Wallet size={14} />
                   </div>
                 </div>
-                <div className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight mt-1.5 font-sans">
+                <div className="text-base xs:text-lg sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight mt-1 sm:mt-1.5 font-sans truncate">
                   {formatMoney(currentMonthMetrics.capitalInventario)}
                 </div>
-                <div className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-                  <ArrowUpRight size={13} strokeWidth={2.5} />
-                  <span>Total físico: {currentMonthMetrics.totalFisicoUds} uds.</span>
+                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 sm:mt-1 truncate">
+                  <ArrowUpRight size={12} strokeWidth={2.5} className="shrink-0" />
+                  <span className="truncate">{currentMonthMetrics.totalFisicoUds} uds.</span>
                 </div>
               </div>
 
-              {/* 7 Vertical Gradient Bars with Tooltips */}
-              <div className="mt-4 pt-1 flex items-end justify-between gap-1.5 h-[56px]">
+              {/* Mobile Rotation Pill */}
+              <div className="sm:hidden mt-2 pt-1.5 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px]">
+                <span className="text-slate-400 font-semibold truncate">Rotación:</span>
+                <span className="font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">
+                  7d activo
+                </span>
+              </div>
+
+              {/* Desktop 7 Vertical Gradient Bars */}
+              <div className="hidden sm:flex mt-4 pt-1 items-end justify-between gap-1.5 h-[56px]">
                 {last7DaysSales.map((bar, i) => (
                   <div key={i} className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer" title={`${bar.label}: ${formatMoney(bar.total)} (${bar.count} ventas)`}>
                     <div className="w-full max-w-[20px] h-[40px] bg-slate-100 dark:bg-white/5 rounded-t-md flex items-end overflow-hidden p-0.5">
@@ -1300,36 +1393,67 @@ function DashboardContent() {
             </div>
 
             {/* Card 3: Rotación & Catálogo */}
-            <div className="fn-card">
+            <div className="fn-card border-t-[3px] border-t-cyan-500">
               <div>
-                <div className="flex items-start justify-between">
-                  <span className="text-xs sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400">Catálogo & Disponibilidad</span>
-                  <div className="w-8 h-8 rounded-xl bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200/80 dark:border-cyan-500/20 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shadow-2xs">
-                    <Boxes size={15} />
+                <div className="flex items-start justify-between gap-1">
+                  <span className="text-[11px] sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                    Catálogo
+                  </span>
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-cyan-50 dark:bg-cyan-500/10 border border-cyan-200/80 dark:border-cyan-500/20 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shadow-2xs shrink-0">
+                    <Boxes size={14} />
                   </div>
                 </div>
-                <div className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight mt-1.5 font-sans">
-                  {currentMonthMetrics.totalSkus} SKUs Activos
+                <div className="text-base xs:text-lg sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight mt-1 sm:mt-1.5 font-sans truncate">
+                  {currentMonthMetrics.totalSkus} SKUs
                 </div>
-                <div className="flex items-center gap-1 text-[11px] font-bold text-cyan-600 dark:text-cyan-400 mt-1">
-                  <span>{currentMonthMetrics.totalCategories} Categorías · {currentMonthMetrics.disponibilidadPct}% disponible</span>
+                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-cyan-600 dark:text-cyan-400 mt-0.5 sm:mt-1 truncate">
+                  <span className="truncate">{currentMonthMetrics.totalCategories} categorías</span>
                 </div>
               </div>
 
-              {/* Real Availability Bar & Explore Link */}
-              <div className="mt-4 pt-2 border-t border-slate-100 dark:border-white/5 space-y-2">
-                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-white/5 overflow-hidden flex">
+              {/* Mobile Availability Mini Bar */}
+              <div className="sm:hidden mt-2 pt-1.5 border-t border-slate-100 dark:border-white/5 space-y-1">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-slate-400 font-semibold truncate">Stock:</span>
+                  <span className="font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                    {currentMonthMetrics.disponibilidadPct}%
+                  </span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
                   <div
                     style={{ width: `${currentMonthMetrics.disponibilidadPct}%` }}
-                    className="h-full bg-emerald-500 rounded-full"
+                    className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full"
+                  />
+                </div>
+              </div>
+
+              {/* Desktop Availability & Quick Explore Box */}
+              <div className="hidden sm:flex mt-4 p-2.5 rounded-xl bg-cyan-50/60 dark:bg-cyan-500/5 border border-cyan-200/70 dark:border-cyan-500/20 flex-col gap-2">
+                <div className="flex items-center justify-between text-[10.5px]">
+                  <span className="font-bold uppercase tracking-wider text-cyan-900 dark:text-cyan-300">
+                    Disponibilidad en almacén
+                  </span>
+                  <span className="font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                    {currentMonthMetrics.disponibilidadPct}%
+                  </span>
+                </div>
+
+                <div className="w-full h-2 rounded-full bg-white dark:bg-white/10 overflow-hidden shadow-inner flex border border-cyan-100 dark:border-white/5">
+                  <div
+                    style={{ width: `${currentMonthMetrics.disponibilidadPct}%` }}
+                    className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full transition-all"
                     title={`Disponibilidad: ${currentMonthMetrics.disponibilidadPct}%`}
                   />
                 </div>
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="font-semibold text-slate-500 dark:text-slate-400">{currentMonthMetrics.totalClients} clientes</span>
+
+                <div className="flex items-center justify-between pt-0.5 text-[11px]">
+                  <span className="font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                    {currentMonthMetrics.totalClients} clientes
+                  </span>
                   <button
                     onClick={() => navigate('/productos')}
-                    className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                    className="font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-white flex items-center gap-0.5 cursor-pointer text-xs"
                   >
                     <span>Explorar</span>
                     <ChevronRight size={13} />
@@ -1339,27 +1463,66 @@ function DashboardContent() {
             </div>
 
             {/* Card 4: Disponible para Cobro Inmediato */}
-            <div className="fn-card">
+            <div className="fn-card border-t-[3px] border-t-purple-500">
               <div>
-                <div className="flex items-start justify-between">
-                  <span className="text-xs sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400">Disponible para Cobro</span>
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-2xs">
-                    <DollarSign size={15} />
+                <div className="flex items-start justify-between gap-1">
+                  <span className="text-[11px] sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                    Por Cobrar
+                  </span>
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200/80 dark:border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 shadow-2xs shrink-0">
+                    <DollarSign size={14} />
                   </div>
                 </div>
-                <div className="flex items-baseline gap-1.5 mt-1.5">
-                  <span className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight font-sans">
-                    {formatMoney(currentMonthMetrics.facturacionMes)}
-                  </span>
-                  <span className="text-[10.5px] font-semibold text-slate-400">Estimado</span>
+                <div className="text-base xs:text-lg sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight mt-1 sm:mt-1.5 font-sans truncate">
+                  {formatMoney(currentMonthMetrics.facturacionMes)}
                 </div>
-                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1 truncate">
-                  {currentMonthMetrics.criticos === 0 ? 'Sin alertas críticas en almacén' : `${currentMonthMetrics.criticos} productos en nivel crítico`}
+                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-purple-600 dark:text-purple-400 mt-0.5 sm:mt-1 truncate">
+                  <span className="truncate">
+                    {currentMonthMetrics.criticos > 0 ? (
+                      <span className="text-amber-600 dark:text-amber-400 font-bold">{currentMonthMetrics.criticos} crítico</span>
+                    ) : (
+                      'Al día'
+                    )}
+                  </span>
                 </div>
               </div>
 
-              {/* Quick Payment Options & Action */}
-              <div className="mt-4 pt-2 border-t border-slate-100 dark:border-white/5 flex items-center justify-between gap-1">
+              {/* Mobile Quick Action Pill */}
+              <div className="sm:hidden mt-2 pt-1.5 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQrModalMethod('yape')
+                      setQrModalAmount(currentMonthMetrics.facturacionMes || 0)
+                    }}
+                    className="p-1 rounded-md bg-purple-50 hover:bg-purple-100 dark:bg-white/5 text-[#742284] cursor-pointer"
+                    title="Yape"
+                  >
+                    <img src="/yape-logo.png" alt="Yape" className="w-3.5 h-3.5 rounded-sm object-cover" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQrModalMethod('plin')
+                      setQrModalAmount(currentMonthMetrics.facturacionMes || 0)
+                    }}
+                    className="p-1 rounded-md bg-teal-50 hover:bg-teal-100 dark:bg-white/5 text-[#00b49f] cursor-pointer"
+                    title="Plin"
+                  >
+                    <img src="/plin-logo.png" alt="Plin" className="w-3.5 h-3.5 rounded-full object-cover" />
+                  </button>
+                </div>
+                <button
+                  onClick={() => navigate('/ventas/nueva')}
+                  className="px-2 py-0.5 rounded-lg bg-indigo-600 text-white text-[10px] font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                >
+                  Cobrar
+                </button>
+              </div>
+
+              {/* Desktop Payment Gateway Box */}
+              <div className="hidden sm:flex mt-4 p-2.5 rounded-xl bg-purple-50/50 dark:bg-purple-500/5 border border-purple-200/70 dark:border-purple-500/20 items-center justify-between gap-1.5">
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
@@ -1367,7 +1530,7 @@ function DashboardContent() {
                       setQrModalMethod('yape')
                       setQrModalAmount(currentMonthMetrics.facturacionMes || 0)
                     }}
-                    className="text-[9.5px] font-extrabold px-2 py-1 rounded-lg bg-purple-50 hover:bg-[#742284] text-[#742284] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs dark:bg-white/5 dark:text-purple-300 dark:hover:bg-[#742284] dark:hover:text-white"
+                    className="text-[9.5px] font-extrabold px-2 py-1 rounded-lg bg-white hover:bg-[#742284] text-[#742284] hover:text-white transition-all cursor-pointer flex items-center gap-1 border border-purple-200/80 shadow-2xs dark:bg-white/5 dark:text-purple-300 dark:hover:bg-[#742284] dark:hover:text-white"
                     title="Ver QR de Yape"
                   >
                     <img src="/yape-logo.png" alt="Yape" className="w-3.5 h-3.5 rounded-sm object-cover" />
@@ -1379,7 +1542,7 @@ function DashboardContent() {
                       setQrModalMethod('plin')
                       setQrModalAmount(currentMonthMetrics.facturacionMes || 0)
                     }}
-                    className="text-[9.5px] font-extrabold px-2 py-1 rounded-lg bg-teal-50 hover:bg-[#00b49f] text-[#00b49f] hover:text-white transition-all cursor-pointer flex items-center gap-1 shadow-2xs dark:bg-white/5 dark:text-teal-300 dark:hover:bg-[#00b49f] dark:hover:text-white"
+                    className="text-[9.5px] font-extrabold px-2 py-1 rounded-lg bg-white hover:bg-[#00b49f] text-[#00b49f] hover:text-white transition-all cursor-pointer flex items-center gap-1 border border-teal-200/80 shadow-2xs dark:bg-white/5 dark:text-teal-300 dark:hover:bg-[#00b49f] dark:hover:text-white"
                     title="Ver QR de Plin"
                   >
                     <img src="/plin-logo.png" alt="Plin" className="w-3.5 h-3.5 rounded-full object-cover" />
@@ -1391,7 +1554,7 @@ function DashboardContent() {
                       setQrModalMethod('transfer')
                       setQrModalAmount(currentMonthMetrics.facturacionMes || 0)
                     }}
-                    className="text-[9.5px] font-extrabold px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white dark:bg-white/5 dark:hover:bg-blue-600 dark:text-blue-300 dark:hover:text-white transition-all cursor-pointer shadow-2xs"
+                    className="text-[9.5px] font-extrabold px-2 py-1 rounded-lg bg-white hover:bg-blue-600 text-blue-700 hover:text-white dark:bg-white/5 dark:hover:bg-blue-600 dark:text-blue-300 dark:hover:text-white transition-all cursor-pointer border border-blue-200/80 shadow-2xs"
                     title="Ver Cuentas Bancarias"
                   >
                     BCP
@@ -1400,7 +1563,7 @@ function DashboardContent() {
 
                 <button
                   onClick={() => navigate('/ventas/nueva')}
-                  className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 text-[10.5px] font-extrabold shadow-sm transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[10.5px] font-extrabold shadow-sm shadow-indigo-600/30 transition-all cursor-pointer whitespace-nowrap shrink-0 hover:scale-[1.02]"
                 >
                   Cobrar ahora
                 </button>
@@ -1686,10 +1849,10 @@ function DashboardContent() {
                 <div className="fn-detail-card flex-1">
 
                   {/* Header Row: Detalle de Venta | Emisor | Cliente */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 border-b border-slate-200/80 dark:border-white/10">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pb-4 border-b border-slate-200/80 dark:border-white/10">
                     {/* Comprobante */}
-                    <div>
-                      <p className="text-[10.5px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Comprobante</p>
+                    <div className="bg-white/80 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/80 dark:border-white/5 shadow-2xs">
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Comprobante</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
                           #{currentInvoice.code}
@@ -1702,27 +1865,27 @@ function DashboardContent() {
                           {currentInvoice.status}
                         </span>
                       </div>
-                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium flex items-center gap-1.5">
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 font-medium flex items-center gap-1.5">
                         <Calendar size={11} className="text-slate-400 shrink-0" />
                         <span>{currentInvoice.due_text?.startsWith('Vence:') ? currentInvoice.due_text : `Fecha: ${currentInvoice.due_text || 'Registrado'}`}</span>
                       </p>
                     </div>
 
                     {/* Emisor Comercial */}
-                    <div>
-                      <p className="text-[10.5px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Empresa Emisora</p>
+                    <div className="bg-white/80 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/80 dark:border-white/5 shadow-2xs">
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Empresa Emisora</p>
                       <div className="flex items-center gap-1.5 mt-1">
                         <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight truncate">
                           {currentInvoice.company || 'CYA Store'}
                         </span>
                         <span className="text-indigo-500 text-sm font-bold">~</span>
                       </div>
-                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">Sede Principal · Sistema ERP</p>
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-1 font-medium">Sede Principal · Sistema ERP</p>
                     </div>
 
                     {/* Cliente */}
-                    <div>
-                      <p className="text-[10.5px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Cliente</p>
+                    <div className="bg-white/80 dark:bg-white/[0.03] p-3 rounded-xl border border-slate-200/80 dark:border-white/5 shadow-2xs">
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Cliente</p>
                       <div className="flex items-center gap-2.5 mt-1">
                         <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-white font-extrabold text-xs shadow-2xs bg-gradient-to-tr ${getClientAvatarGradient(currentInvoice.client_name)}`}>
                           {currentInvoice.client_name ? currentInvoice.client_name.charAt(0).toUpperCase() : 'C'}
@@ -1920,7 +2083,7 @@ function DashboardContent() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-2">
 
           {/* ── CARD 1: ALERTAS DE STOCK ── */}
-          <div className="bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/90 dark:border-white/10 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/90 dark:border-white/10 shadow-[0_1px_3px_0_rgba(15,23,42,0.04),0_6px_20px_-3px_rgba(15,23,42,0.06)] hover:shadow-[0_4px_6px_-1px_rgba(15,23,42,0.06),0_12px_28px_-4px_rgba(15,23,42,0.1)] transition-all flex flex-col justify-between">
             <div>
               {/* Header */}
               <div className="flex items-center justify-between mb-4">
@@ -2000,7 +2163,7 @@ function DashboardContent() {
           </div>
 
           {/* ── CARD 2: TOP PRODUCTOS ── */}
-          <div className="bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/90 dark:border-white/10 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/90 dark:border-white/10 shadow-[0_1px_3px_0_rgba(15,23,42,0.04),0_6px_20px_-3px_rgba(15,23,42,0.06)] hover:shadow-[0_4px_6px_-1px_rgba(15,23,42,0.06),0_12px_28px_-4px_rgba(15,23,42,0.1)] transition-all flex flex-col justify-between">
             <div>
               {/* Header */}
               <div className="flex items-center justify-between mb-4">
@@ -2083,7 +2246,7 @@ function DashboardContent() {
           </div>
 
           {/* ── CARD 3: GESTIÓN DE CLIENTES & CARTERA COMERCIAL ── */}
-          <div className="bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/90 dark:border-white/10 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/90 dark:border-white/10 shadow-[0_1px_3px_0_rgba(15,23,42,0.04),0_6px_20px_-3px_rgba(15,23,42,0.06)] hover:shadow-[0_4px_6px_-1px_rgba(15,23,42,0.06),0_12px_28px_-4px_rgba(15,23,42,0.1)] transition-all flex flex-col justify-between">
             <div>
               {/* Header */}
               <div className="flex items-center justify-between mb-4">

@@ -313,7 +313,7 @@ export default function DashboardAnalytics({
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
       
       {/* ─── CARD 1: ACTIVIDAD OPERATIVA & MOVIMIENTOS (8 COLS) ─── */}
-      <div className="lg:col-span-7 xl:col-span-8 bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-white/10 p-4 sm:p-6 shadow-xs flex flex-col justify-between transition-all">
+      <div className="lg:col-span-7 xl:col-span-8 bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-white/10 p-4 sm:p-6 shadow-[0_1px_3px_0_rgba(15,23,42,0.04),0_6px_20px_-3px_rgba(15,23,42,0.06)] flex flex-col justify-between transition-all">
         
         {/* Header Row: Title & View Switcher */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-white/5">
@@ -364,43 +364,43 @@ export default function DashboardAnalytics({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
           
           {/* Stat 1: Entradas */}
-          <div className="bg-slate-50/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/5 rounded-2xl p-3.5 flex items-center justify-between">
+          <div className="bg-indigo-50/70 dark:bg-indigo-500/10 border border-indigo-200/80 dark:border-indigo-500/25 rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                 <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
                 <span>Entradas de Almacén</span>
               </div>
               <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono mt-1 leading-tight">
                 +{warehouseStats.entradas.toLocaleString()}
               </p>
-              <span className="text-[10.5px] text-slate-400 font-medium">unidades ingresadas</span>
+              <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium">unidades ingresadas</span>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-white dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 flex items-center justify-center shrink-0 border border-indigo-200/80 dark:border-indigo-500/30 shadow-2xs">
               <ArrowDownLeft size={18} />
             </div>
           </div>
 
           {/* Stat 2: Salidas / Despachos */}
-          <div className="bg-slate-50/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/5 rounded-2xl p-3.5 flex items-center justify-between">
+          <div className="bg-emerald-50/70 dark:bg-emerald-500/10 border border-emerald-200/80 dark:border-emerald-500/25 rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                 <span>Salidas & Despachos</span>
               </div>
               <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono mt-1 leading-tight">
                 -{warehouseStats.salidas.toLocaleString()}
               </p>
-              <span className="text-[10.5px] text-slate-400 font-medium">despachos realizados</span>
+              <span className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium">despachos realizados</span>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-white dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 flex items-center justify-center shrink-0 border border-emerald-200/80 dark:border-emerald-500/30 shadow-2xs">
               <ArrowUpRight size={18} />
             </div>
           </div>
 
           {/* Stat 3: Total Operaciones & Balance */}
-          <div className="bg-slate-50/80 dark:bg-white/[0.03] border border-slate-200/80 dark:border-white/5 rounded-2xl p-3.5 flex items-center justify-between">
+          <div className="bg-sky-50/70 dark:bg-sky-500/10 border border-sky-200/80 dark:border-sky-500/25 rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-sky-700 dark:text-sky-300">
                 <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0" />
                 <span>Total Operaciones</span>
               </div>
@@ -414,7 +414,7 @@ export default function DashboardAnalytics({
                 {(warehouseStats.entradas - warehouseStats.salidas).toLocaleString()} uds.
               </span>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-white dark:bg-sky-500/20 text-sky-600 dark:text-sky-300 flex items-center justify-center shrink-0 border border-sky-200/80 dark:border-sky-500/30 shadow-2xs">
               <Boxes size={18} />
             </div>
           </div>
@@ -551,7 +551,7 @@ export default function DashboardAnalytics({
       </div>
 
       {/* ─── CARD 2: DISTRIBUCIÓN POR CATEGORÍA (4 COLS) ─── */}
-      <div className="lg:col-span-5 xl:col-span-4 bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-white/10 p-4 sm:p-6 shadow-xs flex flex-col justify-between transition-all">
+      <div className="lg:col-span-5 xl:col-span-4 bg-white dark:bg-[#121420] rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-white/10 p-4 sm:p-6 shadow-[0_1px_3px_0_rgba(15,23,42,0.04),0_6px_20px_-3px_rgba(15,23,42,0.06)] flex flex-col justify-between transition-all">
         
         {/* Top Header */}
         <div className="flex items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-white/5">
@@ -636,10 +636,10 @@ export default function DashboardAnalytics({
             categoryStats.list.slice(0, 4).map((cat, idx) => (
               <div
                 key={cat.id || idx}
-                className={`p-2 rounded-xl transition-all cursor-pointer ${
+                className={`p-2.5 rounded-xl transition-all cursor-pointer border ${
                   hoveredCategory === idx
-                    ? 'bg-slate-50 dark:bg-white/10 shadow-2xs'
-                    : 'hover:bg-slate-50/70 dark:hover:bg-white/5'
+                    ? 'bg-slate-100 dark:bg-white/10 border-slate-300 dark:border-white/20 shadow-2xs'
+                    : 'bg-slate-50/70 dark:bg-white/[0.03] border-slate-200/70 dark:border-white/5 hover:bg-slate-50'
                 }`}
                 onMouseEnter={() => setHoveredCategory(idx)}
                 onMouseLeave={() => setHoveredCategory(null)}
