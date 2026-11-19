@@ -6,7 +6,8 @@ import {
   Check, FileSpreadsheet, ExternalLink, ArrowUpDown, LayoutGrid,
   List, AlertCircle, CheckCircle2, ChevronRight, Eye,
   RotateCcw, Sparkles, MessageCircle, Clock, Package, Home,
-  BarChart2, PieChart, ShieldCheck, ArrowRight, Truck
+  BarChart2, PieChart, ShieldCheck, ArrowRight, Truck,
+  Zap, Award
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
@@ -222,10 +223,10 @@ export default function Suppliers() {
 
   const chartSVG = useMemo(() => {
     const width = 460
-    const height = 150
+    const height = 155
     const paddingLeft = 10
     const paddingRight = 10
-    const paddingTop = 20
+    const paddingTop = 36
     const paddingBottom = 25
     const innerW = width - paddingLeft - paddingRight
     const innerH = height - paddingTop - paddingBottom
@@ -397,7 +398,7 @@ export default function Suppliers() {
 
   return (
     <AppLayout title="Directorio de Proveedores">
-      <div className="space-y-6 max-w-[1440px] mx-auto pb-16">
+      <div className="space-y-5 max-w-[1440px] mx-auto pb-32 sm:pb-40 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
             SUCCESS TOAST NOTIFICATION
@@ -418,244 +419,181 @@ export default function Suppliers() {
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            0. BREADCRUMB & HEADER ROW (EXACT REFERENCE DESIGN)
+            0. BREADCRUMB & HEADER ROW (SENIOR ERP ARCHITECTURE)
            ═════════════════════════════════════════════════════════ */}
-        <div className="space-y-3">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
-            <Home size={14} className="text-slate-400 dark:text-zinc-500" />
-            <span className="text-slate-300 dark:text-zinc-600">›</span>
-            <span className="font-semibold text-slate-700 dark:text-zinc-300">Directorio de Proveedores & Abastecimiento</span>
+        <div className="space-y-2">
+          {/* Executive Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+            <span>MÓDULO DE ADQUISICIONES</span>
+            <span>/</span>
+            <span>CADENA DE SUMINISTRO & LOGÍSTICA</span>
+            <span>/</span>
+            <span className="text-slate-600 dark:text-zinc-400">DIRECTORIO DE PROVEEDORES</span>
           </div>
 
           {/* Title & Actions Row */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <PageHeaderBadge type="suppliers" />
-              <div>
-                <h1 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight">
-                  Directorio de Proveedores
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Directorio de Proveedores & Aliados Comerciales
                 </h1>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">
-                  Controla tu cadena de suministro, audita compras y mantén contacto directo con tus aliados comerciales.
-                </p>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8] animate-pulse" />
+                  {stats.totalSuppliers} PROVEEDORES EN CARTERA
+                </span>
               </div>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 max-w-2xl">
+                Control de cadena de suministro, homologación B2B, auditoría de órdenes de compra y contacto directo.
+              </p>
             </div>
 
-            <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               {/* Toggle Metrics */}
               <button
+                type="button"
                 onClick={() => setShowMetrics((prev) => !prev)}
-                className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-2xs"
                 title="Mostrar u ocultar métricas y gráficas"
               >
-                <TrendingUp size={16} className="text-slate-400 dark:text-zinc-400" />
+                <TrendingUp size={15} className="text-slate-400 dark:text-zinc-400" />
                 <span className="hidden sm:inline">{showMetrics ? 'Ocultar KPIs' : 'Ver KPIs'}</span>
               </button>
 
               {/* Export Excel */}
               <button
+                type="button"
                 onClick={handleExportExcel}
-                className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-2xs"
                 title="Descargar directorio de proveedores en Excel / CSV"
               >
-                <FileSpreadsheet size={16} className="text-emerald-600 dark:text-emerald-400" />
+                <FileSpreadsheet size={15} className="text-emerald-600 dark:text-emerald-400" />
                 <span>Exportar Excel</span>
               </button>
 
-              {/* + Nuevo Proveedor Primary Button */}
+              {/* + Registrar Proveedor Primary Button */}
               <button
+                type="button"
                 onClick={() => navigate('/proveedores/nuevo')}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-2 shadow-sm shadow-blue-600/25 transition-all cursor-pointer"
               >
-                <Plus size={16} strokeWidth={2.5} />
-                <span>+ Nuevo Proveedor</span>
+                <Plus size={15} strokeWidth={2.5} />
+                <span>Registrar Proveedor</span>
               </button>
             </div>
           </div>
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            1. 4 KPI CARDS WITH SVG SPARKLINE GRADIENTS
+            1. 4 FINANCIAL & SCM TELEMETRY CARDS (SENIOR ERP GRADE)
            ═════════════════════════════════════════════════════════ */}
         {showMetrics && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 animate-fade-in">
 
-            {/* Card 1: Proveedores Activos (Blue) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
-                  <Building2 size={20} />
+            {/* Card 1: Cartera de Proveedores */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                    PROVEEDORES ACTIVOS
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
+                    SCM ACTIVO
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    Proveedores Activos
-                  </p>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                    {loading ? '…' : stats.totalSuppliers}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
-                    <span>↑ +12.5%</span>
-                    <span className="text-slate-400 dark:text-zinc-500 font-normal ml-0.5">
-                      ({stats.withRucCount} con RUC)
-                    </span>
-                  </p>
+                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                  {loading ? '…' : stats.totalSuppliers}
+                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">empresas</span>
                 </div>
               </div>
-              {/* Sparkline curve (Blue) */}
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkBlueSup" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 32 Q 20 30 35 22 T 60 16 T 80 6 L 80 40 L 0 40 Z"
-                    fill="url(#sparkBlueSup)"
-                  />
-                  <path
-                    d="M 0 32 Q 20 30 35 22 T 60 16 T 80 6"
-                    fill="none"
-                    stroke="#3B82F6"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-400">
+                <div className="flex items-center justify-between">
+                  <span>Con RUC: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.withRucCount}</strong></span>
+                  <span>WhatsApp: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.withWhatsAppCount}</strong></span>
+                </div>
+                {/* Segmented bar */}
+                <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden mt-1.5 flex">
+                  <div style={{ width: `${donutData.pctActive}%` }} className="bg-[#1B4FD8] h-full" title={`Con compras: ${donutData.pctActive}%`} />
+                  <div style={{ width: `${100 - donutData.pctActive}%` }} className="bg-slate-300 dark:bg-zinc-700 h-full" title={`Sin compras: ${100 - donutData.pctActive}%`} />
+                </div>
               </div>
             </div>
 
-            {/* Card 2: Órdenes de Compra (Purple) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-purple-100 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                  <ShoppingBag size={20} />
+            {/* Card 2: Órdenes de Compra */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                    ÓRDENES DE COMPRA
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40">
+                    TOTAL O.C.
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    Órdenes de Compra
-                  </p>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                    {loading ? '…' : stats.totalOrders}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 mt-0.5">
-                    {stats.pendingOrders > 0 ? (
-                      <span className="text-amber-600 dark:text-amber-400 font-bold">
-                        {stats.pendingOrders} pendientes
-                      </span>
-                    ) : (
-                      'Todas recibidas'
-                    )}
-                  </p>
+                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                  {loading ? '…' : stats.totalOrders}
+                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">órdenes</span>
                 </div>
               </div>
-              {/* Sparkline curve (Purple) */}
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkPurpleSup" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#A855F7" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#A855F7" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 34 Q 24 30 42 20 T 64 16 T 80 6 L 80 40 L 0 40 Z"
-                    fill="url(#sparkPurpleSup)"
-                  />
-                  <path
-                    d="M 0 34 Q 24 30 42 20 T 64 16 T 80 6"
-                    fill="none"
-                    stroke="#A855F7"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                  ✓ {stats.totalOrders - stats.pendingOrders} recibidas
+                </span>
+                <span className="font-mono text-amber-600 dark:text-amber-400 font-semibold">
+                  {stats.pendingOrders > 0 ? `⏳ ${stats.pendingOrders} pendientes` : 'Al día'}
+                </span>
               </div>
             </div>
 
-            {/* Card 3: Inversión en Compras (Emerald) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                  <DollarSign size={20} />
+            {/* Card 3: Inversión en Compras */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                    INVERSIÓN EN COMPRAS
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">
+                    CAPITAL SCM
+                  </span>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    Inversión en Compras
-                  </p>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5 font-mono">
-                    {loading ? '…' : fmt(stats.totalSpentAll)}
-                  </h3>
-                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-0.5">
-                    <span>↑ +8.3%</span>
-                    <span className="text-slate-400 dark:text-zinc-500 font-normal ml-0.5">capital en stock</span>
-                  </p>
+                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                  {loading ? '…' : fmt(stats.totalSpentAll)}
                 </div>
               </div>
-              {/* Sparkline curve (Green) */}
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkGreenSup" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#10B981" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 35 Q 22 34 38 24 T 62 18 T 80 8 L 80 40 L 0 40 Z"
-                    fill="url(#sparkGreenSup)"
-                  />
-                  <path
-                    d="M 0 35 Q 22 34 38 24 T 62 18 T 80 8"
-                    fill="none"
-                    stroke="#10B981"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                  <TrendingUp size={12} /> +8.3% en stock
+                </span>
+                <span className="font-mono text-slate-400">100% valorizado</span>
               </div>
             </div>
 
-            {/* Card 4: Proveedor Top (Amber) */}
-            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex items-center justify-between transition-all hover:border-slate-300 dark:hover:border-zinc-700">
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <Sparkles size={20} />
+            {/* Card 4: Proveedor Top */}
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
+                    PROVEEDOR TOP
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900/40 flex items-center gap-1">
+                    <Award size={10} /> TOP VOLUMEN
+                  </span>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
-                    Proveedor Top
-                  </p>
-                  <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight mt-0.5 truncate">
-                    {loading ? '…' : stats.topSupplier ? stats.topSupplier.name : 'Sin compras'}
-                  </h3>
-                  <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-0.5 font-mono">
-                    {stats.topSupplier ? fmt(stats.topSupplier.totalSpent) : 'S/ 0.00'}
-                  </p>
+                <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight mt-1 truncate" title={stats.topSupplier?.name}>
+                  {loading ? '…' : (stats.topSupplier?.name || 'Sin compras')}
                 </div>
               </div>
-              {/* Sparkline curve (Amber) */}
-              <div className="w-20 h-10 shrink-0">
-                <svg viewBox="0 0 80 40" className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="sparkAmberSup" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    d="M 0 33 Q 25 35 45 25 T 66 18 T 80 9 L 80 40 L 0 40 Z"
-                    fill="url(#sparkAmberSup)"
-                  />
-                  <path
-                    d="M 0 33 Q 25 35 45 25 T 66 18 T 80 9"
-                    fill="none"
-                    stroke="#F59E0B"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
+                <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                  {stats.topSupplier ? fmt(stats.topSupplier.totalSpent) : 'S/ 0.00'}
+                </span>
+                <span className="text-slate-400 dark:text-zinc-500 font-mono">
+                  {stats.topSupplier?.ordersCount || 0} compras
+                </span>
               </div>
             </div>
 
@@ -666,18 +604,18 @@ export default function Suppliers() {
             2. MIDDLE SECTION: 3 CARDS (CHART, DONUT, ACCIONES)
            ═════════════════════════════════════════════════════════ */}
         {showMetrics && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fade-in">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 animate-fade-in">
             
             {/* Card 1: Evolución de Compras a Proveedores (Area Chart SVG) */}
-            <div className="lg:col-span-6 xl:col-span-5 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-              <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="lg:col-span-6 xl:col-span-5 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-3 mb-2">
                 <div className="flex items-center gap-2">
-                  <BarChart2 size={18} className="text-blue-600 shrink-0" />
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  <BarChart2 size={16} className="text-[#1B4FD8] shrink-0" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
                     Evolución de Compras
                   </h3>
                 </div>
-                <div className="inline-flex items-center bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2.5 py-1 text-xs">
+                <div className="inline-flex items-center bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-lg px-2 py-0.5 text-xs">
                   <select
                     value={chartPeriod}
                     onChange={(e) => setChartPeriod(e.target.value)}
@@ -691,9 +629,9 @@ export default function Suppliers() {
               </div>
 
               {/* Interactive SVG Chart */}
-              <div className="relative pt-6 pb-2 w-full">
+              <div className="relative pt-4 pb-1 w-full">
                 {/* Floating Peak Badge */}
-                <div className="absolute top-0 right-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold">
+                <div className="absolute top-0 right-4 flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 text-[#1B4FD8] dark:text-blue-300 text-[10px] font-bold font-mono">
                   <span>Pico: {fmt(Math.max(...monthlyChartData.map((d) => d.amount)))}</span>
                   <span className="text-emerald-500 font-extrabold">↑</span>
                 </div>
@@ -704,8 +642,8 @@ export default function Suppliers() {
                 >
                   <defs>
                     <linearGradient id="areaGradientSup" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.35" />
-                      <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.0" />
+                      <stop offset="0%" stopColor="#1B4FD8" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#1B4FD8" stopOpacity="0.0" />
                     </linearGradient>
                   </defs>
 
@@ -735,8 +673,8 @@ export default function Suppliers() {
                   <path
                     d={chartSVG.pathD}
                     fill="none"
-                    stroke="#2563EB"
-                    strokeWidth="3"
+                    stroke="#1B4FD8"
+                    strokeWidth="2.5"
                     strokeLinecap="round"
                   />
 
@@ -746,11 +684,11 @@ export default function Suppliers() {
                       <circle
                         cx={pt.x}
                         cy={pt.y}
-                        r="4"
+                        r="3.5"
                         fill="#FFFFFF"
-                        stroke="#2563EB"
-                        strokeWidth="2.5"
-                        className="transition-all duration-200 group-hover:r-6"
+                        stroke="#1B4FD8"
+                        strokeWidth="2"
+                        className="transition-all duration-200 group-hover:r-5"
                       />
                       <text
                         x={pt.x}
@@ -765,29 +703,29 @@ export default function Suppliers() {
                 </svg>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-400">
-                <span>Inversión media mensual: <strong className="text-slate-700 dark:text-zinc-200">{fmt(stats.totalSpentAll / (monthlyChartData.length || 1))}</strong></span>
+              <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-400">
+                <span>Inversión media mensual: <strong className="text-slate-700 dark:text-zinc-200 font-mono">{fmt(stats.totalSpentAll / (monthlyChartData.length || 1))}</strong></span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Abastecimiento estable</span>
               </div>
             </div>
 
             {/* Card 2: Estado de Cartera de Proveedores (Donut Chart SVG) */}
-            <div className="lg:col-span-6 xl:col-span-4 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-2">
+            <div className="lg:col-span-6 xl:col-span-4 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <PieChart size={18} className="text-purple-600 shrink-0" />
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  <PieChart size={16} className="text-purple-600 shrink-0" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200">
                     Actividad de Proveedores
                   </h3>
                 </div>
-                <span className="text-xs font-semibold text-slate-400">
+                <span className="text-xs font-semibold text-slate-400 font-mono">
                   {suppliers.length} aliados
                 </span>
               </div>
 
               {/* Donut Chart Visual */}
-              <div className="flex items-center justify-center py-4">
-                <div className="relative w-40 h-40">
+              <div className="flex items-center justify-center py-2">
+                <div className="relative w-36 h-36">
                   <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
                     {/* Background track */}
                     <circle
@@ -796,7 +734,7 @@ export default function Suppliers() {
                       r="40"
                       fill="transparent"
                       stroke="currentColor"
-                      strokeWidth="12"
+                      strokeWidth="11"
                       className="text-slate-100 dark:text-zinc-800"
                     />
                     {/* Active suppliers slice */}
@@ -805,8 +743,8 @@ export default function Suppliers() {
                       cy="50"
                       r="40"
                       fill="transparent"
-                      stroke="#2563EB"
-                      strokeWidth="12"
+                      stroke="#1B4FD8"
+                      strokeWidth="11"
                       strokeDasharray={`${donutData.activeStroke} ${donutData.C}`}
                       strokeDashoffset="0"
                       strokeLinecap="round"
@@ -818,7 +756,7 @@ export default function Suppliers() {
                       r="40"
                       fill="transparent"
                       stroke="#A855F7"
-                      strokeWidth="12"
+                      strokeWidth="11"
                       strokeDasharray={`${donutData.newStroke} ${donutData.C}`}
                       strokeDashoffset={-donutData.activeStroke}
                       strokeLinecap="round"
@@ -826,21 +764,21 @@ export default function Suppliers() {
                   </svg>
                   {/* Center Content */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-2xl font-black font-mono text-slate-900 dark:text-white">
+                    <span className="text-2xl font-bold font-mono text-slate-900 dark:text-white">
                       {donutData.pctActive}%
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
-                      Con Compras
+                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-400 uppercase tracking-wider">
+                      CON COMPRAS
                     </span>
                   </div>
                 </div>
               </div>
 
               {/* Legend with Metrics */}
-              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800 text-xs">
+              <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800 text-xs">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#1B4FD8] shrink-0" />
                     <span className="text-slate-600 dark:text-zinc-300 font-medium">Con compras activas</span>
                   </div>
                   <span className="font-mono font-bold text-slate-800 dark:text-white">
@@ -859,57 +797,61 @@ export default function Suppliers() {
               </div>
             </div>
 
-            {/* Card 3: Acciones Rápidas (Matriz 2x2) */}
-            <div className="lg:col-span-12 xl:col-span-3 bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+            {/* Card 3: Acciones Rápidas (Senior Enterprise Matrix) */}
+            <div className="lg:col-span-12 xl:col-span-3 bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col justify-between">
               <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                  <Sparkles size={16} className="text-amber-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-200 mb-1 flex items-center gap-2">
+                  <Zap size={14} className="text-[#1B4FD8]" />
                   Acciones Rápidas
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4">
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
                   Accesos directos de abastecimiento y gestión comercial.
                 </p>
 
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-2">
                   <button
+                    type="button"
                     onClick={() => navigate('/proveedores/nuevo')}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-[#1B4FD8] hover:bg-blue-50/50 dark:hover:bg-blue-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <Plus size={15} />
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-[#1B4FD8] flex items-center justify-center mb-1 group-hover:scale-105 transition-transform">
+                      <Plus size={14} strokeWidth={2.5} />
                     </div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Nuevo Proveedor</p>
+                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Registrar</p>
                     <p className="text-[10px] text-slate-400">Crear aliado</p>
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => navigate('/compras/nueva')}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <Truck size={15} />
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform">
+                      <Truck size={14} />
                     </div>
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Nueva Compra</p>
                     <p className="text-[10px] text-slate-400">Ingresar orden</p>
                   </button>
 
                   <button
+                    type="button"
                     onClick={handleExportExcel}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-900/40 text-purple-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <FileSpreadsheet size={15} />
+                    <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-900/40 text-purple-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform">
+                      <FileSpreadsheet size={14} />
                     </div>
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Exportar CSV</p>
                     <p className="text-[10px] text-slate-400">Descargar datos</p>
                   </button>
 
                   <button
+                    type="button"
                     onClick={() => navigate('/compras')}
-                    className="p-3 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 text-left transition-all group cursor-pointer"
+                    className="p-2.5 rounded-xl border border-slate-200/80 dark:border-zinc-700 hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 text-left transition-all group cursor-pointer"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                      <ShoppingBag size={15} />
+                    <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform">
+                      <ShoppingBag size={14} />
                     </div>
                     <p className="text-xs font-bold text-slate-800 dark:text-zinc-200">Ver Compras</p>
                     <p className="text-[10px] text-slate-400">Auditar órdenes</p>
@@ -917,8 +859,8 @@ export default function Suppliers() {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-400 flex items-center gap-1.5">
-                <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
+              <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-400 flex items-center gap-1.5">
+                <ShieldCheck size={13} className="text-emerald-500 shrink-0" />
                 <span>Base de datos protegida con RLS</span>
               </div>
             </div>
@@ -929,14 +871,14 @@ export default function Suppliers() {
         {/* ═════════════════════════════════════════════════════════
             3. CONTROL BAR (SEARCH, SEGMENT PILLS, SORT, VIEW SWITCH)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3.5 sm:p-4 shadow-xs space-y-3">
+        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-3.5 shadow-2xs space-y-3">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
 
             {/* Search Input */}
             <div className="relative flex-1 w-full lg:max-w-md">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" />
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" />
               <input
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-10 pr-9 py-2 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all outline-none"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-9 pr-9 py-2 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10 transition-all outline-none font-medium"
                 placeholder="Buscar por Razón Social, RUC, Contacto o Teléfono…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -966,7 +908,7 @@ export default function Suppliers() {
                   onClick={() => setSegmentFilter(tab.id)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                     segmentFilter === tab.id
-                      ? 'bg-blue-600 text-white shadow-xs'
+                      ? 'bg-[#1B4FD8] text-white shadow-xs'
                       : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
                   }`}
                 >
@@ -993,14 +935,14 @@ export default function Suppliers() {
               </div>
 
               {/* View Switch */}
-              <div className="inline-flex items-center p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200/80 dark:border-zinc-700 shrink-0">
+              <div className="inline-flex items-center p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200/80 dark:border-zinc-700 shrink-0">
                 <button
                   type="button"
                   onClick={() => setViewMode('grid')}
                   title="Vista en tarjetas"
                   className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      ? 'bg-white dark:bg-zinc-900 text-[#1B4FD8] dark:text-blue-400 shadow-2xs font-bold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
                   }`}
                 >
@@ -1012,7 +954,7 @@ export default function Suppliers() {
                   title="Vista en tabla"
                   className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                     viewMode === 'table'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs font-bold'
+                      ? 'bg-white dark:bg-zinc-900 text-[#1B4FD8] dark:text-blue-400 shadow-2xs font-bold'
                       : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
                   }`}
                 >
@@ -1058,9 +1000,9 @@ export default function Suppliers() {
                 ) : (
                   <button
                     onClick={() => navigate('/proveedores/nuevo')}
-                    className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/25 cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm shadow-blue-600/25 cursor-pointer transition-all"
                   >
-                    <Plus size={15} /> Nuevo Proveedor
+                    <Plus size={15} strokeWidth={2.5} /> Registrar Proveedor
                   </button>
                 )
               }
@@ -1075,33 +1017,33 @@ export default function Suppliers() {
               return (
                 <div
                   key={s.id}
-                  className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-card hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between group"
+                  className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between group"
                 >
                   <div>
                     {/* Header: Avatar + Supplier Name + Actions */}
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-start gap-3 min-w-0">
                         <div
-                          className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${s.avatarStyle.bg} flex items-center justify-center font-black text-sm text-white shrink-0 group-hover:scale-105 transition-transform shadow-xs`}
+                          className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.avatarStyle.bg} flex items-center justify-center font-bold text-xs text-white shrink-0 group-hover:scale-105 transition-transform shadow-2xs`}
                         >
                           {getInitials(s.name)}
                         </div>
                         <div className="min-w-0">
                           <h3
                             onClick={() => setSelectedSupplier(s)}
-                            className="font-bold text-slate-900 dark:text-zinc-100 text-base leading-snug truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors cursor-pointer"
+                            className="font-bold text-slate-900 dark:text-zinc-100 text-sm leading-snug truncate group-hover:text-[#1B4FD8] dark:group-hover:text-blue-400 transition-colors cursor-pointer"
                           >
                             {s.name}
                           </h3>
 
                           {/* RUC Pill */}
-                          <div className="flex items-center gap-1.5 mt-1">
+                          <div className="flex items-center gap-1.5 mt-0.5">
                             {s.ruc ? (
                               <button
                                 type="button"
                                 onClick={(e) => handleCopyRuc(s.ruc, e)}
                                 title="Copiar RUC"
-                                className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 font-mono text-[10.5px] font-bold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
                               >
                                 {copiedRuc === s.ruc ? (
                                   <>
@@ -1116,7 +1058,7 @@ export default function Suppliers() {
                                 )}
                               </button>
                             ) : (
-                              <span className="text-[10.5px] font-medium text-slate-400 dark:text-zinc-500 italic">
+                              <span className="text-[10px] font-medium text-slate-400 dark:text-zinc-500 italic">
                                 Sin RUC
                               </span>
                             )}
@@ -1129,32 +1071,32 @@ export default function Suppliers() {
                         <button
                           onClick={() => navigate(`/proveedores/editar/${s.id}`)}
                           title="Editar proveedor"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50/60 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 transition-colors cursor-pointer"
                         >
-                          <Pencil size={15} />
+                          <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => setConfirmDelete(s)}
                           title="Eliminar proveedor"
                           className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 dark:hover:text-red-400 transition-colors cursor-pointer"
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
 
                     {/* Contact details */}
-                    <div className="space-y-2 text-xs text-slate-600 dark:text-zinc-400 py-3 border-t border-slate-100 dark:border-zinc-800">
+                    <div className="space-y-1.5 text-xs text-slate-600 dark:text-zinc-400 py-2.5 border-t border-slate-100 dark:border-zinc-800">
                       {s.contact_name ? (
                         <div className="flex items-center gap-2">
-                          <User size={13} className="text-slate-400 shrink-0" />
+                          <User size={12} className="text-slate-400 shrink-0" />
                           <span className="truncate">
                             Contacto: <strong className="text-slate-800 dark:text-zinc-200">{s.contact_name}</strong>
                           </span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-slate-400 dark:text-zinc-600 italic">
-                          <User size={13} className="shrink-0" />
+                          <User size={12} className="shrink-0" />
                           <span>Contacto no registrado</span>
                         </div>
                       )}
@@ -1162,18 +1104,18 @@ export default function Suppliers() {
                       {/* Phone & WhatsApp */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <Phone size={13} className="text-slate-400 shrink-0" />
-                          <span className="truncate font-mono">{s.phone || 'Sin teléfono'}</span>
+                          <Phone size={12} className="text-slate-400 shrink-0" />
+                          <span className="truncate font-mono text-[11px]">{s.phone || 'Sin teléfono'}</span>
                         </div>
                         {waUrl && (
                           <a
                             href={waUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold border border-emerald-200 dark:border-emerald-500/20 transition-colors shrink-0"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-500/20 transition-colors shrink-0"
                             title="Conversar por WhatsApp"
                           >
-                            <MessageCircle size={12} /> WhatsApp
+                            <MessageCircle size={11} /> WhatsApp
                           </a>
                         )}
                       </div>
@@ -1181,10 +1123,10 @@ export default function Suppliers() {
                       {/* Email */}
                       {s.email && (
                         <div className="flex items-center gap-2">
-                          <Mail size={13} className="text-slate-400 shrink-0" />
+                          <Mail size={12} className="text-slate-400 shrink-0" />
                           <a
                             href={`mailto:${s.email}`}
-                            className="truncate text-slate-700 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            className="truncate text-slate-700 dark:text-zinc-300 hover:text-[#1B4FD8] dark:hover:text-blue-400 transition-colors"
                           >
                             {s.email}
                           </a>
@@ -1194,7 +1136,7 @@ export default function Suppliers() {
                       {/* Address */}
                       {s.address && (
                         <div className="flex items-center gap-2">
-                          <MapPin size={13} className="text-slate-400 shrink-0" />
+                          <MapPin size={12} className="text-slate-400 shrink-0" />
                           <span className="truncate text-slate-500 dark:text-zinc-400">{s.address}</span>
                         </div>
                       )}
@@ -1202,37 +1144,37 @@ export default function Suppliers() {
                   </div>
 
                   {/* Micro-Metrics Breakdown Footer */}
-                  <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 space-y-3">
+                  <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 space-y-2">
                     <div className="grid grid-cols-2 gap-2 text-center">
-                      <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-2 border border-slate-100 dark:border-zinc-800">
-                        <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5">
+                      <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-lg p-2 border border-slate-100 dark:border-zinc-800">
+                        <p className="text-[9.5px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5">
                           Compras
                         </p>
-                        <p className="font-extrabold text-slate-900 dark:text-zinc-100 text-sm font-mono">
+                        <p className="font-bold text-slate-900 dark:text-zinc-100 text-xs font-mono">
                           {s.ordersCount} órdenes
                         </p>
                       </div>
 
-                      <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-2 border border-slate-100 dark:border-zinc-800">
-                        <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5">
-                          Total Facturado
+                      <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-lg p-2 border border-slate-100 dark:border-zinc-800">
+                        <p className="text-[9.5px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5">
+                          Total Invertido
                         </p>
-                        <p className="font-extrabold text-blue-600 dark:text-blue-400 text-sm font-mono">
+                        <p className="font-bold text-[#1B4FD8] dark:text-blue-400 text-xs font-mono">
                           {fmt(s.totalSpent)}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between text-xs pt-1">
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-[10.5px] text-slate-400">
                         {s.productsCount} SKUs provistos
                       </span>
                       <button
                         type="button"
                         onClick={() => setSelectedSupplier(s)}
-                        className="font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1 cursor-pointer transition-colors"
+                        className="font-bold text-[#1B4FD8] dark:text-blue-400 hover:text-[#163FBF] flex items-center gap-1 cursor-pointer transition-colors text-xs"
                       >
-                        <span>Ver compras</span>
+                        <span>Ver expediente</span>
                         <ChevronRight size={13} />
                       </button>
                     </div>
@@ -1277,7 +1219,7 @@ export default function Suppliers() {
                               <button
                                 type="button"
                                 onClick={() => setSelectedSupplier(s)}
-                                className="font-bold text-slate-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left block truncate cursor-pointer"
+                                className="font-bold text-slate-900 dark:text-zinc-100 hover:text-[#1B4FD8] dark:hover:text-blue-400 transition-colors text-left block truncate cursor-pointer"
                               >
                                 {s.name}
                               </button>
@@ -1332,7 +1274,7 @@ export default function Suppliers() {
                         <td className="py-3 px-4 text-center">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold font-mono ${
                             s.ordersCount > 0
-                              ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'
+                              ? 'bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300'
                               : 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
                           }`}>
                             {s.ordersCount} orden(es)
@@ -1351,7 +1293,7 @@ export default function Suppliers() {
                               type="button"
                               onClick={() => setSelectedSupplier(s)}
                               title="Ver ficha dossier"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50/60 dark:hover:bg-blue-500/10 cursor-pointer"
                             >
                               <Eye size={15} />
                             </button>
@@ -1359,7 +1301,7 @@ export default function Suppliers() {
                               type="button"
                               onClick={() => navigate(`/proveedores/editar/${s.id}`)}
                               title="Editar proveedor"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-[#1B4FD8] hover:bg-blue-50/60 dark:hover:bg-blue-500/10 cursor-pointer"
                             >
                               <Pencil size={15} />
                             </button>
@@ -1437,7 +1379,7 @@ export default function Suppliers() {
 
                   <div className="p-3 rounded-2xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-800 text-xs">
                     <span className="text-slate-400 block mb-0.5">Total Invertido</span>
-                    <strong className="text-blue-600 dark:text-blue-400 font-mono text-sm block truncate">
+                    <strong className="text-[#1B4FD8] dark:text-blue-400 font-mono text-sm block truncate">
                       {fmt(selectedSupplier.totalSpent)}
                     </strong>
                   </div>
@@ -1470,7 +1412,7 @@ export default function Suppliers() {
                       setSelectedSupplier(null)
                       navigate('/compras/nueva')
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                   >
                     <Truck size={14} /> Generar Nueva Compra
                   </button>
@@ -1479,7 +1421,7 @@ export default function Suppliers() {
                 {/* Purchases History */}
                 <div>
                   <h4 className="font-bold text-sm text-slate-900 dark:text-white mb-2.5 flex items-center gap-2">
-                    <ShoppingBag size={16} className="text-blue-600" />
+                    <ShoppingBag size={16} className="text-[#1B4FD8]" />
                     Historial de Órdenes a este Proveedor
                   </h4>
 
@@ -1501,7 +1443,7 @@ export default function Suppliers() {
                         <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
                           {selectedSupplier.purchases.map((p) => (
                             <tr key={p.id}>
-                              <td className="py-2.5 px-3 font-mono font-bold text-blue-600">
+                              <td className="py-2.5 px-3 font-mono font-bold text-[#1B4FD8]">
                                 {String(p.id).slice(-8).toUpperCase()}
                               </td>
                               <td className="py-2.5 px-3 text-slate-500">
