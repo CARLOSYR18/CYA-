@@ -3,10 +3,9 @@ import {
   Building2, Save, CheckCircle2, ImageIcon, Phone, Mail, MapPin,
   FileText, ShieldCheck, Sparkles, Crown, ArrowRight, Printer,
   ExternalLink, Copy, Check, AlertCircle, RefreshCw, Layers, DollarSign,
-  QrCode, Smartphone, CreditCard, Upload, Trash2, Lock
+  QrCode, Smartphone, CreditCard, Upload, Trash2, Lock, Eye, EyeOff
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
-import PageHeaderBadge from '../components/ui/PageHeaderBadge'
 import { companySettingsService } from '../services/companySettingsService'
 import { paymentMethodsService, DEFAULT_PAYMENT_CONFIG } from '../services/paymentMethodsService'
 import { getLimits, getEffectivePlan } from '../lib/planLimits'
@@ -166,6 +165,30 @@ export default function CompanySettings() {
   const limits = useMemo(() => getLimits(companyRaw), [companyRaw])
   const isNameLocked = Boolean(companyRaw?.name?.trim())
 
+  const validations = useMemo(() => [
+    { label: 'Razón Social / Nombre Comercial registrado', valid: Boolean(form.name?.trim()) },
+    { label: 'RUC válido de 11 dígitos para SUNAT', valid: Boolean(form.ruc?.trim() && form.ruc.trim().length === 11) },
+    { label: 'Teléfono o WhatsApp de atención al cliente', valid: Boolean(form.phone?.trim()) },
+    { label: 'Dirección fiscal / Establecimiento comercial', valid: Boolean(form.address?.trim()) },
+    { label: 'Logotipo comercial para tickets y boletas', valid: Boolean(form.logo_url?.trim()) }
+  ], [form.name, form.ruc, form.phone, form.address, form.logo_url])
+
+  const validationsCount = validations.filter((v) => v.valid).length
+
+  // Global keyboard shortcuts (F2: Guardar)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'F2') {
+        e.preventDefault()
+        if (!saving) {
+          handleSubmit(e)
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleSubmit, saving])
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -215,32 +238,55 @@ export default function CompanySettings() {
       <div className="space-y-6 max-w-6xl mx-auto pb-16">
 
         {/* ═════════════════════════════════════════════════════════
-            0. EXECUTIVE TOP HEADER BAR
+            0. EXECUTIVE TOP HEADER BAR (SENIOR ENTERPRISE)
            ═════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#141417] p-5 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-xs">
+        <div className="bg-white dark:bg-[#141417] p-4 sm:p-5 rounded-xl border border-slate-200/90 dark:border-zinc-800/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3">
-              <PageHeaderBadge type="settings" />
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-tight font-display">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1">
+              <span>ADMINISTRACIÓN</span>
+              <span>/</span>
+              <span>CONFIGURACIÓN CORPORATIVA</span>
+              <span>/</span>
+              <span className="text-[#1B4FD8] dark:text-blue-400">IDENTIDAD FISCAL & SUNAT</span>
+            </div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight leading-none">
                 Perfil e Identidad de Empresa
               </h1>
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold border ${
+                  effectivePlan === 'pro'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60'
+                    : 'bg-blue-50 text-[#1B4FD8] border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/60'
+                }`}
+              >
+                {effectivePlan === 'pro' ? <Crown size={11} className="text-amber-600" /> : <Sparkles size={11} />}
+                <span>Plan {effectivePlan === 'pro' ? 'Pro Corporativo' : 'Free Activo'}</span>
+              </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-1">
               Configura los datos fiscales para SUNAT, logotipo comercial y personaliza el formato de las boletas de venta.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${
-                effectivePlan === 'pro'
-                  ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30'
-                  : 'bg-blue-50 text-brand border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30'
-              }`}
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
             >
-              {effectivePlan === 'pro' ? <Crown size={14} className="text-amber-600" /> : <Sparkles size={14} />}
-              <span>Plan {effectivePlan === 'pro' ? 'Pro Corporativo' : 'Free Activo'}</span>
-            </span>
+              Restablecer [Esc]
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={saving || !form.name?.trim()}
+              className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-blue-600/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save size={15} />
+              <span>{saving ? 'Guardando…' : 'Guardar Cambios'}</span>
+              <kbd className="px-1 py-0.5 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
+            </button>
           </div>
         </div>
 
@@ -287,13 +333,20 @@ export default function CompanySettings() {
               <div className="lg:col-span-7 space-y-5">
 
                 {/* CARD 1: CORPORATE IDENTITY & LOGO */}
-                <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 sm:p-5 shadow-2xs space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                    <div className="flex items-center gap-2">
-                      <Building2 size={16} className="text-brand dark:text-blue-400" />
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                        1. Identidad de Marca y Razón Social
-                      </h3>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[#1B4FD8] dark:text-blue-400 flex items-center justify-center shrink-0">
+                        <Building2 size={16} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                          1. Identidad de Marca y Razón Social
+                        </h3>
+                        <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+                          Nombre legal de la empresa y logotipo de emisión
+                        </p>
+                      </div>
                     </div>
                     <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium">Principal *</span>
                   </div>
@@ -317,7 +370,7 @@ export default function CompanySettings() {
                         className={`w-full border rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500 ${
                           isNameLocked
                             ? 'bg-slate-100/80 dark:bg-zinc-800/50 border-slate-200 dark:border-zinc-700/80 text-slate-500 dark:text-zinc-400 cursor-not-allowed select-none'
-                            : 'bg-slate-50 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10'
+                            : 'bg-slate-50 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-blue-500/10'
                         }`}
                         value={form.name || ''}
                         onChange={(e) => {
@@ -343,9 +396,9 @@ export default function CompanySettings() {
                         <span className="text-[10px] text-slate-400 normal-case font-normal">PNG transparente recomendado</span>
                       </label>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-slate-50/80 dark:bg-zinc-800/40 border border-slate-200 dark:border-zinc-700/80">
                         {/* Logo Preview Avatar Adaptable */}
-                        <div className="min-w-[80px] max-w-[150px] h-20 rounded-2xl border-2 border-slate-200 dark:border-zinc-700 flex items-center justify-center shrink-0 overflow-hidden bg-white dark:bg-zinc-800 shadow-xs p-1.5">
+                        <div className="min-w-[80px] max-w-[140px] h-20 rounded-xl border border-slate-200 dark:border-zinc-700 flex items-center justify-center shrink-0 overflow-hidden bg-white dark:bg-zinc-800 shadow-2xs p-1.5">
                           {form.logo_url && !logoPreviewError ? (
                             <img
                               src={form.logo_url}
@@ -354,14 +407,14 @@ export default function CompanySettings() {
                               onError={() => setLogoPreviewError(true)}
                             />
                           ) : (
-                            <Building2 size={32} className="text-slate-400" />
+                            <Building2 size={30} className="text-slate-400" />
                           )}
                         </div>
 
                         {/* Upload Controls & Actions */}
                         <div className="flex-1 space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
-                            <label className="px-4 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-white text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm active:scale-98 transition-all disabled:opacity-50">
+                            <label className="px-3.5 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 transition-all disabled:opacity-50">
                               <Upload size={14} />
                               <span>{logoUploading ? 'Subiendo imagen…' : 'Subir Imagen de Logotipo'}</span>
                               <input
@@ -398,7 +451,7 @@ export default function CompanySettings() {
                               <input
                                 type="url"
                                 placeholder="https://ejemplo.com/logo.png"
-                                className="w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400"
+                                className="w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-[#1B4FD8] focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
                                 {...field('logo_url')}
                               />
                             </div>
@@ -414,13 +467,20 @@ export default function CompanySettings() {
                 </div>
 
                 {/* CARD 2: FISCAL & TAX DATA (SUNAT) */}
-                <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 sm:p-5 shadow-2xs space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                    <div className="flex items-center gap-2">
-                      <FileText size={16} className="text-brand dark:text-blue-400" />
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                        2. Datos Tributarios y Contacto
-                      </h3>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                        <FileText size={16} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                          2. Datos Tributarios y Contacto
+                        </h3>
+                        <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+                          Información legal para validez de comprobantes y SUNAT
+                        </p>
+                      </div>
                     </div>
                     <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                       <ShieldCheck size={13} /> Régimen Tributario
@@ -437,7 +497,7 @@ export default function CompanySettings() {
                         type="text"
                         placeholder="20601234567"
                         maxLength={11}
-                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400"
+                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
                         {...field('ruc')}
                       />
                       <p className="text-[10.5px] text-slate-400 dark:text-zinc-500 mt-1">
@@ -459,7 +519,7 @@ export default function CompanySettings() {
                       <input
                         type="text"
                         placeholder="+51 987 654 321"
-                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-mono text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400"
+                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-mono text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
                         {...field('phone')}
                       />
                       <p className="text-[10.5px] text-slate-400 dark:text-zinc-500 mt-1">
@@ -475,7 +535,7 @@ export default function CompanySettings() {
                       <input
                         type="email"
                         placeholder="[email protected]"
-                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400"
+                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
                         {...field('email')}
                       />
                     </div>
@@ -486,7 +546,7 @@ export default function CompanySettings() {
                         Moneda Base de Facturación
                       </label>
                       <select
-                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 dark:text-zinc-100 outline-none cursor-pointer focus:bg-white dark:focus:bg-zinc-900 focus:border-brand"
+                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 dark:text-zinc-100 outline-none cursor-pointer focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8]"
                         {...field('currency')}
                       >
                         <option value="S/">Soles Peruanos (S/)</option>
@@ -502,7 +562,7 @@ export default function CompanySettings() {
                       <input
                         type="text"
                         placeholder="Ej: Av. Javier Prado 2200, San Isidro, Lima"
-                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400"
+                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400"
                         {...field('address')}
                       />
                     </div>
@@ -510,13 +570,20 @@ export default function CompanySettings() {
                 </div>
 
                 {/* CARD 3: TICKET CUSTOMIZATION */}
-                <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 sm:p-5 shadow-2xs space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                    <div className="flex items-center gap-2">
-                      <Printer size={16} className="text-brand dark:text-blue-400" />
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                        3. Personalización de Boletas y Comprobantes
-                      </h3>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                        <Printer size={16} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                          3. Personalización de Boletas y Comprobantes
+                        </h3>
+                        <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+                          Mensajes y cláusulas legales en el pie de página
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -527,7 +594,7 @@ export default function CompanySettings() {
                     <textarea
                       rows={3}
                       placeholder="Ej: ¡Gracias por su preferencia! Conserve su comprobante para cualquier cambio o reclamo de garantía."
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-brand focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-slate-400 leading-relaxed"
+                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-blue-500/10 transition-all placeholder:text-slate-400 leading-relaxed"
                       {...field('footer_message')}
                     />
                     <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">
@@ -537,16 +604,18 @@ export default function CompanySettings() {
                 </div>
 
                 {/* CARD 4: DIGITAL PAYMENT METHODS & QR CODES (Yape, Plin & Banks) */}
-                <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-5">
+                <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 sm:p-5 shadow-2xs space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800 gap-2">
-                    <div className="flex items-center gap-2">
-                      <QrCode size={18} className="text-[#5550F2] dark:text-indigo-400" />
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-[#742284] dark:text-purple-400 flex items-center justify-center shrink-0">
+                        <QrCode size={16} />
+                      </div>
                       <div>
                         <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
                           4. Medios de Pago Digital & Códigos QR
                         </h3>
                         <p className="text-[11px] text-slate-400 dark:text-zinc-500">
-                          Configura y sube las capturas de tus QR de Yape, Plin y cuentas bancarias.
+                          Configura y sube las capturas de tus QR de Yape, Plin y cuentas bancarias
                         </p>
                       </div>
                     </div>
@@ -590,7 +659,7 @@ export default function CompanySettings() {
                       onClick={() => setActivePaymentTab('transfer')}
                       className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                         activePaymentTab === 'transfer'
-                          ? 'bg-blue-600 text-white shadow-sm'
+                          ? 'bg-[#1B4FD8] text-white shadow-sm'
                           : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
@@ -897,18 +966,19 @@ export default function CompanySettings() {
               </div>
 
               {/* ─── RIGHT COLUMN: LIVE THERMAL TICKET MOCKUP & ACTIONS (5 COLS) ─── */}
-              <div className="lg:col-span-5 space-y-5">
+              <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-6">
 
-                {/* CARD: LIVE THERMAL RECEIPT MOCKUP */}
-                <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-xs space-y-3.5">
+                {/* CARD 1: LIVE THERMAL RECEIPT MOCKUP */}
+                <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 sm:p-5 shadow-2xs space-y-3.5">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
                     <div className="flex items-center gap-2">
-                      <Printer size={16} className="text-brand dark:text-blue-400" />
+                      <Printer size={16} className="text-[#1B4FD8] dark:text-blue-400" />
                       <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
                         Vista Previa de Boleta en Vivo
                       </h3>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-500/20">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/50 uppercase">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       En vivo
                     </span>
                   </div>
@@ -918,7 +988,7 @@ export default function CompanySettings() {
                   </p>
 
                   {/* REALISTIC THERMAL RECEIPT CONTAINER */}
-                  <div className="bg-white text-slate-900 p-5 rounded-2xl border-2 border-dashed border-slate-300 shadow-md font-sans text-xs leading-relaxed max-w-[320px] mx-auto select-none">
+                  <div className="bg-white text-slate-900 p-5 rounded-xl border-2 border-dashed border-slate-300 shadow-md font-sans text-xs leading-relaxed max-w-[320px] mx-auto select-none">
                     
                     {/* Header */}
                     <div className="text-center pb-3 border-b border-dashed border-slate-300 space-y-1">
@@ -931,8 +1001,8 @@ export default function CompanySettings() {
                             onError={() => setLogoPreviewError(true)}
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 flex items-center justify-center font-bold">
-                            <Building2 size={22} className="text-slate-600 dark:text-slate-300" />
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold">
+                            <Building2 size={22} className="text-slate-600" />
                           </div>
                         )}
                       </div>
@@ -1001,7 +1071,7 @@ export default function CompanySettings() {
                     {/* Total */}
                     <div className="py-2.5 flex items-center justify-between text-xs font-bold border-b border-dashed border-slate-300">
                       <span className="uppercase tracking-wider">Total a Pagar</span>
-                      <span className="text-base font-extrabold text-brand font-mono">
+                      <span className="text-base font-extrabold text-[#1B4FD8] font-mono">
                         {form.currency || 'S/'} 149.00
                       </span>
                     </div>
@@ -1016,12 +1086,54 @@ export default function CompanySettings() {
                   </div>
                 </div>
 
-                {/* CARD: ACTIONS & PERSISTENCE */}
-                <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs space-y-3">
+                {/* CARD 2: VALIDACIÓN DE PERFIL FISCAL (5/5 CHECKLIST) */}
+                <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 sm:p-5 shadow-2xs space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck size={16} className="text-[#1B4FD8] dark:text-blue-400" />
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
+                        Validación de Perfil Fiscal
+                      </h4>
+                    </div>
+                    <span className="text-[11px] font-mono font-bold text-[#1B4FD8] dark:text-blue-400">
+                      {validationsCount}/5 Completado
+                    </span>
+                  </div>
+
+                  {/* Segmented Progress Bar */}
+                  <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-[#1B4FD8] h-full rounded-full transition-all duration-300"
+                      style={{ width: `${(validationsCount / 5) * 100}%` }}
+                    />
+                  </div>
+
+                  <ul className="space-y-2 pt-1 text-xs">
+                    {validations.map((item, idx) => (
+                      <li key={idx} className="flex items-center justify-between gap-2">
+                        <span className={`text-[11px] ${item.valid ? 'text-slate-700 dark:text-zinc-300' : 'text-slate-400 dark:text-zinc-500'}`}>
+                          {item.label}
+                        </span>
+                        {item.valid ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 shrink-0 font-bold flex items-center gap-1 text-[10px]">
+                            <Check size={12} strokeWidth={3} /> Listo
+                          </span>
+                        ) : (
+                          <span className="text-slate-300 dark:text-zinc-600 shrink-0 text-[10px]">
+                            Pendiente
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* CARD 3: ACTIONS & PERSISTENCE */}
+                <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 sm:p-5 shadow-2xs space-y-3">
                   <button
                     type="submit"
                     disabled={saving || !form.name.trim()}
-                    className="w-full py-3 px-4 rounded-xl bg-brand hover:bg-brand-hover text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow-card active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 px-4 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm shadow-blue-600/25 active:scale-98 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {saving ? (
                       <>
@@ -1032,13 +1144,14 @@ export default function CompanySettings() {
                       <>
                         <Save size={16} />
                         <span>Guardar Perfil de Empresa</span>
+                        <kbd className="px-1.5 py-0.5 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
                       </>
                     )}
                   </button>
 
                   <div className="text-center">
                     <p className="text-[11px] text-slate-400 dark:text-zinc-500">
-                      Los cambios se aplicarán inmediatamente a todas las boletas y ventas de tu negocio.
+                      Cifrado SSL de 256 bits · Sincronización instantánea con el módulo POS y comprobantes impresos
                     </p>
                   </div>
                 </div>
