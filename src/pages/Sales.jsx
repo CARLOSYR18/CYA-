@@ -190,12 +190,14 @@ export default function Sales() {
     return { name: 'Ventas', role: 'Operador' }
   }
 
-  // Format voucher code matching reference (e.g. FAC-001248, BOLE-001246)
+  // Format voucher code matching legal standard (e.g. F001-001248, B001-001246, NV01-001245)
   const formatVoucherCode = (sale) => {
+    if (!sale) return ''
     if (sale.invoice_number) return sale.invoice_number
     const rawId = String(sale.id || '').replace(/\D/g, '') || String(sale.id || '')
     const numPart = rawId.length >= 6 ? rawId.slice(-6) : rawId.padStart(6, '0')
-    const prefix = sale.receipt_type === 'boleta' ? 'BOLE' : 'FAC'
+    const type = (sale.receipt_type || '').toLowerCase()
+    const prefix = type === 'factura' ? 'F001' : type === 'nota' ? 'NV01' : 'B001'
     return `${prefix}-${numPart}`
   }
 
