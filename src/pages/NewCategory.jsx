@@ -318,52 +318,61 @@ export default function NewCategory() {
       <div className="space-y-4 max-w-6xl mx-auto pb-32 sm:pb-40 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
-            0. COMPACT BREADCRUMB & TOP HEADER BAR
+            0. COMPACT BREADCRUMB & TOP HEADER BAR (EXECUTIVE STANDARD)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-zinc-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-white dark:bg-[#141417] p-3.5 sm:p-4 rounded-xl border border-slate-200/90 dark:border-zinc-800/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => requestLeave('/categorias')}
-              className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer active:scale-95 shadow-xs"
-              title="Regresar a Categorías (Esc)"
+              className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer shrink-0 shadow-2xs"
+              title="Volver al Catálogo de Categorías (Esc)"
             >
               <ArrowLeft size={16} />
             </button>
             <div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                <span className="hover:text-[#1B4FD8] cursor-pointer" onClick={() => requestLeave('/categorias')}>
-                  Categorías
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                <span className="hover:text-[#1B4FD8] cursor-pointer" onClick={() => requestLeave('/inventario')}>
+                  MÓDULO DE INVENTARIO
                 </span>
                 <span>/</span>
-                <span className="text-[#1B4FD8] dark:text-blue-400 font-semibold">
-                  {isEditing ? 'Modificar Familia' : 'Nueva Familia'}
+                <span className="hover:text-[#1B4FD8] cursor-pointer" onClick={() => requestLeave('/categorias')}>
+                  CLASIFICACIÓN & FAMILIAS
+                </span>
+                <span>/</span>
+                <span className="text-[#1B4FD8] dark:text-blue-400">
+                  {isEditing ? 'MODIFICACIÓN DE FAMILIA' : 'ALTA DE CATEGORÍA'}
                 </span>
               </div>
-              <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                {isEditing ? `Editar: ${originalCategory?.name || name}` : 'Registrar Nueva Categoría'}
-              </h1>
+              <div className="flex items-center gap-2.5 mt-0.5">
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-none">
+                  {isEditing ? `Editar: ${originalCategory?.name || name}` : 'Registrar Nueva Categoría en Catálogo'}
+                </h1>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8]" />
+                  FAMILIA ERP
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 self-start sm:self-auto">
             <button
               type="button"
               onClick={() => requestLeave('/categorias')}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
             >
-              <span>Cancelar</span>
-              <kbd className="hidden sm:inline-block text-[10px] bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 px-1.5 py-0.5 rounded font-mono">Esc</kbd>
+              Cancelar [Esc]
             </button>
             <button
               type="button"
               onClick={handleSubmit}
               disabled={isProcessing || !name.trim()}
-              className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold shadow-md shadow-blue-600/25 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm shadow-blue-600/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Check size={14} strokeWidth={2.5} />
+              <Check size={15} strokeWidth={2.5} />
               <span>{isEditing ? 'Guardar Cambios' : 'Guardar y Registrar'}</span>
-              <kbd className="hidden sm:inline-block text-[10px] bg-blue-500/30 text-white px-1.5 py-0.5 rounded font-mono">F2</kbd>
+              <kbd className="px-1 py-0.5 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
             </button>
           </div>
         </div>
@@ -372,14 +381,14 @@ export default function NewCategory() {
             ERROR NOTIFICATION
            ═════════════════════════════════════════════════════════ */}
         {error && (
-          <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2.5 shadow-xs animate-slide-up">
+          <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2.5 shadow-xs animate-slide-up">
             <AlertCircle size={16} className="shrink-0 text-rose-600 dark:text-rose-400" />
             <span className="font-semibold">{error}</span>
           </div>
         )}
 
         {/* ═════════════════════════════════════════════════════════
-            MAIN FORM: COMPACT 2-COLUMN SINGLE-SCREEN LAYOUT
+            MAIN FORM: 2-COLUMN SENIOR ENTERPRISE LAYOUT
            ═════════════════════════════════════════════════════════ */}
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
@@ -388,22 +397,24 @@ export default function NewCategory() {
             <div className="lg:col-span-7 space-y-4">
 
               {/* CARD 1: GENERAL INFO */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs space-y-3">
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs space-y-3.5">
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <Tag size={15} className="text-[#1B4FD8] dark:text-blue-400" />
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-[#1B4FD8] dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <Tag size={15} />
+                    </div>
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                       1. Identificación y Nomenclatura
                     </h3>
                   </div>
-                  <span className="text-[10px] sm:text-[11px] text-slate-400 dark:text-zinc-500 font-medium">Campos obligatorios *</span>
+                  <span className="text-[11px] text-slate-400 font-medium">Campos obligatorios *</span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 text-xs sm:text-sm">
                   {/* Category Name */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1 uppercase tracking-wider">
-                      Nombre de la Categoría *
+                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1">
+                      Nombre Comercial de la Categoría <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -412,21 +423,21 @@ export default function NewCategory() {
                       placeholder="Ej: Cómputo, Laptops, Audio & Video, Accesorios…"
                       required
                       autoFocus
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 font-semibold outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] focus:bg-white dark:focus:bg-zinc-900 font-medium transition-all"
                     />
-                    <p className="text-[10.5px] text-slate-400 dark:text-zinc-500 mt-1">
-                      Usa un término claro para agrupar artículos similares en inventario y ventas.
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Usa un término claro para agrupar artículos similares en catálogo, ventas e inventario.
                     </p>
                   </div>
 
                   {/* Category Description */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300">
                         Descripción Detallada (Opcional)
                       </label>
-                      <span className="text-[10px] text-slate-400 dark:text-zinc-500">
-                        {description.length}/200 caracteres
+                      <span className="text-[11px] font-mono text-slate-400">
+                        {description.length}/200
                       </span>
                     </div>
                     <textarea
@@ -435,29 +446,31 @@ export default function NewCategory() {
                       maxLength={200}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Especifica los tipos de productos que pertenecen a esta categoría, materiales o líneas comerciales…"
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-zinc-100 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500 leading-relaxed resize-none"
+                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] focus:bg-white dark:focus:bg-zinc-900 font-medium transition-all leading-relaxed resize-none"
                     />
                   </div>
                 </div>
               </div>
 
               {/* CARD 2: VISUAL BRANDING & ICON SELECTION */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs space-y-3.5">
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs space-y-3.5">
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <Palette size={15} className="text-[#1B4FD8] dark:text-blue-400" />
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
-                      2. Identidad Visual y Color
+                    <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                      <Palette size={15} />
+                    </div>
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                      2. Identidad Visual y Distintivo
                     </h3>
                   </div>
-                  <span className="text-[11px] font-bold text-[#1B4FD8] dark:text-blue-400">
+                  <span className="text-xs font-bold text-[#1B4FD8] dark:text-blue-400">
                     {selectedTheme.label}
                   </span>
                 </div>
 
                 {/* Color Palette Selector */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider text-[11px]">
                     Paleta Cromática
                   </label>
                   <div className="flex flex-wrap items-center gap-2">
@@ -468,10 +481,10 @@ export default function NewCategory() {
                           key={th.id}
                           type="button"
                           onClick={() => setColorIndex(idx)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all cursor-pointer ${
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                             isSelected
                               ? `${th.bg} ${th.border} ${th.text} ring-2 ${th.ring} shadow-xs scale-102`
-                              : 'bg-slate-50 dark:bg-zinc-800/60 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:border-slate-300'
+                              : 'bg-slate-50 dark:bg-zinc-800/60 border-slate-200/80 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:border-slate-300'
                           }`}
                         >
                           <span className={`w-2.5 h-2.5 rounded-full ${th.dot}`} />
@@ -484,8 +497,8 @@ export default function NewCategory() {
 
                 {/* Icon Selection Gallery */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
-                    Icono Representativo
+                  <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider text-[11px]">
+                    Icono Representativo de Catálogo
                   </label>
                   <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                     {AVAILABLE_ICONS.map((ic) => {
@@ -498,14 +511,14 @@ export default function NewCategory() {
                           type="button"
                           onClick={() => setIconId(ic.id)}
                           title={ic.label}
-                          className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                          className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
                             isSelected
                               ? `${selectedTheme.bg} ${selectedTheme.border} ${selectedTheme.text} ring-2 ${selectedTheme.ring} shadow-xs scale-105`
-                              : 'bg-slate-50 dark:bg-zinc-800/60 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                              : 'bg-slate-50 dark:bg-zinc-800/60 border-slate-200/80 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
                           }`}
                         >
-                          <IconComp size={18} className="mb-0.5" />
-                          <span className="text-[9.5px] font-semibold leading-tight line-clamp-1">
+                          <IconComp size={18} className="mb-1" />
+                          <span className="text-[10px] font-semibold leading-tight line-clamp-1">
                             {ic.label}
                           </span>
                         </button>
@@ -515,116 +528,190 @@ export default function NewCategory() {
                 </div>
               </div>
 
-              {/* CARD 3: BEST PRACTICES TIP */}
-              <div className="bg-slate-50 dark:bg-zinc-800/40 rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3.5 flex items-center gap-3">
-                <div className="p-1.5 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
-                  <ShieldCheck size={16} />
+              {/* CARD 3: MAIN ACTION BUTTONS BAR (SAFELY POSITIONED ON LEFT COLUMN) */}
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
+                  <span className="font-medium">Categoría sincronizada en tiempo real con Kardex</span>
                 </div>
-                <div className="text-[11px] text-slate-600 dark:text-zinc-300 leading-normal">
-                  <span className="font-bold text-slate-900 dark:text-zinc-100">Consejo ERP: </span>
-                  Mantener entre 4 y 15 categorías principales agiliza las búsquedas en el Punto de Venta y el control de inventario.
+
+                <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => requestLeave('/categorias')}
+                    className="w-1/2 sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer text-center"
+                  >
+                    Cancelar [Esc]
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isProcessing || !name.trim()}
+                    className="w-1/2 sm:w-auto px-6 py-2.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-98 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isProcessing ? (
+                      <span>Guardando…</span>
+                    ) : (
+                      <>
+                        <Check size={16} strokeWidth={2.5} />
+                        <span>{isEditing ? 'Guardar Cambios' : 'Registrar Categoría'}</span>
+                        <kbd className="px-1.5 py-0.5 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
 
             </div>
 
-            {/* ─── RIGHT COLUMN: LIVE PREVIEW & ACTIONS (5 COLS) ─── */}
+            {/* ─── RIGHT COLUMN: LIVE REPLICA PREVIEW & CONFORMITY (5 COLS) ─── */}
             <div className="lg:col-span-5 space-y-4">
 
-              {/* CARD: LIVE FINNOVA CARD PREVIEW */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-5 shadow-xs space-y-3">
+              {/* CARD: VISTA PREVIA EXACTA EN TIEMPO REAL (RÉPLICA SENIOR ENTERPRISE DE CATEGORÍA) */}
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs space-y-3.5">
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <Eye size={15} className="text-[#1B4FD8] dark:text-blue-400" />
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    <Sparkles size={15} className="text-amber-500" />
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                       Vista Previa en Tiempo Real
                     </h3>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-500/20">
-                    En vivo
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
+                    EN CATÁLOGO
                   </span>
                 </div>
 
-                <p className="text-[11px] text-slate-400 dark:text-zinc-500">
-                  Así se visualizará la tarjeta de esta categoría en tu catálogo:
+                <p className="text-[11px] text-slate-400">
+                  Así se visualizará la ficha de esta familia en el catálogo oficial:
                 </p>
 
-                {/* THE MOCK CARD */}
-                <div className="bg-white dark:bg-[#18181c] rounded-2xl border border-slate-200 dark:border-zinc-700 p-4.5 shadow-sm space-y-3.5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`w-11 h-11 rounded-2xl ${selectedTheme.bg} ${selectedTheme.border} ${selectedTheme.text} border flex items-center justify-center shrink-0 shadow-xs`}
-                      >
-                        <CurrentIconComponent size={22} />
+                {/* TARJETA RÉPLICA EXACTA DEL CATÁLOGO DE CATEGORÍAS */}
+                <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/90 dark:border-zinc-800 transition-all duration-200 overflow-hidden shadow-sm flex flex-col justify-between">
+                  <div>
+                    {/* Escenario Superior: Showcase con Código FAM y Estado */}
+                    <div className="relative w-full h-40 bg-gradient-to-b from-slate-50/70 via-slate-50/30 to-white dark:from-zinc-900/60 dark:via-zinc-900/30 dark:to-transparent p-4 flex flex-col justify-between overflow-hidden border-b border-slate-100/80 dark:border-zinc-800/60">
+                      {/* Top Header Row: FAM Chip + Health Status Dot */}
+                      <div className="flex items-center justify-between w-full z-10">
+                        <span className="font-mono text-[10.5px] font-bold text-slate-700 dark:text-zinc-300 bg-white/95 dark:bg-zinc-800/95 backdrop-blur-md border border-slate-200/90 dark:border-zinc-700 px-2 py-0.5 rounded-md shadow-2xs">
+                          {isEditing ? `FAM-${String(id || 1).padStart(2, '0')}` : 'FAM-NUEVA'}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold backdrop-blur-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>{isEditing ? 'Disponible' : 'Nueva Familia'}</span>
+                        </span>
                       </div>
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-slate-900 dark:text-zinc-100 text-sm sm:text-base leading-snug truncate">
-                          {name.trim() || 'Nombre de la Categoría'}
-                        </h4>
-                        <span className="text-[10.5px] font-semibold text-slate-400 dark:text-zinc-400">
-                          {isEditing ? `${editingStats.skuCount} SKUs registrados` : 'Familia nueva'}
+
+                      {/* Center Icon Showcase */}
+                      <div className="flex items-center justify-center my-auto">
+                        <div className={`w-16 h-16 rounded-2xl ${selectedTheme.bg} ${selectedTheme.border} ${selectedTheme.text} border-2 flex items-center justify-center shadow-sm`}>
+                          <CurrentIconComponent size={32} />
+                        </div>
+                      </div>
+
+                      {/* Bottom info bar of showcase */}
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-zinc-500 z-10">
+                        <span className="font-semibold uppercase tracking-wider">
+                          {isEditing ? `${editingStats.skuCount} SKUs clasificados` : '0 SKUs registrados'}
+                        </span>
+                        <span className="font-bold text-[#1B4FD8] dark:text-blue-400">
+                          {isEditing ? 'Activa' : 'Nueva Línea'}
                         </span>
                       </div>
                     </div>
+
+                    {/* Cuerpo de la Tarjeta */}
+                    <div className="p-4 sm:p-5 space-y-3">
+                      {/* Línea & Familia */}
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                        <span>FAMILIA DE INVENTARIO</span>
+                        <span className="text-slate-300 dark:text-zinc-600">·</span>
+                        <span className="text-slate-500 dark:text-zinc-400 font-medium">LÍNEA OFICIAL</span>
+                      </div>
+
+                      {/* Título de la Categoría */}
+                      <h3 className="font-bold text-slate-900 dark:text-white text-base leading-snug line-clamp-1">
+                        {name.trim() || 'Nombre Comercial de la Categoría'}
+                      </h3>
+
+                      {/* Descripción */}
+                      <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 min-h-[32px] leading-relaxed">
+                        {description.trim() || (
+                          <span className="text-slate-300 dark:text-zinc-600 italic">
+                            Sin descripción registrada. Especifica los tipos de artículos en esta familia.
+                          </span>
+                        )}
+                      </p>
+
+                      {/* Módulo de Existencias */}
+                      <div className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800/80 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 dark:text-zinc-400 font-medium flex items-center gap-1.5">
+                            <Boxes size={13} className="text-slate-400" />
+                            <span>Existencias:</span>
+                          </span>
+                          <span className="font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+                            {isEditing ? fmtN(editingStats.totalUnits) : '0'}{' '}
+                            <span className="text-[11px] font-medium text-slate-400 font-sans">unidades</span>
+                          </span>
+                        </div>
+
+                        {/* Barra de Proporción de Stock */}
+                        <div className="w-full h-1.5 rounded-full bg-slate-200/80 dark:bg-zinc-700/80 overflow-hidden">
+                          <div
+                            style={{ width: isEditing ? '60%' : '10%' }}
+                            className={`h-full rounded-full transition-all duration-500 bg-gradient-to-r ${selectedTheme.bar}`}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 min-h-[30px] leading-relaxed">
-                    {description.trim() || (
-                      <span className="text-slate-300 dark:text-zinc-600 italic">
-                        Sin descripción registrada. Puedes detallar los productos asociados.
+                  {/* Footer Comercial: Valorización + Acciones */}
+                  <div className="px-5 py-3.5 bg-slate-50/60 dark:bg-zinc-800/30 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-baseline font-sans text-slate-900 dark:text-white leading-none">
+                        <span className="text-sm font-bold mr-1 text-slate-600 dark:text-zinc-400">S/</span>
+                        <span className="text-xl sm:text-2xl font-black tracking-tight">
+                          {isEditing ? Math.floor(editingStats.totalValuation).toLocaleString('es-PE') : '0'}
+                        </span>
+                        <span className="text-xs font-bold self-start ml-0.5">
+                          .{isEditing ? (editingStats.totalValuation % 1).toFixed(2).substring(2) : '00'}
+                        </span>
+                      </div>
+                      <span className="inline-flex items-center text-[10.5px] font-extrabold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/40 px-2 py-0.5 rounded-md mt-1">
+                        +100% activo
                       </span>
-                    )}
-                  </p>
+                    </div>
 
-                  {/* Micro stats mockup */}
-                  <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800 grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-2 border border-slate-100 dark:border-zinc-800">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">SKUs</p>
-                      <p className="font-extrabold text-slate-900 dark:text-zinc-100 text-xs sm:text-sm font-display">
-                        {isEditing ? editingStats.skuCount : 0}
-                      </p>
+                    <div className="flex items-center gap-1">
+                      <div className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 text-slate-400 flex items-center justify-center">
+                        <Eye size={14} />
+                      </div>
+                      <div className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 text-slate-400 flex items-center justify-center">
+                        <Palette size={14} />
+                      </div>
                     </div>
-                    <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-2 border border-slate-100 dark:border-zinc-800">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Stock</p>
-                      <p className="font-extrabold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm font-display">
-                        {isEditing ? `${fmtN(editingStats.totalUnits)}` : '0 uds.'}
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl p-2 border border-slate-100 dark:border-zinc-800">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Valor</p>
-                      <p className="font-extrabold text-slate-900 dark:text-zinc-100 text-[11px] font-display truncate">
-                        {isEditing ? fmt(editingStats.totalValuation) : 'S/ 0.00'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className={`bg-gradient-to-r ${selectedTheme.bar} h-full rounded-full`}
-                      style={{ width: '45%' }}
-                    />
                   </div>
                 </div>
               </div>
 
               {/* CARD: CONFORMITY VALIDATIONS CHECKLIST */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 sm:p-4.5 shadow-xs space-y-3">
+              <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs space-y-3">
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 size={16} className="text-[#1B4FD8] dark:text-blue-400" />
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100">
-                      Validación de Catalogación
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                      Conformidad de Catalogación
                     </h3>
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                    {validations.filter((v) => v.valid).length} / {validations.length} Completado
+                  <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                    {validations.filter((v) => v.valid).length} / {validations.length} CONFORME
                   </span>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5 text-xs">
                   {validations.map((v, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs py-1">
+                    <div key={i} className="flex items-center justify-between py-1">
                       <div className="flex items-center gap-2">
                         <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
                           v.valid
@@ -647,62 +734,9 @@ export default function NewCategory() {
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* CARD: CONTEXTUAL STATS (IF EDITING) */}
-              {isEditing && (
-                <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-xs space-y-2.5">
-                  <div className="flex items-center gap-2 text-slate-900 dark:text-zinc-100 font-bold text-xs sm:text-sm">
-                    <Package size={15} className="text-[#1B4FD8] dark:text-blue-400" />
-                    <span>Productos Vinculados Actualmente</span>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs text-slate-600 dark:text-zinc-400">
-                    <div className="flex justify-between py-1 border-b border-slate-100 dark:border-zinc-800">
-                      <span>Total de SKUs asignados:</span>
-                      <strong className="text-slate-900 dark:text-zinc-100">{editingStats.skuCount}</strong>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100 dark:border-zinc-800">
-                      <span>Unidades totales en almacén:</span>
-                      <strong className="text-emerald-600 dark:text-emerald-400">{fmtN(editingStats.totalUnits)}</strong>
-                    </div>
-                    <div className="flex justify-between py-1">
-                      <span>Capital invertido estimado:</span>
-                      <strong className="text-slate-900 dark:text-zinc-100">{fmt(editingStats.totalValuation)}</strong>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* CARD: ACTION BUTTONS */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-4 shadow-xs space-y-2.5">
-                <button
-                  type="submit"
-                  disabled={isProcessing || !name.trim()}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-600/25 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isProcessing ? (
-                    <span>Guardando datos…</span>
-                  ) : (
-                    <>
-                      <Check size={16} strokeWidth={2.5} />
-                      <span>{isEditing ? 'Guardar Modificaciones' : 'Crear y Publicar Categoría'}</span>
-                      <kbd className="hidden sm:inline-block text-[10px] bg-blue-500/30 text-white px-1.5 py-0.5 rounded font-mono ml-1">F2</kbd>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => requestLeave('/categorias')}
-                  className="w-full py-2 px-4 rounded-xl bg-slate-50 dark:bg-zinc-800/80 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-200 dark:border-zinc-700"
-                >
-                  <span>Cancelar y Regresar</span>
-                  <kbd className="hidden sm:inline-block text-[10px] bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 px-1.5 py-0.5 rounded font-mono">Esc</kbd>
-                </button>
-
-                <div className="pt-1 text-center text-[10.5px] text-slate-400 flex items-center justify-center gap-1">
-                  <ShieldCheck size={13} className="text-emerald-500" />
+                <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
+                  <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
                   <span>Sincronización instantánea con catálogo y kardex</span>
                 </div>
               </div>
