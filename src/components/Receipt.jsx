@@ -125,7 +125,7 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
   return (
     <div
       ref={ref}
-      className="bg-white text-slate-900 font-sans p-5 sm:p-6 rounded-sm shadow-md border border-slate-200/90 w-[305px] sm:w-[325px] mx-auto text-[11px] leading-tight select-text relative"
+      className="bg-white text-slate-900 font-sans px-5 sm:px-6 pt-6 pb-7 rounded-sm shadow-xl border-2 border-slate-300 w-[315px] sm:w-[335px] mx-auto text-[11px] leading-tight select-text relative"
       style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}
     >
       {/* ─── Marca de Agua en Caso de Venta Anulada ─── */}
@@ -305,13 +305,23 @@ const TicketBody = forwardRef(function TicketBody({ sale, client, products, comp
       </div>
 
       {/* ─── Mensaje de Pie / Garantía ─── */}
-      <div className="border-t border-dashed border-slate-300 pt-2 mt-2 text-center space-y-0.5">
-        <p className="font-bold text-[10px] text-slate-800 whitespace-pre-line leading-tight">
+      <div className="border-t border-dashed border-slate-300 pt-2.5 mt-2.5 text-center space-y-1">
+        <p className="font-bold text-[10px] text-slate-800 whitespace-pre-line leading-relaxed">
           {company?.footer_message || '¡Gracias por su compra!\nConserve su comprobante para cualquier cambio o garantía.'}
         </p>
-        <p className="font-mono text-[8px] text-slate-400 tracking-wider pt-0.5">
-          SISTEMA POS PRO • ERP
+        <p className="font-mono text-[8px] text-slate-400 tracking-widest pt-1 uppercase">
+          •••••• FIN DEL COMPROBANTE ••••••
         </p>
+        <p className="font-mono text-[7.5px] text-slate-400">
+          SISTEMA POS PRO • CLEANIG SERVICE ERP
+        </p>
+      </div>
+
+      {/* Marca de corte de papel térmico al final */}
+      <div className="pt-3 pb-1 text-center select-none opacity-40">
+        <span className="text-[9px] font-mono text-slate-400 tracking-wider">
+          ✂ - - - - - - - - - - - - - - - - - - - - - - - - ✂
+        </span>
       </div>
     </div>
   )
@@ -392,8 +402,8 @@ ${numberToWordsPE(total)}
 
   return (
     <div className="space-y-3">
-      {/* Visual Ticket Body: Fondo neutro suave sin bordes duplicados ni recortes */}
-      <div className="overflow-y-auto max-h-[70vh] p-2 sm:p-3 flex justify-center bg-slate-100/80 dark:bg-zinc-950/60 rounded-xl">
+      {/* Visual Ticket Body: Fondo de alto contraste para que el ticket blanco resalte en su totalidad */}
+      <div className="overflow-y-auto max-h-[72vh] p-3 sm:p-5 flex justify-center bg-slate-200/90 dark:bg-zinc-950 rounded-2xl shadow-inner">
         <TicketBody
           ref={visibleTicketRef}
           sale={sale}
