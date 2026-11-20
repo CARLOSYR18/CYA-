@@ -15,8 +15,31 @@ import { useAuth } from '../context/AuthContext'
 import { productsService } from '../services/productsService'
 
 export default function Onboarding() {
-  const { user, completeOnboarding } = useAuth()
+  const { user, completeOnboarding, logout } = useAuth()
   const navigate = useNavigate()
+
+  // Ensure onboarding screen is ALWAYS 100% pure light mode
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.remove('dark')
+    document.body.classList.remove('dark')
+
+    const observer = new MutationObserver(() => {
+      if (root.classList.contains('dark')) root.classList.remove('dark')
+      if (document.body.classList.contains('dark')) document.body.classList.remove('dark')
+    })
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] })
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] })
+
+    return () => {
+      observer.disconnect()
+      try {
+        if (localStorage.getItem('theme') === 'dark') {
+          root.classList.add('dark')
+        }
+      } catch {}
+    }
+  }, [])
 
   // Si el usuario ya cuenta con empresa registrada, redirigir directo al Dashboard
   useEffect(() => {
@@ -90,7 +113,7 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen w-full relative flex flex-col items-center justify-center p-4 sm:p-6 font-sans select-none overflow-x-hidden">
+    <div className="auth-always-light min-h-screen w-full relative flex flex-col items-center justify-center p-4 sm:p-6 font-sans select-none overflow-x-hidden">
       {/* ─── Crisp Corporate Background ─── */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -210,7 +233,8 @@ export default function Onboarding() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ej. Inversiones & Servicios S.A.C."
-                className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                className="auth-input w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                style={{ backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
                 autoFocus
               />
             </div>
@@ -231,7 +255,8 @@ export default function Onboarding() {
                   value={ruc}
                   onChange={(e) => setRuc(e.target.value)}
                   placeholder="Ej. 20123456789"
-                  className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                  className="auth-input w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                  style={{ backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
                 />
               </div>
             </div>
@@ -249,7 +274,8 @@ export default function Onboarding() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="Ej. +51 987 654 321"
-                  className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                  className="auth-input w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                  style={{ backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
                 />
               </div>
             </div>
@@ -269,7 +295,8 @@ export default function Onboarding() {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="Ej. Av. Principal 123, Oficina 401"
-                className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                className="auth-input w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                style={{ backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
               />
             </div>
           </div>
@@ -297,6 +324,17 @@ export default function Onboarding() {
               <span>COMENZAR AHORA</span>
             )}
           </button>
+
+          {/* Logout escape hatch */}
+          <div className="text-center pt-2">
+            <button
+              type="button"
+              onClick={() => logout && logout()}
+              className="text-xs text-slate-500 hover:text-slate-800 transition underline cursor-pointer"
+            >
+              ¿Deseas salir o usar otra cuenta? Cerrar sesión
+            </button>
+          </div>
         </form>
       </div>
     </div>

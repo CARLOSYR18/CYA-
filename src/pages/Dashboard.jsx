@@ -62,6 +62,9 @@ function DashboardContent() {
     const cached = companySettingsService.getCached?.(user?.company_id)
     if (cached) setCompany(cached)
     else if (!user?.company_id) setCompany(null)
+    companySettingsService.get().then(c => {
+      if (c) setCompany(c)
+    }).catch(() => {})
     const handleCompanyUpdate = (e) => {
       if (e.detail) setCompany(e.detail)
       else if (e.detail === null) setCompany(null)

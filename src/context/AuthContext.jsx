@@ -297,13 +297,9 @@ export function AuthProvider({ children }) {
         setUser(profile)
         setProfileLoaded(true)
 
-        // Precarga silenciosa en segundo plano solo si pertenece a una empresa
+        // Sincronización silenciosa en segundo plano de la empresa
         if (profile.company_id) {
           setTimeout(() => {
-            import('../services/productsService').then(m => m.productsService.list().catch(() => {})).catch(() => {})
-            import('../services/salesService').then(m => m.salesService.list().catch(() => {})).catch(() => {})
-            import('../services/categoriesService').then(m => m.categoriesService.list().catch(() => {})).catch(() => {})
-            import('../services/clientsService').then(m => m.clientsService.list().catch(() => {})).catch(() => {})
             companySettingsService.get().catch(() => {})
           }, 300)
         }

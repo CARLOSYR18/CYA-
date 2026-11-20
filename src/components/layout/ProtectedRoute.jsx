@@ -5,7 +5,7 @@ import { companySettingsService } from '../../services/companySettingsService'
 import { isSupabaseConfigured } from '../../lib/supabaseClient'
 
 export default function ProtectedRoute({ children, adminOnly = false, platformAdminOnly = false }) {
-  const { user, loading, profileLoaded, isAdmin, needsOnboarding, isPlatformAdmin } = useAuth()
+  const { user, loading, profileLoaded, isAdmin, needsOnboarding, isPlatformAdmin, logout } = useAuth()
   const location = useLocation()
   const [companyActive, setCompanyActive] = useState(true)
   const [forcedReady, setForcedReady] = useState(false)
@@ -69,9 +69,16 @@ export default function ProtectedRoute({ children, adminOnly = false, platformAd
   if (!companyActive && !isPlatformAdmin && location.pathname !== '/onboarding') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base-bg text-center px-4">
-        <div>
-          <p className="text-ink-primary font-display text-xl mb-2">Cuenta desactivada</p>
-          <p className="text-ink-muted text-sm">Contacta al soporte para reactivar tu cuenta.</p>
+        <div className="max-w-sm w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl p-6 shadow-xl">
+          <p className="text-slate-900 dark:text-zinc-100 font-display text-xl font-bold mb-2">Cuenta desactivada</p>
+          <p className="text-slate-500 dark:text-zinc-400 text-sm mb-5">Contacta al soporte para reactivar tu cuenta.</p>
+          <button
+            type="button"
+            onClick={() => logout && logout()}
+            className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
+          >
+            Cerrar sesión
+          </button>
         </div>
       </div>
     )
