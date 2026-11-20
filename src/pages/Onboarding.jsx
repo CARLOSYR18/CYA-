@@ -20,7 +20,7 @@ export default function Onboarding() {
 
   // Si el usuario ya cuenta con empresa registrada, redirigir directo al Dashboard
   useEffect(() => {
-    if (user?.company_id) {
+    if (user?.company_id || localStorage.getItem('cya_cached_company_id')) {
       navigate('/', { replace: true })
     }
   }, [user?.company_id, navigate])

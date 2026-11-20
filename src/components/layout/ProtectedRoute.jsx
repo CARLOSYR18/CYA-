@@ -54,6 +54,9 @@ export default function ProtectedRoute({ children, adminOnly = false, platformAd
   }
 
   if (needsOnboarding && location.pathname !== '/onboarding') {
+    if (localStorage.getItem('cya_cached_company_id')) {
+      return children
+    }
     return <Navigate to="/onboarding" replace />
   }
 
