@@ -1574,9 +1574,15 @@ export default function InventoryMovements() {
                         {/* 5. Responsable */}
                         <td className="py-4 px-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-xs">
-                              {resp.initials}
-                            </div>
+                            {resp.isAi ? (
+                              <div className="w-7 h-7 rounded-full overflow-hidden border border-emerald-300 dark:border-emerald-700 shadow-xs shrink-0 bg-slate-100">
+                                <img src="/assistant-avatar.jpg" alt="Asistente IA" className="w-full h-full object-cover object-top" />
+                              </div>
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-xs">
+                                {resp.initials}
+                              </div>
+                            )}
                             <div className="min-w-0">
                               <p className="font-semibold text-slate-800 dark:text-zinc-200 text-xs truncate max-w-[130px]" title={resp.name}>
                                 {resp.name}

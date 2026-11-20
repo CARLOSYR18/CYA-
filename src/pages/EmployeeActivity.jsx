@@ -1272,9 +1272,15 @@ export default function EmployeeActivity() {
                         {/* 2. Colaborador / Empleado con avatar e iniciales */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-black shadow-sm bg-gradient-to-tr ${getAvatarGradient(act.user.name)} shrink-0`}>
-                              {act.user.initials}
-                            </div>
+                            {act.user.isAi ? (
+                              <div className="w-9 h-9 rounded-full overflow-hidden border border-emerald-300 dark:border-emerald-700 shadow-sm shrink-0 bg-slate-100">
+                                <img src="/assistant-avatar.jpg" alt="Asistente IA" className="w-full h-full object-cover object-top" />
+                              </div>
+                            ) : (
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-black shadow-sm bg-gradient-to-tr ${getAvatarGradient(act.user.name)} shrink-0`}>
+                                {act.user.initials}
+                              </div>
+                            )}
                             <div className="min-w-0">
                               <p className="font-extrabold text-slate-900 dark:text-white truncate text-xs sm:text-[13px]">
                                 {act.user.name}
@@ -1578,9 +1584,15 @@ export default function EmployeeActivity() {
                 Responsable del Registro
               </span>
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-black bg-gradient-to-tr ${getAvatarGradient(detailItem.user.name)} shrink-0`}>
-                  {detailItem.user.initials}
-                </div>
+                {detailItem.user.isAi ? (
+                  <div className="w-10 h-10 rounded-full overflow-hidden border border-emerald-300 dark:border-emerald-700 shadow-sm shrink-0 bg-slate-100">
+                    <img src="/assistant-avatar.jpg" alt="Asistente IA" className="w-full h-full object-cover object-top" />
+                  </div>
+                ) : (
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-black bg-gradient-to-tr ${getAvatarGradient(detailItem.user.name)} shrink-0`}>
+                    {detailItem.user.initials}
+                  </div>
+                )}
                 <div className="min-w-0">
                   <p className="font-black text-slate-900 dark:text-white text-sm">
                     {detailItem.user.name}

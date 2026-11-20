@@ -465,7 +465,7 @@ export default function Assistant() {
           title={isLarge ? 'Minimizar asistente' : open ? 'Cerrar chat' : 'Abrir asistente virtual'}
         >
           <img
-            src="/logo-cya-badge.png"
+            src="/assistant-avatar.jpg"
             alt=""
             className="w-full h-full object-cover object-top transition-transform duration-700"
             onError={(e) => {
@@ -500,7 +500,7 @@ export default function Assistant() {
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-700 border border-white/30 shrink-0 relative flex items-center justify-center">
                 <img
-                  src="/logo-cya-badge.png"
+                  src="/assistant-avatar.jpg"
                   alt=""
                   className="w-full h-full object-cover object-top"
                   onError={(e) => {
@@ -543,8 +543,13 @@ export default function Assistant() {
               return (
                 <div
                   key={idx}
-                  className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} w-full`}
+                  className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'} w-full`}
                 >
+                  {!isUser && (
+                    <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-slate-200/90 shadow-2xs bg-slate-100 mb-0.5">
+                      <img src="/assistant-avatar.jpg" alt="" className="w-full h-full object-cover object-top" />
+                    </div>
+                  )}
                   <div
                     className={`px-3.5 py-2.5 ${msg.completed ? 'w-full max-w-[96%]' : 'max-w-[85%]'
                       } whitespace-pre-wrap leading-relaxed shadow-xs ${isUser
@@ -642,7 +647,10 @@ export default function Assistant() {
 
             {/* Typing Indicator */}
             {loading && generatingReceipt && (
-              <div className="flex justify-start animate-fade-in">
+              <div className="flex items-end gap-2 justify-start animate-fade-in">
+                <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-slate-200/90 shadow-2xs bg-slate-100 mb-0.5">
+                  <img src="/assistant-avatar.jpg" alt="" className="w-full h-full object-cover object-top" />
+                </div>
                 <div className="bg-white border border-brand/30 px-4 py-3 rounded-2xl rounded-tl-xs shadow-xs flex items-center gap-3">
                   <span className="w-6 h-6 rounded-full border-[3px] border-slate-200 border-t-brand animate-spin shrink-0" />
                   <div className="leading-tight">
@@ -653,7 +661,10 @@ export default function Assistant() {
               </div>
             )}
             {loading && !generatingReceipt && (
-              <div className="flex justify-start">
+              <div className="flex items-end gap-2 justify-start">
+                <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-slate-200/90 shadow-2xs bg-slate-100 mb-0.5">
+                  <img src="/assistant-avatar.jpg" alt="" className="w-full h-full object-cover object-top" />
+                </div>
                 <div className="bg-white border border-slate-200/80 px-4 py-3 rounded-2xl rounded-tl-xs shadow-xs flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }} />
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '150ms' }} />
