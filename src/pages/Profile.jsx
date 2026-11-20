@@ -27,6 +27,8 @@ export default function Profile() {
   const [profileError, setProfileError] = useState('')
 
   // Password state
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -160,8 +162,18 @@ export default function Profile() {
     setPasswordError('')
     setPasswordSuccess('')
 
+    if (!currentPassword) {
+      setPasswordError('Debes ingresar tu contraseña actual para confirmar tu identidad.')
+      return
+    }
+
     if (!newPassword) {
       setPasswordError('Ingresa una nueva contraseña.')
+      return
+    }
+
+    if (newPassword === currentPassword) {
+      setPasswordError('La nueva contraseña debe ser diferente a la contraseña actual.')
       return
     }
 
@@ -177,8 +189,9 @@ export default function Profile() {
 
     setSavingPassword(true)
     try {
-      await updatePassword(newPassword)
+      await updatePassword(newPassword, currentPassword)
       setPasswordSuccess('¡Contraseña actualizada con éxito!')
+      setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
       setTimeout(() => setPasswordSuccess(''), 4000)
@@ -505,8 +518,39 @@ export default function Profile() {
 
               <form onSubmit={handleSavePassword} className="space-y-4">
                 <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                      Contraseña Actual *
+                    </label>
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                      <Lock size={10} /> Verificación de identidad
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Ingresa tu contraseña vigente"
+                      className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/80 text-slate-900 dark:text-zinc-100 text-xs sm:text-sm font-mono font-bold focus:ring-2 focus:ring-amber-500/10 focus:border-amber-500 focus:bg-white dark:focus:bg-zinc-900 transition-all outline-none placeholder:font-sans placeholder:font-normal placeholder:text-slate-400"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(v => !v)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 cursor-pointer"
+                    >
+                      {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <p className="text-[10.5px] text-slate-400 dark:text-zinc-500 mt-1">
+                    Requerida para confirmar que eres el propietario legítimo de esta cuenta antes de aplicar el cambio.
+                  </p>
+                </div>
+
+                <div className="pt-1 border-t border-slate-100 dark:border-zinc-800/80">
                   <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
-                    Nueva Contraseña
+                    Nueva Contraseña *
                   </label>
                   <div className="relative">
                     <input
@@ -529,13 +573,13 @@ export default function Profile() {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">
-                    Confirmar Nueva Contraseña
+                    Confirmar Nueva Contraseña *
                   </label>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repite tu contraseña"
+                    placeholder="Repite tu nueva contraseña"
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/80 text-slate-900 dark:text-zinc-100 text-xs sm:text-sm font-mono font-bold focus:ring-2 focus:ring-blue-500/10 focus:border-[#1B4FD8] focus:bg-white dark:focus:bg-zinc-900 transition-all outline-none placeholder:font-sans placeholder:font-normal placeholder:text-slate-400"
                     required
                   />
@@ -588,11 +632,11 @@ export default function Profile() {
                 <div className="pt-2 flex justify-end">
                   <button
                     type="submit"
-                    disabled={savingPassword || !newPassword || !isPasswordValid || newPassword !== confirmPassword}
+                    disabled={savingPassword || !currentPassword || !newPassword || !isPasswordValid || newPassword !== confirmPassword}
                     className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs shadow-sm shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <KeyRound size={14} />
-                    <span>{savingPassword ? 'Actualizando...' : 'Actualizar Contraseña'}</span>
+                    <span>{savingPassword ? 'Verificando y actualizando…' : 'Actualizar Contraseña'}</span>
                   </button>
                 </div>
               </form>

@@ -559,11 +559,20 @@ export function AuthProvider({ children }) {
     return updated
   }
 
-  async function updatePassword(newPassword) {
+  async function updatePassword(newPassword, currentPassword) {
     if (!newPassword || newPassword.trim().length < 6) {
       throw new Error('La nueva contraseña debe tener al menos 6 caracteres.')
     }
     if (isSupabaseConfigured) {
+      if (currentPassword && user?.email) {
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: currentPassword
+        })
+        if (verifyErr) {
+          throw new Error('La contraseña actual ingresada es incorrecta.')
+        }
+      }
       const { error } = await supabase.auth.updateUser({ password: newPassword.trim() })
       if (error) {
         const msg = (error.message || '').toLowerCase()
@@ -573,6 +582,10 @@ export function AuthProvider({ children }) {
         throw new Error(`Error al actualizar contraseña: ${error.message}`)
       }
     } else {
+      const profile = localDb.find('profiles', user?.id)
+      if (currentPassword && profile?.password && profile.password !== currentPassword) {
+        throw new Error('La contraseña actual ingresada es incorrecta.')
+      }
       localDb.update('profiles', user.id, { password: newPassword.trim() })
     }
   }
