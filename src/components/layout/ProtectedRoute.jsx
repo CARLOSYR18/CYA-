@@ -8,6 +8,15 @@ export default function ProtectedRoute({ children, adminOnly = false, platformAd
   const { user, loading, profileLoaded, isAdmin, needsOnboarding, isPlatformAdmin } = useAuth()
   const location = useLocation()
   const [companyActive, setCompanyActive] = useState(true)
+  const [forcedReady, setForcedReady] = useState(false)
+
+  // Temporizador de seguridad estricto: jamás dejar la pantalla bloqueada en carga más de 2.5s
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setForcedReady(true)
+    }, 2500)
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     if (user?.company_id) {
@@ -17,7 +26,7 @@ export default function ProtectedRoute({ children, adminOnly = false, platformAd
     }
   }, [user?.company_id])
 
-  if (loading || (isSupabaseConfigured && user && !profileLoaded)) {
+  if (!forcedReady && (loading || (isSupabaseConfigured && user && !profileLoaded))) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white/90 dark:bg-[#0c0d12]/92 backdrop-blur-md p-4 animate-fade-in select-none">
         <div className="relative mb-4 flex items-center justify-center">

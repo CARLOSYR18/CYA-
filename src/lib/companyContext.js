@@ -24,8 +24,8 @@ export async function getCurrentCompanyId() {
     try {
       const fetchPromise = (async () => {
         try {
-          const { data: userData } = await supabase.auth.getUser()
-          const user = userData?.user
+          const { data: sessionData } = await supabase.auth.getSession()
+          const user = sessionData?.session?.user
           if (!user) return null
           const { data, error } = await supabase
             .from('profiles')

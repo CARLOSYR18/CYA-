@@ -39,10 +39,13 @@ export function AuthProvider({ children }) {
     purgeSuperAdminFromLocalCollaborators()
 
     if (isSupabaseConfigured) {
-      // 1. Temporizador de seguridad: NUNCA dejar la UI bloqueada en loading más de 2s
+      // 1. Temporizador de seguridad: NUNCA dejar la UI bloqueada en loading más de 2.5s
       const fallbackTimer = setTimeout(() => {
-        if (isMounted) setLoading(false)
-      }, 2000)
+        if (isMounted) {
+          setLoading(false)
+          setProfileLoaded(true)
+        }
+      }, 2500)
 
       // 2. getSession() sin bloquear setLoading por la carga de perfil
       supabase.auth.getSession().then(({ data }) => {
@@ -205,8 +208,12 @@ export function AuthProvider({ children }) {
       const isSuper = isPlatformAdminEmail(authUser.email)
 
       try {
-        // 1. Obtener perfil estrictamente desde la tabla protegida profiles en Supabase
-        const { data, error } = await supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle()
+        // 1. Obtener perfil estrictamente desde la tabla protegida profiles en Supabase con timeout de 3s
+        const profileQuery = supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle()
+        const timeoutPromise = new Promise((resolve) =>
+          setTimeout(() => resolve({ data: null, error: new Error('Timeout de red consultando profiles') }), 3000)
+        )
+        const { data, error } = await Promise.race([profileQuery, timeoutPromise])
         if (error) {
           console.warn('Aviso profiles query:', error.message)
         }
@@ -227,7 +234,7 @@ export function AuthProvider({ children }) {
             clearStoredCompany()
             await Promise.race([
               companySettingsService.get({ forceRefresh: true }).catch(() => null),
-              new Promise((r) => setTimeout(r, 4000))
+              new Promise((r) => setTimeout(r, 2500))
             ])
           }
         }
