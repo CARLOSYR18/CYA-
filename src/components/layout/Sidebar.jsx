@@ -232,14 +232,14 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
         <div className={`h-[68px] flex items-center ${effectiveCollapsed ? 'justify-center px-2' : 'justify-between px-4'} border-b border-slate-100 dark:border-[#27272a] shrink-0 bg-white/95 dark:bg-[#121215]/95 backdrop-blur-sm z-10`}>
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className={`h-10 ${effectiveCollapsed ? 'w-10' : 'min-w-[40px] max-w-[50px]'} rounded-xl overflow-hidden ${!isPlatformAdmin && !company ? 'bg-slate-100 dark:bg-zinc-800 animate-pulse' : 'bg-slate-50 dark:bg-zinc-800'} shrink-0 flex items-center justify-center border border-slate-200/80 dark:border-zinc-700 shadow-xs p-1`}
+              className={`h-10 w-10 rounded-xl overflow-hidden ${!isPlatformAdmin && !company ? 'bg-slate-100 dark:bg-zinc-800 animate-pulse' : 'bg-white'} ring-2 ring-indigo-500/25 dark:ring-indigo-400/30 shrink-0 flex items-center justify-center border border-slate-200/80 dark:border-white/10 shadow-2xs p-1`}
               title={isPlatformAdmin ? 'CYA SaaS Platform' : (company?.name || '')}
             >
               {isPlatformAdmin ? (
                 <img
                   src="/logo-cya-badge.png"
                   alt="CYA Platform"
-                  className="max-h-full max-w-full w-auto h-auto object-contain"
+                  className="max-h-full max-w-full w-auto h-auto object-contain rounded-lg"
                 />
               ) : !company ? (
                 <div className="w-5 h-5 rounded-md bg-slate-200 dark:bg-zinc-700" />
@@ -247,7 +247,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggle
                 <img
                   src={company.logo_url}
                   alt={company.name || 'Logo'}
-                  className="max-h-full max-w-full w-auto h-auto object-contain"
+                  className="max-h-full max-w-full w-auto h-auto object-contain rounded-lg"
                   onError={() => setLogoError(true)}
                 />
               ) : (

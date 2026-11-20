@@ -400,14 +400,14 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
               userOpen ? 'border-blue-200 bg-blue-50 dark:border-blue-500/40 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}>
             <div
-              className={`h-8 ${avatarUrl && !imgError ? (user?.avatar_url ? 'w-8' : 'min-w-[32px] max-w-[48px] px-1 bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10') : 'w-8' } rounded-xl flex items-center justify-center text-white text-[12px] font-bold font-display shadow-2xs shrink-0 select-none overflow-hidden`}
+              className={`h-8 ${avatarUrl && !imgError ? (user?.avatar_url ? 'w-8' : 'w-8 p-0.5 bg-white ring-2 ring-indigo-500/25 dark:ring-indigo-400/30 border border-slate-200/80 dark:border-white/10') : 'w-8' } rounded-xl flex items-center justify-center text-white text-[12px] font-bold font-display shadow-2xs shrink-0 select-none overflow-hidden`}
               style={(!avatarUrl || imgError) ? { background: color } : undefined}
             >
               {avatarUrl && !imgError ? (
                 <img
                   src={avatarUrl}
                   alt={user?.full_name || company?.name || 'Avatar'}
-                  className={user?.avatar_url ? 'w-full h-full object-cover' : 'max-h-full max-w-full w-auto h-auto object-contain'}
+                  className={user?.avatar_url ? 'w-full h-full object-cover' : 'max-h-full max-w-full w-auto h-auto object-contain rounded-lg'}
                   onError={() => setImgError(true)}
                 />
               ) : (
@@ -434,8 +434,8 @@ export default function Topbar({ title, onOpenSidebar, isCollapsed = false, onTo
               style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.12)' }}>
               <div className="px-4 py-3 bg-slate-50 dark:bg-[#18181c] border-b border-slate-100 dark:border-[#27272a] flex items-center gap-2.5">
                 {avatarUrl && !imgError && (
-                  <div className={`h-8 ${user?.avatar_url ? 'w-8' : 'min-w-[32px] max-w-[48px] p-0.5'} rounded-lg overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-white/10 shrink-0 flex items-center justify-center`}>
-                    <img src={avatarUrl} alt="Avatar" className={user?.avatar_url ? 'w-full h-full object-cover' : 'max-h-full max-w-full w-auto h-auto object-contain'} />
+                  <div className={`h-8 w-8 p-0.5 rounded-xl overflow-hidden ring-1 ring-indigo-500/20 bg-white border border-slate-200/80 dark:border-white/10 shrink-0 flex items-center justify-center`}>
+                    <img src={avatarUrl} alt="Avatar" className={user?.avatar_url ? 'w-full h-full object-cover' : 'max-h-full max-w-full w-auto h-auto object-contain rounded-lg'} />
                   </div>
                 )}
                 <div className="min-w-0">
