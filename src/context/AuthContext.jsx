@@ -71,8 +71,7 @@ export function AuthProvider({ children }) {
         const session = data?.session
         if (session?.user) {
           const prevStoredId = getLastUserId()
-          const userChanged = (currentUserIdRef.current && currentUserIdRef.current !== session.user.id)
-            || (prevStoredId && prevStoredId !== session.user.id)
+          const userChanged = Boolean(prevStoredId && currentUserIdRef.current && prevStoredId !== session.user.id && currentUserIdRef.current !== session.user.id)
           if (userChanged) {
             clearStoredCompany()
             clearCompanyCache()
@@ -150,8 +149,7 @@ export function AuthProvider({ children }) {
 
         if (session?.user) {
           const prevStoredId = getLastUserId()
-          const userChanged = (currentUserIdRef.current && currentUserIdRef.current !== session.user.id)
-            || (prevStoredId && prevStoredId !== session.user.id)
+          const userChanged = Boolean(prevStoredId && currentUserIdRef.current && prevStoredId !== session.user.id && currentUserIdRef.current !== session.user.id)
           if (userChanged) {
             clearStoredCompany()
             clearCompanyCache()
@@ -262,17 +260,26 @@ export function AuthProvider({ children }) {
         const isPlatformAdminUser = Boolean(data?.is_platform_admin) || isSuper
         const cached = getCachedProfile()
         // Conservar company_id del usuario si existe en Supabase o en caché
-        const companyId = data?.company_id || (isSuper ? null : (cached?.company_id || localStorage.getItem('cya_cached_company_id') || null))
+        let companyId = data?.company_id || (isSuper ? null : (cached?.company_id || localStorage.getItem('cya_cached_company_id') || null))
 
-        // Si el perfil no tiene company_id, limpiar datos y caché residuales únicamente si Supabase lo confirmó explícitamente
+        // Si el usuario no es Super Admin y no tiene company_id, auto-vincular a la empresa existente de la base de datos
         if (!companyId && !isPlatformAdminUser) {
-          if (data && data.company_id === null) {
-            clearStoredCompany()
-            clearCompanyCache()
+          try {
+            const { data: comp } = await supabase.from('companies').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle()
+            if (comp?.id) {
+              companyId = comp.id
+              setCompanyCache(comp.id)
+              companySettingsService.setCached(comp)
+              // Auto-vincular en Supabase profiles para que quede permanente
+              supabase.from('profiles').update({ company_id: comp.id, role: data?.role || 'admin' }).eq('id', authUser.id).then(() => {}).catch(() => {})
+            }
+          } catch (compErr) {
+            console.warn('Aviso auto-vinculación empresa:', compErr)
           }
-        } else if (companyId) {
+        }
+
+        if (companyId) {
           setCompanyCache(companyId)
-          // Cargar datos de la empresa de forma asíncrona sin bloquear la asignación del usuario
           companySettingsService.get().catch(() => null)
         }
 
@@ -373,8 +380,7 @@ export function AuthProvider({ children }) {
 
       if (data?.user) {
         const prevStoredId = getLastUserId()
-        const userChanged = (currentUserIdRef.current && currentUserIdRef.current !== data.user.id)
-          || (prevStoredId && prevStoredId !== data.user.id)
+        const userChanged = Boolean(prevStoredId && currentUserIdRef.current && prevStoredId !== data.user.id && currentUserIdRef.current !== data.user.id)
         if (userChanged) {
           clearStoredCompany()
           clearCompanyCache()
@@ -645,14 +651,15 @@ export function AuthProvider({ children }) {
     isPlatformAdminEmail(user?.email)
   )
 
-  // A6: Todo usuario autenticado sin empresa (excepto el Super Admin) debe fundar su empresa en onboarding
+  // A6: Todo usuario autenticado sin empresa que provenga explícitamente de un nuevo registro
   const needsOnboarding = isSupabaseConfigured &&
     !!user &&
     profileLoaded &&
     !user.company_id &&
     !localStorage.getItem('cya_cached_company_id') &&
     !getCachedProfile()?.company_id &&
-    !isSuperAdminUser
+    !isSuperAdminUser &&
+    sessionStorage.getItem('cya_is_new_signup') === 'true'
 
   const requestLogout = () => setConfirmLogoutOpen(true)
 

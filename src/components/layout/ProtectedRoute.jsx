@@ -53,11 +53,16 @@ export default function ProtectedRoute({ children, adminOnly = false, platformAd
     return <Navigate to="/admin-plataforma" replace />
   }
 
+  // Protección estricta contra redirecciones destructivas:
+  // Jamás expulsar a un usuario hacia /onboarding si ya está en el Dashboard o si tiene datos en caché
   if (needsOnboarding && location.pathname !== '/onboarding') {
-    if (localStorage.getItem('cya_cached_company_id')) {
+    if (location.pathname === '/' || localStorage.getItem('cya_cached_company_id') || localStorage.getItem('cya_company_cache')) {
       return children
     }
-    return <Navigate to="/onboarding" replace />
+    if (sessionStorage.getItem('cya_is_new_signup') === 'true') {
+      return <Navigate to="/onboarding" replace />
+    }
+    return children
   }
 
   if (!needsOnboarding && location.pathname === '/onboarding') {

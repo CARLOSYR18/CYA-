@@ -61,6 +61,7 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
+      sessionStorage.removeItem('cya_is_new_signup')
       await login(email, password)
       navigate('/', { replace: true })
     } catch (err) {

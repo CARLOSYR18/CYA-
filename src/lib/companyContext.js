@@ -41,11 +41,20 @@ export async function getCurrentCompanyId() {
               setCompanyCache(data.company_id)
               return data.company_id
             } else {
-              clearCompanyCache()
-              return null
+              // Jamás borrar el caché si el perfil no tiene company_id aún.
+              // Intentar buscar una empresa registrada en la base de datos para auto-vincular
+              try {
+                const { data: comp } = await supabase.from('companies').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
+                if (comp?.id) {
+                  setCompanyCache(comp.id)
+                  supabase.from('profiles').update({ company_id: comp.id }).eq('id', user.id).then(() => {}).catch(() => {})
+                  return comp.id
+                }
+              } catch {}
+              return cachedCompanyId || null
             }
           }
-          return null
+          return cachedCompanyId || null
         } catch {
           return null
         }

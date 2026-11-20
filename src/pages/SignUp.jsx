@@ -61,6 +61,7 @@ export default function SignUp() {
       if (needsEmailConfirmation) {
         setEmailConfirmationRequired(true)
       } else {
+        sessionStorage.setItem('cya_is_new_signup', 'true')
         navigate('/onboarding')
       }
     } catch (err) {

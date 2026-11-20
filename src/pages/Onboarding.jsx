@@ -44,6 +44,7 @@ export default function Onboarding() {
   // Si el usuario ya cuenta con empresa registrada, redirigir directo al Dashboard
   useEffect(() => {
     if (user?.company_id || localStorage.getItem('cya_cached_company_id')) {
+      sessionStorage.removeItem('cya_is_new_signup')
       navigate('/', { replace: true })
     }
   }, [user?.company_id, navigate])
@@ -104,7 +105,8 @@ export default function Onboarding() {
         logo_url,
       })
 
-      navigate('/')
+      sessionStorage.removeItem('cya_is_new_signup')
+      navigate('/', { replace: true })
     } catch (err) {
       setError(err.message || 'Error al configurar la empresa')
     } finally {

@@ -73,7 +73,7 @@ export const companySettingsService = {
           activeId = null
         }
       }
-      if (!activeId || cached.id !== activeId) return null
+      if (activeId && cached.id && cached.id !== activeId) return null
     }
     return { ...getCachedExtraSettings(), ...cached }
   },
@@ -83,10 +83,15 @@ export const companySettingsService = {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const companyId = await getCurrentCompanyId().catch(() => null)
+        let companyId = await getCurrentCompanyId().catch(() => null)
         if (!companyId) {
-          // Si el usuario no tiene company_id, devuelve null (no el caché)
-          return null
+          const { data: firstComp } = await supabase.from('companies').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle().catch(() => ({ data: null }))
+          if (firstComp?.id) {
+            companyId = firstComp.id
+            saveStoredCompany(firstComp)
+            return { ...getCachedExtraSettings(), ...firstComp }
+          }
+          return getStoredCompany() || null
         }
 
         const extra = getCachedExtraSettings()
