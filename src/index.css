@@ -594,6 +594,17 @@ html.dark .auth-always-light .bg-white\/95,
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   COMPANY & USER LOGO BADGES (Pure white canvas in both light & dark mode)
+   ════════════════════════════════════════════════════════════════════ */
+.company-logo-badge,
+html.dark .company-logo-badge,
+.logo-badge-pure-white,
+html.dark .logo-badge-pure-white {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
    UNIVERSAL SIDEBAR EDGE-TO-EDGE FULL-HEIGHT LOCK (ALL DEVICES & SIMULATORS)
    ════════════════════════════════════════════════════════════════════ */
 #cya-main-sidebar {

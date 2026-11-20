@@ -825,12 +825,15 @@ function DashboardContent() {
         className="flex items-center cursor-pointer focus:outline-none"
         title="Perfil de usuario"
       >
-        <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl overflow-hidden ring-2 ring-indigo-500/25 dark:ring-indigo-400/30 hover:ring-indigo-500 transition-all shadow-2xs bg-white border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-0.5">
+        <div
+          className="company-logo-badge h-8 w-8 sm:h-9 sm:w-9 rounded-xl overflow-hidden ring-2 ring-indigo-500/25 dark:ring-indigo-400/30 hover:ring-indigo-500 transition-all shadow-2xs border border-slate-200/80 dark:border-white/10 flex items-center justify-center p-0.5"
+          style={{ backgroundColor: '#ffffff' }}
+        >
           {((company?.logo_url && !logoError) || user?.avatar_url) ? (
             <img
               src={(company?.logo_url && !logoError) ? company.logo_url : user.avatar_url}
               alt={company?.name || 'Usuario'}
-              className="max-h-full max-w-full w-auto h-auto object-contain rounded-lg"
+              className="max-h-full max-w-full w-auto h-auto object-contain"
               onError={(e) => {
                 if (company?.logo_url && !logoError) setLogoError(true)
                 else e.currentTarget.style.display = 'none'
@@ -847,8 +850,11 @@ function DashboardContent() {
         <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#1E2038] rounded-2xl shadow-2xl border border-slate-200 dark:border-white/10 p-2 z-40">
           <div className="px-3 py-2 border-b border-slate-100 dark:border-white/10 flex items-center gap-2.5">
             {(company?.logo_url || user?.avatar_url) && (
-              <div className="h-8 w-8 rounded-xl overflow-hidden ring-1 ring-indigo-500/20 bg-white border border-slate-200/80 dark:border-white/10 shrink-0 flex items-center justify-center p-0.5">
-                <img src={company?.logo_url || user?.avatar_url} alt="Logo" className="max-h-full max-w-full w-auto h-auto object-contain rounded-lg" />
+              <div
+                className="company-logo-badge h-8 w-8 rounded-xl overflow-hidden ring-1 ring-indigo-500/20 border border-slate-200/80 dark:border-white/10 shrink-0 flex items-center justify-center p-0.5"
+                style={{ backgroundColor: '#ffffff' }}
+              >
+                <img src={company?.logo_url || user?.avatar_url} alt="Logo" className="max-h-full max-w-full w-auto h-auto object-contain" />
               </div>
             )}
             <div className="min-w-0">
@@ -1147,14 +1153,19 @@ function DashboardContent() {
                 <Menu size={20} />
               </button>
 
-              <div className={`h-10 w-10 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl overflow-hidden ${!company ? 'bg-slate-200/70 dark:bg-zinc-800 animate-pulse' : 'bg-white'} ring-2 ring-indigo-500/25 dark:ring-indigo-400/30 border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-2xs shrink-0 p-1 sm:p-1.5`}>
+              <div
+                className={`h-10 w-10 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl overflow-hidden ring-2 ring-indigo-500/25 dark:ring-indigo-400/30 border border-slate-200/80 dark:border-white/10 flex items-center justify-center shadow-2xs shrink-0 ${
+                  !company ? 'bg-slate-200/70 dark:bg-zinc-800 animate-pulse' : (company?.logo_url && !logoError ? 'company-logo-badge p-1 sm:p-1.5' : '')
+                }`}
+                style={company?.logo_url && !logoError ? { backgroundColor: '#ffffff' } : undefined}
+              >
                 {!company ? (
                   <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-slate-300/60 dark:bg-zinc-700" />
                 ) : company.logo_url && !logoError ? (
                   <img
                     src={company.logo_url}
                     alt={company.name || 'Logo'}
-                    className="max-h-full max-w-full w-auto h-auto object-contain rounded-lg sm:rounded-xl"
+                    className="max-h-full max-w-full w-auto h-auto object-contain"
                     onError={() => setLogoError(true)}
                   />
                 ) : (
