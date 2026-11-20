@@ -16,13 +16,28 @@ export default function Login() {
   const { login, loginWithGoogle, loginWithMagicLink } = useAuth()
   const navigate = useNavigate()
 
-  // Ensure login screen is ALWAYS 100% pure light mode
+  // Ensure login screen is ALWAYS 100% pure light mode (eliminates dark mode inheritance)
   useEffect(() => {
-    document.documentElement.classList.remove('dark')
+    const root = document.documentElement
+    root.classList.remove('dark')
+    document.body.classList.remove('dark')
+
+    const observer = new MutationObserver(() => {
+      if (root.classList.contains('dark')) {
+        root.classList.remove('dark')
+      }
+      if (document.body.classList.contains('dark')) {
+        document.body.classList.remove('dark')
+      }
+    })
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] })
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] })
+
     return () => {
+      observer.disconnect()
       try {
         if (localStorage.getItem('theme') === 'dark') {
-          document.documentElement.classList.add('dark')
+          root.classList.add('dark')
         }
       } catch {}
     }
@@ -193,7 +208,8 @@ export default function Login() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="correo@empresa.com"
-                    className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                    className="auth-input w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                    style={{ backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
                     autoFocus
                   />
                 </div>
@@ -260,7 +276,8 @@ export default function Login() {
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck="false"
-                  className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                  className="auth-input w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                  style={{ backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
                   autoFocus
                 />
               </div>
@@ -285,7 +302,8 @@ export default function Login() {
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck="false"
-                  className="w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                  className="auth-input w-full h-11 bg-white border border-slate-300 focus:border-[#0B203E] rounded-lg pl-10 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0B203E]/10 transition"
+                  style={{ backgroundColor: '#ffffff', color: '#0f172a', borderColor: '#cbd5e1' }}
                 />
                 <button
                   type="button"
@@ -400,7 +418,7 @@ export default function Login() {
         )}
       </div>
 
-      {/* ─── Floating Demo Access Bar (Below card on mobile, fixed bottom-right on desktop) ─── */}
+      {/* ─── Floating Demo Access Bar (Below card on mobile, fixed bottom-right on desktop) ─── */}          
       <div className="relative z-20 mt-4 mb-2 sm:mb-0 sm:fixed sm:bottom-4 sm:right-4 z-30 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl shadow-lg border border-slate-200/90 flex items-center gap-2 text-xs shrink-0">
         <div className="flex items-center gap-1.5 text-slate-500 font-bold text-[11px]">
           <Sparkles size={13} className="text-amber-500" />

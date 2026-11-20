@@ -384,20 +384,20 @@ html.dark aside .hover\:bg-slate-100:hover {
   color: #fafafa !important;
 }
 
-/* Form Inputs & Fields */
-html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="color"]),
-html.dark select,
-html.dark textarea,
-html.dark .field {
+/* Form Inputs & Fields (Excluyendo páginas de login y autenticación) */
+html.dark :not(.auth-always-light) input:not(.auth-input):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="color"]),
+html.dark select:not(.auth-input),
+html.dark textarea:not(.auth-input),
+html.dark .field:not(.auth-input) {
   background-color: #0d0d0f !important;
   color: #fafafa !important;
   border-color: #27272a !important;
 }
-html.dark input::placeholder,
-html.dark textarea::placeholder {
+html.dark :not(.auth-always-light) input:not(.auth-input)::placeholder,
+html.dark :not(.auth-always-light) textarea:not(.auth-input)::placeholder {
   color: #71717a !important;
 }
-html.dark .label {
+html.dark :not(.auth-always-light) .label {
   color: #a1a1aa !important;
 }
 
@@ -557,21 +557,35 @@ html.dark .auth-always-light .text-slate-400,
   color: #64748b !important;
 }
 
-html.dark .auth-always-light input:not([type="checkbox"]):not([type="radio"]),
-.auth-always-light input:not([type="checkbox"]):not([type="radio"]) {
+html.dark .auth-always-light input,
+html.dark .auth-always-light input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="color"]),
+html .auth-always-light input,
+.auth-always-light input,
+.auth-always-light input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="color"]),
+input.auth-input,
+html.dark input.auth-input {
   background-color: #ffffff !important;
+  background: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
+  -webkit-text-fill-color: #0f172a !important;
 }
 
-html.dark .auth-always-light input:not([type="checkbox"]):not([type="radio"]):focus,
-.auth-always-light input:not([type="checkbox"]):not([type="radio"]):focus {
+html.dark .auth-always-light input:focus,
+.auth-always-light input:focus,
+input.auth-input:focus {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
   border-color: #0B203E !important;
+  -webkit-text-fill-color: #0f172a !important;
 }
 
 html.dark .auth-always-light input::placeholder,
-.auth-always-light input::placeholder {
+.auth-always-light input::placeholder,
+input.auth-input::placeholder {
   color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
 }
 
 html.dark .auth-always-light .bg-white\/95,
