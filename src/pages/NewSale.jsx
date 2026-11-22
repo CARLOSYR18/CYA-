@@ -5,12 +5,15 @@ import {
   Calendar, Clock, Package, Check, AlertCircle, FileText,
   Building2, DollarSign, ShieldCheck, QrCode, CreditCard,
   Banknote, ChevronDown, Minus, Search, X, Zap, CornerDownLeft,
-  Barcode, CheckCircle2, Info
+  Barcode, CheckCircle2, Info, ScanBarcode
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import PaymentQrModal from '../components/PaymentQrModal'
 import ReceiptModal from '../components/Receipt'
+import BarcodeScannerModal from '../components/ui/BarcodeScannerModal'
 import { useFormLeaveGuard } from '../hooks/useFormLeaveGuard'
+import { useBarcodeGun } from '../hooks/useBarcodeGun'
+import { playScanSuccess, playScanError } from '../utils/audioFeedback'
 import { salesService } from '../services/salesService'
 import { productsService } from '../services/productsService'
 import { clientsService } from '../services/clientsService'
@@ -62,6 +65,60 @@ export default function NewSale() {
   const [clientPickerSearch, setClientPickerSearch] = useState('')
 
   const [sellerPickerOpen, setSellerPickerOpen] = useState(false)
+
+  // ─── Barcode Scanner States ───
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scanToast, setScanToast] = useState('')
+
+  const handleBarcodeScanned = useCallback((scannedCode) => {
+    const raw = (scannedCode || '').trim()
+    if (!raw) return
+    const clean = raw.toLowerCase()
+
+    const found = products.find(
+      (p) =>
+        (p.sku && p.sku.toLowerCase() === clean) ||
+        (p.barcode && p.barcode.toLowerCase() === clean) ||
+        (p.id && p.id.toLowerCase() === clean)
+    )
+
+    if (found) {
+      playScanSuccess()
+      setItems((prevItems) => {
+        const existingIdx = prevItems.findIndex((it) => it.product_id === found.id)
+        if (existingIdx !== -1) {
+          return prevItems.map((it, idx) =>
+            idx === existingIdx
+              ? { ...it, quantity: (Number(it.quantity) || 0) + 1 }
+              : it
+          )
+        }
+        if (prevItems.length === 1 && !prevItems[0].product_id) {
+          return [{
+            product_id: found.id,
+            quantity: 1,
+            unit_price: found.sale_price !== undefined ? found.sale_price : ''
+          }]
+        }
+        return [
+          ...prevItems,
+          {
+            product_id: found.id,
+            quantity: 1,
+            unit_price: found.sale_price !== undefined ? found.sale_price : ''
+          }
+        ]
+      })
+      setScanToast(`✓ Agregado: ${found.name} (${found.sku}) · S/ ${(Number(found.sale_price) || 0).toFixed(2)}`)
+    } else {
+      playScanError()
+      setScanToast(`⚠️ Código "${raw}" no encontrado en el catálogo de productos`)
+    }
+    setTimeout(() => setScanToast(''), 4500)
+  }, [products])
+
+  // Soporte directo para pistolas lectoras de código de barras USB / Bluetooth
+  useBarcodeGun(handleBarcodeScanned)
 
   // Payment & Terms
   const [paymentStatus, setPaymentStatus] = useState('pagado') // 'pagado' | 'pendiente'
@@ -399,6 +456,9 @@ export default function NewSale() {
       } else if (e.key === 'F3') {
         e.preventDefault()
         addItemRow()
+      } else if (e.key === 'F4') {
+        e.preventDefault()
+        setScannerOpen(true)
       } else if (e.altKey && (e.key === 'c' || e.key === 'C')) {
         e.preventDefault()
         handleQuickClient()
@@ -670,16 +730,29 @@ export default function NewSale() {
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={addItemRow}
-              className="px-3 py-1.5 rounded-lg bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
-              title="Agregar fila de producto [F3]"
-            >
-              <Plus size={13} strokeWidth={2.5} />
-              <span>Agregar Producto</span>
-              <kbd className="hidden sm:inline text-[9px] font-mono text-blue-100 bg-blue-800/60 px-1 py-0.2 rounded">F3</kbd>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setScannerOpen(true)}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Escanear código de barras con cámara o pistola [F4]"
+              >
+                <ScanBarcode size={13} strokeWidth={2.5} />
+                <span>Escanear Código</span>
+                <kbd className="hidden sm:inline text-[9px] font-mono text-emerald-100 bg-emerald-800/60 px-1 py-0.2 rounded">F4</kbd>
+              </button>
+
+              <button
+                type="button"
+                onClick={addItemRow}
+                className="px-3 py-1.5 rounded-lg bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
+                title="Agregar fila de producto [F3]"
+              >
+                <Plus size={13} strokeWidth={2.5} />
+                <span>Agregar Producto</span>
+                <kbd className="hidden sm:inline text-[9px] font-mono text-blue-100 bg-blue-800/60 px-1 py-0.2 rounded">F3</kbd>
+              </button>
+            </div>
           </div>
 
           {/* Desktop POS Table View (>= 768px) */}
@@ -1678,6 +1751,30 @@ export default function NewSale() {
 
         {/* Modal de confirmación para descartar cambios si intenta salir */}
         {DiscardModalComponent}
+
+        {/* Notificación flotante de escaneo rápido POS */}
+        {scanToast && (
+          <div className="fixed bottom-5 right-5 z-40 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-xs font-bold border border-slate-700 dark:border-slate-200 animate-slide-up">
+            <ScanBarcode size={16} className="text-emerald-400 dark:text-emerald-600 shrink-0" />
+            <span>{scanToast}</span>
+            <button
+              type="button"
+              onClick={() => setScanToast('')}
+              className="ml-2 text-slate-400 hover:text-white dark:hover:text-slate-900 cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Lector de Código de Barras con Cámara */}
+        <BarcodeScannerModal
+          isOpen={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onScan={handleBarcodeScanned}
+          title="Lector de Códigos de Barras POS"
+          subtitle="Apunta la cámara al código de barras para agregarlo de inmediato a la venta"
+        />
 
       </div>
     </AppLayout>

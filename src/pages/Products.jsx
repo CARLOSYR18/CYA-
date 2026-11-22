@@ -6,12 +6,16 @@ import {
   DollarSign, Package, Layers, Sparkles, Crown, ArrowRight,
   ZoomIn, ZoomOut, Download, FileSpreadsheet, ChevronRight,
   ChevronLeft, TrendingUp, Eye, Home, BarChart2, PieChart,
-  ShieldCheck, AlertCircle, ArrowUpDown, Building2, Zap
+  ShieldCheck, AlertCircle, ArrowUpDown, Building2, Zap,
+  ScanBarcode
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
 import EmptyState from '../components/ui/EmptyState'
 import PageHeaderBadge from '../components/ui/PageHeaderBadge'
+import BarcodeScannerModal from '../components/ui/BarcodeScannerModal'
+import { useBarcodeGun } from '../hooks/useBarcodeGun'
+import { playScanSuccess, playScanError } from '../utils/audioFeedback'
 import { productsService } from '../services/productsService'
 import { categoriesService } from '../services/categoriesService'
 import { suppliersService } from '../services/suppliersService'
@@ -64,6 +68,35 @@ export default function Products() {
   // ─── Lightbox / Image Preview with Seamless Zoom ───
   const [lightboxProduct, setLightboxProduct] = useState(null)
   const [zoomScale, setZoomScale] = useState(1)
+
+  // ─── Barcode Scanner States ───
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scanToast, setScanToast] = useState('')
+
+  const handleBarcodeScanned = useCallback((scannedCode) => {
+    const code = (scannedCode || '').trim()
+    if (!code) return
+
+    setSearch(code)
+    setCurrentPage(1)
+
+    const matches = products.filter((p) => {
+      const q = code.toLowerCase()
+      return (p.sku && p.sku.toLowerCase().includes(q)) || (p.name && p.name.toLowerCase().includes(q))
+    })
+
+    if (matches.length > 0) {
+      playScanSuccess()
+      setScanToast(`✓ Código escaneado: "${code}" (${matches.length} ${matches.length === 1 ? 'producto encontrado' : 'productos encontrados'})`)
+    } else {
+      playScanError()
+      setScanToast(`⚠️ Código "${code}" no coincide con ningún producto del catálogo`)
+    }
+    setTimeout(() => setScanToast(''), 4500)
+  }, [products])
+
+  // Soporte directo para pistolas lectoras de código de barras USB / Bluetooth
+  useBarcodeGun(handleBarcodeScanned)
 
   async function loadAll(options = {}) {
     if (!productsService.hasCache?.() && !options?.silent) setLoading(true)
@@ -835,24 +868,36 @@ export default function Products() {
         <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-3.5 shadow-2xs space-y-3">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
 
-            {/* Search Input */}
+            {/* Search Input con botón de escáner integrado */}
             <div className="relative flex-1 w-full lg:max-w-md">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500" />
               <input
-                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-9 pr-9 py-2 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10 transition-all outline-none font-medium"
+                className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl pl-9 pr-24 py-2 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:bg-white dark:focus:bg-zinc-900 focus:border-[#1B4FD8] focus:ring-2 focus:ring-[#1B4FD8]/10 transition-all outline-none font-medium"
                 placeholder="Buscar por nombre de producto o SKU…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              {search && (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 cursor-pointer"
+                    title="Limpiar búsqueda"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 cursor-pointer"
+                  onClick={() => setScannerOpen(true)}
+                  className="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer border border-indigo-200/50 dark:border-indigo-800/50 active:scale-95"
+                  title="Escanear código de barras con la cámara"
                 >
-                  <X size={14} />
+                  <ScanBarcode size={13} />
+                  <span className="hidden sm:inline">Escanear</span>
                 </button>
-              )}
+              </div>
             </div>
 
             {/* Category Dropdown & View Mode Switch */}
@@ -1526,6 +1571,30 @@ export default function Products() {
             </div>
           </div>
         )}
+
+        {/* Notificación flotante de escaneo rápido */}
+        {scanToast && (
+          <div className="fixed bottom-5 right-5 z-40 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-xs font-bold border border-slate-700 dark:border-slate-200 animate-slide-up">
+            <ScanBarcode size={16} className="text-indigo-400 dark:text-indigo-600 shrink-0" />
+            <span>{scanToast}</span>
+            <button
+              type="button"
+              onClick={() => setScanToast('')}
+              className="ml-2 text-slate-400 hover:text-white dark:hover:text-slate-900 cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Modal de Escáner de Código de Barras con Cámara */}
+        <BarcodeScannerModal
+          isOpen={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onScan={handleBarcodeScanned}
+          title="Búsqueda Rápida por Código de Barras"
+          subtitle="Apunta la cámara al producto para filtrarlo al instante en el catálogo"
+        />
 
       </div>
     </AppLayout>

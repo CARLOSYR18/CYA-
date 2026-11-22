@@ -6,9 +6,12 @@ import {
   DollarSign, Package, Layers, Sparkles, Crown, ArrowRight,
   ShieldCheck, RotateCcw, Building2, Tag, Percent, ImageOff,
   Home, Pencil, Trash2, Eye, CheckCircle2, TrendingUp,
-  AlertTriangle, Zap
+  AlertTriangle, Zap, ScanBarcode
 } from 'lucide-react'
 import AppLayout from '../components/layout/AppLayout'
+import BarcodeScannerModal from '../components/ui/BarcodeScannerModal'
+import { useBarcodeGun } from '../hooks/useBarcodeGun'
+import { playScanSuccess } from '../utils/audioFeedback'
 import { useFormLeaveGuard } from '../hooks/useFormLeaveGuard'
 import { productsService } from '../services/productsService'
 import { categoriesService } from '../services/categoriesService'
@@ -52,6 +55,19 @@ export default function NewProduct() {
   const [processingStep, setProcessingStep] = useState(0) // 1: 35%, 2: 75%, 3: 100%
   const [error, setError] = useState('')
   const [originalProduct, setOriginalProduct] = useState(null)
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scanToast, setScanToast] = useState('')
+
+  // Soporte directo para pistolas lectoras de código de barras USB / Bluetooth
+  useBarcodeGun((scannedCode) => {
+    const clean = (scannedCode || '').trim().toUpperCase()
+    if (clean) {
+      setForm((prev) => ({ ...prev, sku: clean }))
+      playScanSuccess()
+      setScanToast(`✓ Código escaneado con pistola: ${clean}`)
+      setTimeout(() => setScanToast(''), 4000)
+    }
+  })
 
   // Image handling
   const [imageFile, setImageFile] = useState(null)
@@ -479,27 +495,52 @@ export default function NewProduct() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300">
-                        Código SKU <span className="text-rose-500">*</span>
+                        Código SKU / Barras <span className="text-rose-500">*</span>
                       </label>
-                      {!isEditing && (
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={handleRegenerateSku}
-                          className="text-[11px] font-bold text-[#1B4FD8] dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-                          title="Regenerar correlativo automático"
+                          onClick={() => setScannerOpen(true)}
+                          className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+                          title="Escanear código de barras con la cámara"
                         >
-                          <RotateCcw size={11} /> Regenerar
+                          <ScanBarcode size={12} /> Escanear
                         </button>
-                      )}
+                        {!isEditing && (
+                          <button
+                            type="button"
+                            onClick={handleRegenerateSku}
+                            className="text-[11px] font-bold text-[#1B4FD8] dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                            title="Regenerar correlativo automático"
+                          >
+                            <RotateCcw size={11} /> Regenerar
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <input
-                      type="text"
-                      required
-                      value={form.sku}
-                      onChange={(e) => setForm({ ...form, sku: e.target.value.toUpperCase() })}
-                      placeholder="PROD-0001"
-                      className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] focus:bg-white dark:focus:bg-zinc-900 uppercase transition-all"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        value={form.sku}
+                        onChange={(e) => setForm({ ...form, sku: e.target.value.toUpperCase() })}
+                        placeholder="PROD-0001"
+                        className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700 rounded-xl pl-3.5 pr-10 py-2.5 text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-[#1B4FD8] focus:bg-white dark:focus:bg-zinc-900 uppercase transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setScannerOpen(true)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer transition"
+                        title="Escanear código con cámara"
+                      >
+                        <ScanBarcode size={16} />
+                      </button>
+                    </div>
+                    {scanToast && (
+                      <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 mt-1 animate-fade-in flex items-center gap-1">
+                        {scanToast}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -1085,6 +1126,22 @@ export default function NewProduct() {
 
         {/* Modal de confirmación para descartar cambios */}
         {DiscardModalComponent}
+
+        {/* Lector de Código de Barras con Cámara */}
+        <BarcodeScannerModal
+          isOpen={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onScan={(code) => {
+            const clean = (code || '').trim().toUpperCase()
+            if (clean) {
+              setForm((prev) => ({ ...prev, sku: clean }))
+              setScanToast(`✓ Código escaneado: ${clean}`)
+              setTimeout(() => setScanToast(''), 4000)
+            }
+          }}
+          title="Escanear Código de Barras / SKU"
+          subtitle="Apunta la cámara al código de barras del producto para asignarlo al SKU"
+        />
 
       </div>
     </AppLayout>
