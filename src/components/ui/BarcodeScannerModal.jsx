@@ -4,6 +4,7 @@ import {
   CheckCircle2, AlertCircle, Sparkles, Volume2, VolumeX
 } from 'lucide-react'
 import { playScanSuccess, playScanError } from '../../utils/audioFeedback'
+import { loadZXing, decodeEan13FromCanvas } from '../../utils/barcodeDecoder'
 
 export default function BarcodeScannerModal({
   isOpen,
@@ -15,7 +16,9 @@ export default function BarcodeScannerModal({
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const scanIntervalRef = useRef(null)
+  const zxingReaderRef = useRef(null)
   const isScanningRef = useRef(false)
+  const offscreenCanvasRef = useRef(null)
 
   const [hasCamera, setHasCamera] = useState(true)
   const [cameraError, setCameraError] = useState('')
@@ -41,9 +44,18 @@ export default function BarcodeScannerModal({
     if (!code || isScanningRef.current) return
     isScanningRef.current = true
 
+    // Feedback háptico en móviles
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(80) } catch {}
+    }
+
     setScannedCode(code)
     if (soundEnabled) {
       playScanSuccess()
+    }
+
+    if (zxingReaderRef.current) {
+      try { zxingReaderRef.current.reset() } catch {}
     }
 
     setTimeout(() => {
@@ -118,6 +130,12 @@ export default function BarcodeScannerModal({
       clearInterval(scanIntervalRef.current)
       scanIntervalRef.current = null
     }
+    if (zxingReaderRef.current) {
+      try {
+        zxingReaderRef.current.reset()
+      } catch {}
+      zxingReaderRef.current = null
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
@@ -161,45 +179,97 @@ export default function BarcodeScannerModal({
     }
   }, [isOpen, startCamera, stopCamera])
 
-  // Scanning loop
+  // Scanning loop (Triple Engine: ZXing + BarcodeDetector + Canvas Scanline)
   useEffect(() => {
     if (!isOpen || !hasCamera) return
 
-    let detector = null
+    let active = true
+
+    // 1. Motor Principal: ZXing Multi-Format (Compatible al 100% con Safari iOS, Chrome y Android)
+    loadZXing().then((ZXing) => {
+      if (!active || !ZXing || !videoRef.current || isScanningRef.current) return
+      try {
+        const reader = new ZXing.BrowserMultiFormatReader()
+        zxingReaderRef.current = reader
+        reader.decodeFromVideoElement(videoRef.current, (result, err) => {
+          if (!active || isScanningRef.current) return
+          if (result && result.getText()) {
+            handleDetected(result.getText())
+          }
+        })
+      } catch (e) {
+        console.warn('Aviso inicializando ZXing:', e)
+      }
+    }).catch(() => {})
+
+    // 2. Motor Nativo: BarcodeDetector (Chrome/Edge Android)
+    let nativeDetector = null
     if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
       try {
         const formats = [
           'ean_13', 'ean_8', 'code_128', 'code_39', 'code_93',
           'upc_a', 'upc_e', 'qr_code', 'itf', 'data_matrix'
         ]
-        detector = new window.BarcodeDetector({ formats })
+        nativeDetector = new window.BarcodeDetector({ formats })
       } catch (e) {
-        console.warn('BarcodeDetector format error:', e)
+        console.warn('Aviso BarcodeDetector:', e)
       }
     }
 
+    // 3. Motor Respaldo: Intervalo de análisis por Canvas para códigos 1D (EAN-13, UPC)
     scanIntervalRef.current = setInterval(async () => {
-      if (isScanningRef.current || !videoRef.current || videoRef.current.readyState < 2) {
+      if (!active || isScanningRef.current || !videoRef.current || videoRef.current.readyState < 2) {
         return
       }
 
-      if (detector) {
+      if (nativeDetector) {
         try {
-          const barcodes = await detector.detect(videoRef.current)
+          const barcodes = await nativeDetector.detect(videoRef.current)
           if (barcodes && barcodes.length > 0) {
             const match = barcodes[0]?.rawValue
             if (match) {
               handleDetected(match)
+              return
             }
           }
         } catch {}
       }
+
+      // Escaneo por Canvas en caso de que el navegador no tenga ZXing ni BarcodeDetector activo
+      try {
+        const v = videoRef.current
+        const w = v.videoWidth || 640
+        const h = v.videoHeight || 480
+        if (!offscreenCanvasRef.current) {
+          offscreenCanvasRef.current = document.createElement('canvas')
+        }
+        const canvas = offscreenCanvasRef.current
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w
+          canvas.height = h
+        }
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })
+        if (ctx) {
+          ctx.drawImage(v, 0, 0, w, h)
+          const detected = decodeEan13FromCanvas(ctx, w, h)
+          if (detected) {
+            handleDetected(detected)
+          }
+        }
+      } catch {}
     }, 120)
 
     return () => {
+      active = false
       if (scanIntervalRef.current) {
         clearInterval(scanIntervalRef.current)
         scanIntervalRef.current = null
+      }
+      if (zxingReaderRef.current) {
+        try {
+          zxingReaderRef.current.reset()
+        } catch {}
+        zxingReaderRef.current = null
       }
     }
   }, [isOpen, hasCamera, handleDetected])
