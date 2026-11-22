@@ -92,7 +92,7 @@ function DashboardContent() {
     })
   }
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('1003')
-  const [activeTab, setActiveTab] = useState('unpaid') // 'all' | 'draft' | 'unpaid'
+  const [activeTab, setActiveTab] = useState('all') // 'all' | 'draft' | 'unpaid' | 'paid'
   const [activePaymentMethod, setActivePaymentMethod] = useState('stripe') // 'visa' | 'stripe' | 'paypal'
   const [searchInvoice, setSearchInvoice] = useState('')
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState('ALL')
@@ -305,6 +305,15 @@ function DashboardContent() {
 
   useEffect(() => {
     loadData()
+  }, [user?.id, user?.company_id])
+
+  // Escuchar invalidación de caché para recargar datos de inmediato si el perfil o empresa se actualizó
+  useEffect(() => {
+    const handleInvalidated = () => {
+      loadData(true)
+    }
+    window.addEventListener('cya_cache_invalidated', handleInvalidated)
+    return () => window.removeEventListener('cya_cache_invalidated', handleInvalidated)
   }, [])
 
   // Currency Formatter
@@ -323,10 +332,15 @@ function DashboardContent() {
     const now = new Date()
     const currentMonthStr = now.toISOString().slice(0, 7) // 'YYYY-MM'
 
-    // Ventas del mes (excluyendo ventas anuladas)
+    // Ventas del mes actual (excluyendo ventas anuladas)
     const monthSales = sales.filter(s => s.status !== 'anulado' && s.created_at && s.created_at.startsWith(currentMonthStr))
-    const facturacionMes = monthSales.reduce((acc, s) => acc + salesService.saleTotal(s), 0)
-    const ventasMesCount = monthSales.length
+    const allActiveSales = sales.filter(s => s.status !== 'anulado')
+
+    // Si aún no hay ventas en este mes calendario pero sí existen ventas registradas,
+    // usamos el acumulado para reflejar la facturación real
+    const activeList = monthSales.length > 0 ? monthSales : allActiveSales
+    const facturacionMes = activeList.reduce((acc, s) => acc + salesService.saleTotal(s), 0)
+    const ventasMesCount = activeList.length
     const ticketPromedio = ventasMesCount > 0 ? facturacionMes / ventasMesCount : 0
 
     // Capital en Inventario = sum(cost_price || sale_price * stock)

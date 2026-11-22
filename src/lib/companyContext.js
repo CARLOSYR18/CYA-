@@ -47,7 +47,7 @@ export async function getCurrentCompanyId() {
                 const { data: comp } = await supabase.from('companies').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
                 if (comp?.id) {
                   setCompanyCache(comp.id)
-                  supabase.from('profiles').update({ company_id: comp.id }).eq('id', user.id).then(() => {}).catch(() => {})
+                  await supabase.from('profiles').update({ company_id: comp.id }).eq('id', user.id).catch(() => {})
                   return comp.id
                 }
               } catch {}

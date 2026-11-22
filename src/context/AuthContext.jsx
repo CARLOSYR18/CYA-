@@ -270,8 +270,8 @@ export function AuthProvider({ children }) {
               companyId = comp.id
               setCompanyCache(comp.id)
               companySettingsService.setCached(comp)
-              // Auto-vincular en Supabase profiles para que quede permanente
-              supabase.from('profiles').update({ company_id: comp.id, role: data?.role || 'admin' }).eq('id', authUser.id).then(() => {}).catch(() => {})
+              // Auto-vincular en Supabase profiles de forma síncrona y esperada para que Postgres RLS lo tenga de inmediato
+              await supabase.from('profiles').update({ company_id: comp.id, role: data?.role || 'admin' }).eq('id', authUser.id)
             }
           } catch (compErr) {
             console.warn('Aviso auto-vinculación empresa:', compErr)
@@ -392,26 +392,30 @@ export function AuthProvider({ children }) {
 
         const meta = data.user.user_metadata || {}
         const isSuper = isPlatformAdminEmail(data.user.email)
+        const cached = getCachedProfile()
+        const fallbackCompanyId = isSuper ? null : (cached?.company_id || localStorage.getItem('cya_cached_company_id') || null)
         const initialUser = {
           id: data.user.id,
           email: data.user.email,
-          role: 'empleado',
+          role: cached?.role || 'empleado',
           is_platform_admin: isSuper,
-          company_id: null,
-          avatar_url: meta.avatar_url || null
+          company_id: fallbackCompanyId,
+          avatar_url: meta.avatar_url || cached?.avatar_url || null
         }
         setUser(initialUser)
+        if (fallbackCompanyId) setCompanyCache(fallbackCompanyId)
         if (isSuper) clearCompanyCache()
 
-        // Cargar perfil completo con timeout de 2.5s para asegurar datos de empresa antes de entrar
+        // Cargar perfil completo con timeout de 3.5s para asegurar datos de empresa antes de entrar
         try {
           await Promise.race([
             loadProfile(data.user),
-            new Promise((r) => setTimeout(r, 2500))
+            new Promise((r) => setTimeout(r, 3500))
           ])
         } catch (e) {
           console.warn('Aviso cargando perfil tras login:', e)
         }
+        invalidateCache()
       }
 
       await new Promise((r) => setTimeout(r, 350))
@@ -446,6 +450,15 @@ export function AuthProvider({ children }) {
       match.role = 'superadmin'
       match.is_platform_admin = true
       match.company_id = null
+    } else if (!match.company_id) {
+      // En modo local asegurar empresa activa asignada de inmediato
+      const compRows = localDb.getTable('company_settings')
+      const defaultCompId = compRows[0]?.id || 'cs-1'
+      match.company_id = defaultCompId
+      setCompanyCache(defaultCompId)
+      try {
+        localDb.update('profiles', match.id, { company_id: defaultCompId })
+      } catch {}
     }
 
     setAuthTransition({
@@ -458,8 +471,10 @@ export function AuthProvider({ children }) {
     delete session.password
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
     if (isSuper) clearCompanyCache()
+    else if (session.company_id) setCompanyCache(session.company_id)
     setUser(session)
     setProfileLoaded(true)
+    invalidateCache()
     await new Promise((r) => setTimeout(r, 650))
     setAuthTransition(null)
   }

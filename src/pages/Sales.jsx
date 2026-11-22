@@ -153,6 +153,9 @@ export default function Sales() {
 
   useEffect(() => {
     loadAll()
+    const handleInvalidated = () => loadAll({ forceRefresh: true, silent: true })
+    window.addEventListener('cya_cache_invalidated', handleInvalidated)
+    return () => window.removeEventListener('cya_cache_invalidated', handleInvalidated)
   }, [])
 
   // Product Map
