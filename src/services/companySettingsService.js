@@ -66,7 +66,13 @@ export const companySettingsService = {
 
   getCached(expectedCompanyId = null) {
     const cached = getStoredCompany()
-    if (!cached) return null
+    if (!cached) {
+      try {
+        const rows = localDb.getTable('company_settings')
+        if (rows && rows[0]) return { ...getCachedExtraSettings(), ...rows[0] }
+      } catch {}
+      return null
+    }
     if (isSupabaseConfigured) {
       let activeId = expectedCompanyId
       if (!activeId) {
@@ -94,7 +100,14 @@ export const companySettingsService = {
             saveStoredCompany(firstComp)
             return { ...getCachedExtraSettings(), ...firstComp }
           }
-          return getStoredCompany() || null
+          const stored = getStoredCompany()
+          if (stored) return stored
+          const rows = localDb.getTable('company_settings')
+          if (rows && rows[0]) {
+            saveStoredCompany(rows[0])
+            return { ...getCachedExtraSettings(), ...rows[0] }
+          }
+          return null
         }
 
         const extra = getCachedExtraSettings()
@@ -116,6 +129,8 @@ export const companySettingsService = {
         if (error) {
           console.warn('Aviso al obtener configuración de empresa:', error.message)
           if (cached && cached.id === companyId) return { ...extra, ...cached }
+          const rows = localDb.getTable('company_settings')
+          if (rows && rows[0]) return { ...extra, ...rows[0] }
           return null
         }
         if (data) {
@@ -124,9 +139,16 @@ export const companySettingsService = {
           saveStoredCompany(full)
           return full
         }
+        if (cached) return { ...extra, ...cached }
+        const rows = localDb.getTable('company_settings')
+        if (rows && rows[0]) return { ...extra, ...rows[0] }
         return null
       } catch (err) {
         console.warn('Error conectando a empresas en Supabase:', err)
+        const stored = getStoredCompany()
+        if (stored) return stored
+        const rows = localDb.getTable('company_settings')
+        if (rows && rows[0]) return rows[0]
         return null
       }
     }

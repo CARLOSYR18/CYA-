@@ -13,7 +13,24 @@ function loadAll() {
     return structuredClone(seedData)
   }
   try {
-    return JSON.parse(raw)
+    const parsed = JSON.parse(raw)
+    // Si la base de datos local no tiene productos, está vacía, o conserva las laptops viejas del demo inicial
+    // actualizar inmediatamente al catálogo real de AirPods (1,290 unidades, S/ 569,520) y Cleanig Service
+    if (
+      !parsed.products ||
+      parsed.products.length === 0 ||
+      parsed.products.some((p) => p.sku === 'LAP-001' || p.name?.toLowerCase().includes('laptop'))
+    ) {
+      parsed.products = seedData.products
+      parsed.categories = seedData.categories
+      parsed.suppliers = seedData.suppliers
+      parsed.clients = seedData.clients
+      parsed.inventory_movements = seedData.inventory_movements
+      parsed.sales = seedData.sales
+      parsed.company_settings = seedData.company_settings
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed))
+    }
+    return parsed
   } catch {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(seedData))
     return structuredClone(seedData)

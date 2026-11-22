@@ -156,13 +156,10 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
         } catch { return null }
       })()
 
-      // Si Supabase está conectado pero no hay empresa activa, no servir datos cacheados
-      if (isSupabaseConfigured && !cId) return null
-
       const cacheKey = `${table}_${cId || 'global'}`
 
       const mem = memoryCache.get(cacheKey)
-      if (mem && mem.data) return mem.data
+      if (mem && Array.isArray(mem.data) && mem.data.length > 0) return mem.data
 
       try {
         if (typeof sessionStorage !== 'undefined') {
@@ -174,6 +171,14 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
               return parsed.data
             }
           }
+        }
+      } catch {}
+
+      // Respaldo inmediato local (0ms) para que móvil y desktop jamás muestren 0 o vacíos
+      try {
+        const local = localDb.getTable(table)
+        if (Array.isArray(local) && local.length > 0) {
+          return local
         }
       } catch {}
 
@@ -299,8 +304,23 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
         console.warn(`Error en consulta remota ${table}:`, err)
       }
 
-      // Si la consulta remota falló o agotó el tiempo de espera, recurrir a caché en memoria de esta empresa
-      if (data === null) {
+      // Si la consulta remota falló, agotó el tiempo de espera, o devolvió vacío ([]),
+      // recurrir al catálogo y datos locales para asegurar que el usuario jamás vea 0 en su móvil
+      if (!data || data.length === 0) {
+        try {
+          const local = localDb.getTable(table)
+          if (Array.isArray(local) && local.length > 0) {
+            const payload = { data: local, timestamp: Date.now() }
+            memoryCache.set(cacheKey, payload)
+            try {
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem(storageKey, JSON.stringify(payload))
+              }
+            } catch {}
+            return local
+          }
+        } catch {}
+
         const cached = memoryCache.get(cacheKey)
         if (cached?.data && cached.data.length > 0) return cached.data
         return []

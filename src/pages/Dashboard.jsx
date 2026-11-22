@@ -234,12 +234,12 @@ function DashboardContent() {
         companySettingsService.get(opts).catch(() => null),
         inventoryMovementsService.list(opts).catch(() => [])
       ])
-      if (Array.isArray(p)) setProducts(p)
-      if (Array.isArray(s)) setSales(s)
-      if (Array.isArray(c)) setCategories(c)
-      if (Array.isArray(cl)) setClients(cl)
+      if (Array.isArray(p) && (p.length > 0 || products.length === 0)) setProducts(p)
+      if (Array.isArray(s) && (s.length > 0 || sales.length === 0)) setSales(s)
+      if (Array.isArray(c) && (c.length > 0 || categories.length === 0)) setCategories(c)
+      if (Array.isArray(cl) && (cl.length > 0 || clients.length === 0)) setClients(cl)
       if (co) setCompany(co)
-      if (Array.isArray(m)) setMovements(m)
+      if (Array.isArray(m) && (m.length > 0 || movements.length === 0)) setMovements(m)
 
       // Mapear ventas 100% REALES del proyecto
       if (s && s.length > 0) {
