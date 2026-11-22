@@ -57,13 +57,13 @@ export function AuthProvider({ children }) {
     purgeSuperAdminFromLocalCollaborators()
 
     if (isSupabaseConfigured) {
-      // 1. Temporizador de seguridad: NUNCA dejar la UI bloqueada en loading más de 2.5s
+      // 1. Temporizador de seguridad: dar tiempo a conexiones móviles celulares para cargar sesión
       const fallbackTimer = setTimeout(() => {
         if (isMounted) {
           setLoading(false)
           setProfileLoaded(true)
         }
-      }, 2500)
+      }, 6000)
 
       // 2. getSession() sin bloquear setLoading por la carga de perfil
       supabase.auth.getSession().then(({ data }) => {

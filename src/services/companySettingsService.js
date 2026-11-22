@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import { localDb } from '../lib/localDb'
-import { getCurrentCompanyId } from '../lib/companyContext'
+import { getCurrentCompanyId, setCompanyCache } from '../lib/companyContext'
 import { paymentMethodsService } from './paymentMethodsService'
 
 const EXTRA_SETTINGS_KEY = 'cya_company_extra_settings'
@@ -35,6 +35,9 @@ function saveStoredCompany(data) {
   try {
     if (!data) return
     localStorage.setItem(COMPANY_CACHE_KEY, JSON.stringify(data))
+    if (data.id) {
+      setCompanyCache(data.id)
+    }
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('cya_company_updated', { detail: data }))
     }

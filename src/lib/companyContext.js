@@ -2,29 +2,45 @@ import { supabase, isSupabaseConfigured } from './supabaseClient'
 
 const STORAGE_KEY = 'cya_cached_company_id'
 
-// Inicializar desde almacenamiento local o de sesión para respuesta en 0ms
-let cachedCompanyId = (() => {
+// Función auxiliar para leer inmediatamente en 0ms de cualquier almacenamiento local
+export function getSynchronousCompanyId() {
   try {
-    return sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY) || null
-  } catch {
-    return null
-  }
-})()
+    const direct = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY)
+    if (direct) return direct
 
+    // Fallback 1: desde el caché de configuración de la empresa guardada
+    const compRaw = localStorage.getItem('cya_company_cache')
+    if (compRaw) {
+      const parsed = JSON.parse(compRaw)
+      if (parsed?.id) {
+        sessionStorage.setItem(STORAGE_KEY, parsed.id)
+        localStorage.setItem(STORAGE_KEY, parsed.id)
+        return parsed.id
+      }
+    }
+
+    // Fallback 2: desde el perfil cacheado
+    const profRaw = localStorage.getItem('cya_cached_profile')
+    if (profRaw) {
+      const parsed = JSON.parse(profRaw)
+      if (parsed?.company_id) {
+        sessionStorage.setItem(STORAGE_KEY, parsed.company_id)
+        localStorage.setItem(STORAGE_KEY, parsed.company_id)
+        return parsed.company_id
+      }
+    }
+  } catch {}
+  return null
+}
+
+let cachedCompanyId = getSynchronousCompanyId()
 let inFlightPromise = null
 
 export async function getCurrentCompanyId() {
   if (!isSupabaseConfigured || !supabase) return null
 
-  // Lectura directa síncrona en 0ms desde memoria o almacenamiento local
-  const stored = cachedCompanyId || (() => {
-    try {
-      return sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY) || null
-    } catch {
-      return null
-    }
-  })()
-
+  // Lectura directa síncrona en 0ms
+  const stored = cachedCompanyId || getSynchronousCompanyId()
   if (stored) {
     cachedCompanyId = stored
     return stored
@@ -45,37 +61,32 @@ export async function getCurrentCompanyId() {
             .select('company_id')
             .eq('id', user.id)
             .maybeSingle()
-          if (error) {
-            console.warn('Aviso profile company_id:', error.message)
-            return null
-          }
-          if (data && data.company_id) {
+          if (!error && data?.company_id) {
             setCompanyCache(data.company_id)
             return data.company_id
           }
 
-          // Si el perfil aún no tiene empresa asignada, auto-vincular a la empresa activa
+          // Fallback: empresa activa en companies
           try {
             const { data: comp } = await supabase.from('companies').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
             if (comp?.id) {
               setCompanyCache(comp.id)
-              await supabase.from('profiles').update({ company_id: comp.id }).eq('id', user.id).catch(() => {})
               return comp.id
             }
           } catch {}
 
-          return cachedCompanyId || null
+          return getSynchronousCompanyId()
         } catch {
-          return null
+          return getSynchronousCompanyId()
         }
       })()
 
-      // Timeout generoso de 10s para redes móviles 3G/4G
-      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 10000))
+      // Timeout ágil de 4s para no bloquear la interfaz
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 4000))
       const result = await Promise.race([fetchPromise, timeoutPromise])
-      return result || cachedCompanyId || null
+      return result || getSynchronousCompanyId() || cachedCompanyId || null
     } catch {
-      return cachedCompanyId || null
+      return getSynchronousCompanyId() || cachedCompanyId || null
     } finally {
       inFlightPromise = null
     }

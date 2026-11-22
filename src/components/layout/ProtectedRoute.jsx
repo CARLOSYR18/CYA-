@@ -10,11 +10,11 @@ export default function ProtectedRoute({ children, adminOnly = false, platformAd
   const [companyActive, setCompanyActive] = useState(true)
   const [forcedReady, setForcedReady] = useState(false)
 
-  // Temporizador de seguridad estricto: jamás dejar la pantalla bloqueada en carga más de 2.5s
+  // Temporizador de seguridad: dar tiempo a conexiones móviles celulares para validar sesión
   useEffect(() => {
     const timer = setTimeout(() => {
       setForcedReady(true)
-    }, 2500)
+    }, 6000)
     return () => clearTimeout(timer)
   }, [])
 

@@ -290,10 +290,10 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
 
       let data = null
       try {
-        // Timeout generoso de 12 segundos para conexiones móviles y celulares
+        // Timeout de 8 segundos para conexiones móviles y celulares
         data = await Promise.race([
           executeQuery(),
-          new Promise((resolve) => setTimeout(() => resolve(null), 12000))
+          new Promise((resolve) => setTimeout(() => resolve(null), 8000))
         ])
       } catch (err) {
         console.warn(`Error en consulta remota ${table}:`, err)

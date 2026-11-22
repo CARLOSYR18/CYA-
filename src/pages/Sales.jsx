@@ -130,7 +130,7 @@ export default function Sales() {
     if (!salesService.hasCache?.()) setLoading(true)
     const safetyTimer = setTimeout(() => {
       setLoading(false)
-    }, 12000)
+    }, 4000)
 
     try {
       const [s, p, c, comp, u] = await Promise.all([

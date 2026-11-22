@@ -215,12 +215,15 @@ function DashboardContent() {
   }
 
   const loadData = async (force = false) => {
-    if (force || (!salesService.hasCache?.() && !productsService.hasCache?.())) {
+    // Solo activar spinner si NO hay ningún dato en pantalla (carga inicial limpia)
+    // Jamás activar loading si ya hay productos o ventas (evita parpadeos en blanco)
+    const hasData = (products && products.length > 0) || (sales && sales.length > 0)
+    if (!force && !hasData && !salesService.hasCache?.() && !productsService.hasCache?.()) {
       setLoading(true)
     }
     const safetyTimer = setTimeout(() => {
       setLoading(false)
-    }, 12000)
+    }, 3500)
     try {
       const opts = force ? { forceRefresh: true } : {}
       const [p, s, c, cl, co, m] = await Promise.all([
@@ -231,12 +234,12 @@ function DashboardContent() {
         companySettingsService.get(opts).catch(() => null),
         inventoryMovementsService.list(opts).catch(() => [])
       ])
-      setProducts(p || [])
-      setSales(s || [])
-      setCategories(c || [])
-      setClients(cl || [])
-      setCompany(co || null)
-      setMovements(m || [])
+      if (Array.isArray(p)) setProducts(p)
+      if (Array.isArray(s)) setSales(s)
+      if (Array.isArray(c)) setCategories(c)
+      if (Array.isArray(cl)) setClients(cl)
+      if (co) setCompany(co)
+      if (Array.isArray(m)) setMovements(m)
 
       // Mapear ventas 100% REALES del proyecto
       if (s && s.length > 0) {
@@ -307,34 +310,13 @@ function DashboardContent() {
     loadData()
   }, [user?.id, user?.company_id])
 
-  // Auto-reintento resiliente para conexiones móviles lentas si los datos iniciales llegaron vacíos
-  const [retriedOnce, setRetriedOnce] = useState(false)
-  useEffect(() => {
-    if (user?.id && !loading && !retriedOnce && products.length === 0 && sales.length === 0) {
-      const retryTimer = setTimeout(() => {
-        setRetriedOnce(true)
-        loadData(true)
-      }, 1500)
-      return () => clearTimeout(retryTimer)
-    }
-  }, [user?.id, loading, retriedOnce, products.length, sales.length])
-
-  // Escuchar invalidación de caché para recargar datos de inmediato si el perfil o empresa se actualizó
+  // Escuchar invalidación de caché para recargar datos de forma silenciosa en segundo plano
   useEffect(() => {
     const handleInvalidated = () => {
-      loadData(true)
-    }
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        loadData(true)
-      }
+      loadData(false)
     }
     window.addEventListener('cya_cache_invalidated', handleInvalidated)
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => {
-      window.removeEventListener('cya_cache_invalidated', handleInvalidated)
-      document.removeEventListener('visibilitychange', handleVisibility)
-    }
+    return () => window.removeEventListener('cya_cache_invalidated', handleInvalidated)
   }, [])
 
   // Currency Formatter
