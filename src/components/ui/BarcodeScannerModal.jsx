@@ -185,20 +185,22 @@ export default function BarcodeScannerModal({
 
     let active = true
 
-    // 1. Motor Principal: ZXing Multi-Format (Compatible al 100% con Safari iOS, Chrome y Android)
+    // 1. Motor Principal: ZXing Multi-Format
     loadZXing().then((ZXing) => {
-      if (!active || !ZXing || !videoRef.current || isScanningRef.current) return
+      if (!active || !ZXing || isScanningRef.current) return
       try {
         const reader = new ZXing.BrowserMultiFormatReader()
         zxingReaderRef.current = reader
-        reader.decodeFromVideoElement(videoRef.current, (result, err) => {
-          if (!active || isScanningRef.current) return
-          if (result && result.getText()) {
-            handleDetected(result.getText())
-          }
-        })
+        if (streamRef.current && videoRef.current && reader.decodeFromStream) {
+          reader.decodeFromStream(streamRef.current, videoRef.current, (result) => {
+            if (!active || isScanningRef.current) return
+            if (result && result.getText()) {
+              handleDetected(result.getText())
+            }
+          })
+        }
       } catch (e) {
-        console.warn('Aviso inicializando ZXing:', e)
+        console.warn('Aviso inicializando ZXing stream:', e)
       }
     }).catch(() => {})
 
@@ -216,12 +218,13 @@ export default function BarcodeScannerModal({
       }
     }
 
-    // 3. Motor Respaldo: Intervalo de análisis por Canvas para códigos 1D (EAN-13, UPC)
+    // 3. Motor Respaldo: Intervalo de análisis por Canvas (ZXing Bitmap + BarcodeDetector + Scanline)
     scanIntervalRef.current = setInterval(async () => {
       if (!active || isScanningRef.current || !videoRef.current || videoRef.current.readyState < 2) {
         return
       }
 
+      // Intento A: BarcodeDetector nativo
       if (nativeDetector) {
         try {
           const barcodes = await nativeDetector.detect(videoRef.current)
@@ -235,7 +238,7 @@ export default function BarcodeScannerModal({
         } catch {}
       }
 
-      // Escaneo por Canvas en caso de que el navegador no tenga ZXing ni BarcodeDetector activo
+      // Intento B: Frame a Canvas con decodificación de alta fidelidad
       try {
         const v = videoRef.current
         const w = v.videoWidth || 640
@@ -251,6 +254,22 @@ export default function BarcodeScannerModal({
         const ctx = canvas.getContext('2d', { willReadFrequently: true })
         if (ctx) {
           ctx.drawImage(v, 0, 0, w, h)
+
+          // Decodificación directa con ZXing MultiFormatReader sobre el Canvas
+          if (window.ZXing?.HTMLCanvasElementLuminanceSource) {
+            try {
+              const lumSource = new window.ZXing.HTMLCanvasElementLuminanceSource(canvas)
+              const bitmap = new window.ZXing.BinaryBitmap(new window.ZXing.HybridBinarizer(lumSource))
+              const mfr = new window.ZXing.MultiFormatReader()
+              const zxResult = mfr.decode(bitmap)
+              if (zxResult && zxResult.getText()) {
+                handleDetected(zxResult.getText())
+                return
+              }
+            } catch {}
+          }
+
+          // Respaldo local de línea de escaneo para EAN-13 / UPC
           const detected = decodeEan13FromCanvas(ctx, w, h)
           if (detected) {
             handleDetected(detected)

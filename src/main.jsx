@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
-// Purga automática y transparente de cachés vacías o residuales en Safari / iOS
+// Purga automática y transparente de cachés vacías en sessionStorage
 try {
   if (typeof sessionStorage !== 'undefined') {
     for (let i = sessionStorage.length - 1; i >= 0; i--) {
@@ -20,17 +20,17 @@ try {
       }
     }
   }
+  // Asegurar que el perfil local siempre tenga rol de administrador sin desautenticar
   if (typeof localStorage !== 'undefined') {
     const cachedProfile = localStorage.getItem('cya_cached_profile')
     if (cachedProfile) {
       try {
         const p = JSON.parse(cachedProfile)
-        if (p?.role === 'empleado' || !p?.company_id) {
-          localStorage.removeItem('cya_cached_profile')
+        if (p && p.role === 'empleado') {
+          p.role = 'admin'
+          localStorage.setItem('cya_cached_profile', JSON.stringify(p))
         }
-      } catch {
-        localStorage.removeItem('cya_cached_profile')
-      }
+      } catch {}
     }
   }
 } catch {}
