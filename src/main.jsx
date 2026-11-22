@@ -3,6 +3,38 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
+// Purga automática y transparente de cachés vacías o residuales en Safari / iOS
+try {
+  if (typeof sessionStorage !== 'undefined') {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const key = sessionStorage.key(i)
+      if (key && key.startsWith('cya_cache_')) {
+        try {
+          const val = JSON.parse(sessionStorage.getItem(key))
+          if (!val?.data || (Array.isArray(val.data) && val.data.length === 0)) {
+            sessionStorage.removeItem(key)
+          }
+        } catch {
+          sessionStorage.removeItem(key)
+        }
+      }
+    }
+  }
+  if (typeof localStorage !== 'undefined') {
+    const cachedProfile = localStorage.getItem('cya_cached_profile')
+    if (cachedProfile) {
+      try {
+        const p = JSON.parse(cachedProfile)
+        if (p?.role === 'empleado' || !p?.company_id) {
+          localStorage.removeItem('cya_cached_profile')
+        }
+      } catch {
+        localStorage.removeItem('cya_cached_profile')
+      }
+    }
+  }
+} catch {}
+
 function ConfigErrorScreen({ error }) {
   return (
     <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 select-none">
