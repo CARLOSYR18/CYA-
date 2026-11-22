@@ -139,7 +139,7 @@ export default function Users() {
     if (!usersService.hasCache?.() && !options?.silent) setLoading(true)
     const safetyTimer = setTimeout(() => {
       setLoading(false)
-    }, 2500)
+    }, 12000)
 
     try {
       const [usersList, comp] = await Promise.all([

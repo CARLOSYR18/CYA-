@@ -15,7 +15,20 @@ let inFlightPromise = null
 
 export async function getCurrentCompanyId() {
   if (!isSupabaseConfigured || !supabase) return null
-  if (cachedCompanyId) return cachedCompanyId
+
+  // Lectura directa síncrona en 0ms desde memoria o almacenamiento local
+  const stored = cachedCompanyId || (() => {
+    try {
+      return sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY) || null
+    } catch {
+      return null
+    }
+  })()
+
+  if (stored) {
+    cachedCompanyId = stored
+    return stored
+  }
 
   // Deduplicación de peticiones concurrentes
   if (inFlightPromise) return inFlightPromise
@@ -36,36 +49,33 @@ export async function getCurrentCompanyId() {
             console.warn('Aviso profile company_id:', error.message)
             return null
           }
-          if (data) {
-            if (data.company_id) {
-              setCompanyCache(data.company_id)
-              return data.company_id
-            } else {
-              // Jamás borrar el caché si el perfil no tiene company_id aún.
-              // Intentar buscar una empresa registrada en la base de datos para auto-vincular
-              try {
-                const { data: comp } = await supabase.from('companies').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
-                if (comp?.id) {
-                  setCompanyCache(comp.id)
-                  await supabase.from('profiles').update({ company_id: comp.id }).eq('id', user.id).catch(() => {})
-                  return comp.id
-                }
-              } catch {}
-              return cachedCompanyId || null
-            }
+          if (data && data.company_id) {
+            setCompanyCache(data.company_id)
+            return data.company_id
           }
+
+          // Si el perfil aún no tiene empresa asignada, auto-vincular a la empresa activa
+          try {
+            const { data: comp } = await supabase.from('companies').select('id').order('created_at', { ascending: false }).limit(1).maybeSingle()
+            if (comp?.id) {
+              setCompanyCache(comp.id)
+              await supabase.from('profiles').update({ company_id: comp.id }).eq('id', user.id).catch(() => {})
+              return comp.id
+            }
+          } catch {}
+
           return cachedCompanyId || null
         } catch {
           return null
         }
       })()
 
-      // Timeout estricto de 2.5s para no bloquear la aplicación bajo ninguna circunstancia
-      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 2500))
+      // Timeout generoso de 10s para redes móviles 3G/4G
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 10000))
       const result = await Promise.race([fetchPromise, timeoutPromise])
-      return result !== undefined ? result : null
+      return result || cachedCompanyId || null
     } catch {
-      return cachedCompanyId
+      return cachedCompanyId || null
     } finally {
       inFlightPromise = null
     }

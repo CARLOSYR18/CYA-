@@ -96,7 +96,7 @@ export default function Suppliers() {
     if (!suppliersService.hasCache?.()) setLoading(true)
     const safetyTimer = setTimeout(() => {
       setLoading(false)
-    }, 2500)
+    }, 12000)
 
     try {
       const [sups, purches, prods] = await Promise.all([

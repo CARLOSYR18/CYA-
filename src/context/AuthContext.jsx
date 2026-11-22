@@ -249,7 +249,7 @@ export function AuthProvider({ children }) {
         // 1. Obtener perfil estrictamente desde la tabla protegida profiles en Supabase con timeout de 3.5s
         const profileQuery = supabase.from('profiles').select('*').eq('id', authUser.id).maybeSingle()
         const timeoutPromise = new Promise((resolve) =>
-          setTimeout(() => resolve({ data: null, error: new Error('Timeout de red consultando profiles') }), 3500)
+          setTimeout(() => resolve({ data: null, error: new Error('Timeout de red consultando profiles') }), 10000)
         )
         const { data, error } = await Promise.race([profileQuery, timeoutPromise])
         if (error) {
@@ -406,11 +406,11 @@ export function AuthProvider({ children }) {
         if (fallbackCompanyId) setCompanyCache(fallbackCompanyId)
         if (isSuper) clearCompanyCache()
 
-        // Cargar perfil completo con timeout de 3.5s para asegurar datos de empresa antes de entrar
+        // Cargar perfil completo con timeout de 10s para redes móviles
         try {
           await Promise.race([
             loadProfile(data.user),
-            new Promise((r) => setTimeout(r, 3500))
+            new Promise((r) => setTimeout(r, 10000))
           ])
         } catch (e) {
           console.warn('Aviso cargando perfil tras login:', e)

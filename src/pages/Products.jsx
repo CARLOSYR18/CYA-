@@ -102,7 +102,7 @@ export default function Products() {
     if (!productsService.hasCache?.() && !options?.silent) setLoading(true)
     const safetyTimer = setTimeout(() => {
       setLoading(false)
-    }, 2500)
+    }, 12000)
 
     try {
       const [p, c, s] = await Promise.all([

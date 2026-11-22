@@ -169,7 +169,7 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
           const raw = sessionStorage.getItem(getStorageKey(table, cId))
           if (raw) {
             const parsed = JSON.parse(raw)
-            if (parsed && Array.isArray(parsed.data)) {
+            if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
               memoryCache.set(cacheKey, parsed)
               return parsed.data
             }
@@ -290,10 +290,10 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
 
       let data = null
       try {
-        // Timeout de seguridad de 3.5 segundos para jamás congelar la pantalla
+        // Timeout generoso de 12 segundos para conexiones móviles y celulares
         data = await Promise.race([
           executeQuery(),
-          new Promise((resolve) => setTimeout(() => resolve(null), 3500))
+          new Promise((resolve) => setTimeout(() => resolve(null), 12000))
         ])
       } catch (err) {
         console.warn(`Error en consulta remota ${table}:`, err)
@@ -306,13 +306,17 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
         return []
       }
 
-      const payload = { data: data || [], timestamp: Date.now() }
-      memoryCache.set(cacheKey, payload)
-      try {
-        if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.setItem(storageKey, JSON.stringify(payload))
-        }
-      } catch {}
+      // Solo persistir en caché si data trae registros reales (> 0)
+      // Un resultado vacío NUNCA debe envenenar la caché persistente
+      if (Array.isArray(data) && data.length > 0) {
+        const payload = { data, timestamp: Date.now() }
+        memoryCache.set(cacheKey, payload)
+        try {
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem(storageKey, JSON.stringify(payload))
+          }
+        } catch {}
+      }
 
       return data || []
     },

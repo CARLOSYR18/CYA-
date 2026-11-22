@@ -164,7 +164,7 @@ export default function Categories() {
     if (!categoriesService.hasCache?.()) setLoading(true)
     const safetyTimer = setTimeout(() => {
       setLoading(false)
-    }, 2500)
+    }, 12000)
 
     try {
       const [c, p] = await Promise.all([

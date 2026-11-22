@@ -123,7 +123,7 @@ export default function InventoryMovements() {
     if (!inventoryMovementsService.hasCache?.() && !options?.silent) setLoading(true)
     const safetyTimer = setTimeout(() => {
       setLoading(false)
-    }, 2500)
+    }, 12000)
 
     try {
       const [m, p, s, pur, u] = await Promise.all([

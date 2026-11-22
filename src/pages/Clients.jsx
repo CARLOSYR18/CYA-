@@ -90,7 +90,7 @@ export default function Clients() {
     if (!clientsService.hasCache?.()) setLoading(true)
     const safetyTimer = setTimeout(() => {
       setLoading(false)
-    }, 2500)
+    }, 12000)
 
     try {
       const data = await getClientsHistory().catch(() => [])

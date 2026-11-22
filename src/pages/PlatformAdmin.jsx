@@ -69,7 +69,7 @@ export default function PlatformAdmin() {
 
   async function loadData() {
     setLoading(true)
-    const safetyTimer = setTimeout(() => setLoading(false), 2500)
+    const safetyTimer = setTimeout(() => setLoading(false), 12000)
     try {
       const [reqData, compData] = await Promise.all([
         platformAdminService.listPlanRequests('pendiente').catch(() => []),

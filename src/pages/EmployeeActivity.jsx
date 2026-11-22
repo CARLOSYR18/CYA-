@@ -99,7 +99,7 @@ export default function EmployeeActivity() {
     }
     const safetyTimer = setTimeout(() => {
       setLoading(false)
-    }, 2500)
+    }, 12000)
 
     try {
       const [s, m, p, pur, u] = await Promise.all([

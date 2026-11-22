@@ -220,7 +220,7 @@ function DashboardContent() {
     }
     const safetyTimer = setTimeout(() => {
       setLoading(false)
-    }, 2500)
+    }, 12000)
     try {
       const opts = force ? { forceRefresh: true } : {}
       const [p, s, c, cl, co, m] = await Promise.all([
@@ -307,13 +307,34 @@ function DashboardContent() {
     loadData()
   }, [user?.id, user?.company_id])
 
+  // Auto-reintento resiliente para conexiones móviles lentas si los datos iniciales llegaron vacíos
+  const [retriedOnce, setRetriedOnce] = useState(false)
+  useEffect(() => {
+    if (user?.id && !loading && !retriedOnce && products.length === 0 && sales.length === 0) {
+      const retryTimer = setTimeout(() => {
+        setRetriedOnce(true)
+        loadData(true)
+      }, 1500)
+      return () => clearTimeout(retryTimer)
+    }
+  }, [user?.id, loading, retriedOnce, products.length, sales.length])
+
   // Escuchar invalidación de caché para recargar datos de inmediato si el perfil o empresa se actualizó
   useEffect(() => {
     const handleInvalidated = () => {
       loadData(true)
     }
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadData(true)
+      }
+    }
     window.addEventListener('cya_cache_invalidated', handleInvalidated)
-    return () => window.removeEventListener('cya_cache_invalidated', handleInvalidated)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('cya_cache_invalidated', handleInvalidated)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [])
 
   // Currency Formatter
