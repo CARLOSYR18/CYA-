@@ -342,50 +342,103 @@ export function createCrudService(table, { orderBy = 'created_at', ascending = f
     },
 
     async create(payload) {
-      if (isSupabaseConfigured) {
-        const company_id = await getCurrentCompanyId().catch(() => null)
-        const initialData = (company_id && tableSupportsCompanyId.get(table) !== false)
-          ? { ...payload, company_id }
-          : payload
-
-        const { data } = await executeWriteWithSchemaFallback(
-          table,
-          initialData,
-          (row) => supabase.from(table).insert(row).select().single()
-        )
-        invalidateRelated(table)
-        return data
+      // 1. Guardar de inmediato en localDb para respuesta instantánea (0ms) y que jamás se congele
+      let localCreated = null
+      try {
+        localCreated = localDb.insert(table, payload)
+      } catch (err) {
+        console.warn(`Aviso localDb.insert ${table}:`, err)
       }
-      const data = localDb.insert(table, payload)
+
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const company_id = await getCurrentCompanyId().catch(() => null)
+          const initialData = (company_id && tableSupportsCompanyId.get(table) !== false)
+            ? { ...payload, company_id }
+            : payload
+
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout Supabase create')), 2500)
+          )
+          const insertPromise = executeWriteWithSchemaFallback(
+            table,
+            initialData,
+            (row) => supabase.from(table).insert(row).select().single()
+          )
+          const { data } = await Promise.race([insertPromise, timeoutPromise])
+          if (data) {
+            if (localCreated?.id && data?.id && localCreated.id !== data.id) {
+              try { localDb.update(table, localCreated.id, { id: data.id }) } catch {}
+            }
+            invalidateRelated(table)
+            return data
+          }
+        } catch (err) {
+          console.warn(`Aviso creación remota ${table}:`, err?.message || err)
+        }
+      }
+
       invalidateRelated(table)
-      return data
+      return localCreated || payload
     },
 
     async update(id, patch) {
-      if (isSupabaseConfigured) {
-        const { data, skipped } = await executeWriteWithSchemaFallback(
-          table,
-          patch,
-          (row) => supabase.from(table).update(row).eq('id', id).select().single(),
-          true
-        )
-        if (skipped) return { id, ...patch }
-        invalidateRelated(table)
-        return data
+      // 1. Actualizar de inmediato en localDb
+      let localUpdated = null
+      try {
+        localUpdated = localDb.update(table, id, patch)
+      } catch (err) {
+        console.warn(`Aviso localDb.update ${table}:`, err)
       }
-      const data = localDb.update(table, id, patch)
+
+      if (isSupabaseConfigured && supabase) {
+        // Solo intentar en Supabase si el ID es un UUID válido (evita error Postgres 22P02 con IDs como 'p-1')
+        const isUuid = typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        if (isUuid) {
+          try {
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Timeout Supabase update')), 2500)
+            )
+            const updatePromise = executeWriteWithSchemaFallback(
+              table,
+              patch,
+              (row) => supabase.from(table).update(row).eq('id', id).select().single(),
+              true
+            )
+            const { data, skipped } = await Promise.race([updatePromise, timeoutPromise])
+            if (!skipped && data) {
+              invalidateRelated(table)
+              return data
+            }
+          } catch (err) {
+            console.warn(`Aviso actualización remota ${table}:`, err?.message || err)
+          }
+        }
+      }
+
       invalidateRelated(table)
-      return data
+      return localUpdated || { id, ...patch }
     },
 
     async remove(id) {
-      if (isSupabaseConfigured) {
-        const { error } = await supabase.from(table).delete().eq('id', id)
-        if (error) throw error
-        invalidateRelated(table)
-        return
+      try {
+        localDb.remove(table, id)
+      } catch {}
+
+      if (isSupabaseConfigured && supabase) {
+        const isUuid = typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        if (isUuid) {
+          try {
+            await Promise.race([
+              supabase.from(table).delete().eq('id', id),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout remove')), 2500))
+            ])
+          } catch (err) {
+            console.warn(`Aviso eliminación remota ${table}:`, err?.message || err)
+          }
+        }
       }
-      localDb.remove(table, id)
+
       invalidateRelated(table)
     },
   }

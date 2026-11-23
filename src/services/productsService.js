@@ -44,13 +44,17 @@ function fileToOptimizedDataUrl(file, maxDim = 800, quality = 0.85) {
 }
 
 async function fetchRaw(productId) {
-  if (isSupabaseConfigured) {
-    const { data, error } = await supabase.from('products').select('*').eq('id', productId).single()
-    if (error) throw error
-    return data
+  if (isSupabaseConfigured && supabase) {
+    const isUuid = typeof productId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId)
+    if (isUuid) {
+      try {
+        const { data, error } = await supabase.from('products').select('*').eq('id', productId).single()
+        if (!error && data) return data
+      } catch {}
+    }
   }
   const rows = localDb.getTable('products')
-  const product = rows.find((p) => p.id === productId)
+  const product = rows.find((p) => String(p.id) === String(productId))
   if (!product) throw new Error('Producto no encontrado')
   return product
 }
@@ -94,32 +98,47 @@ export const productsService = {
   // BASE (multiplicado por kit_quantity) — el combo no tiene stock propio,
   // "consume" piezas del producto base al venderse o moverse.
   async adjustStock(productId, delta) {
-    const product = await fetchRaw(productId)
+    let product = null
+    try {
+      product = await fetchRaw(productId)
+    } catch {
+      return null
+    }
+
+    if (!product) return null
 
     if (product.is_kit && product.kit_component_id) {
       const kitQty = Number(product.kit_quantity) || 1
       return this.adjustStock(product.kit_component_id, delta * kitQty)
     }
 
-    if (isSupabaseConfigured) {
-      const { data, error } = await supabase
-        .from('products')
-        .update({ stock: product.stock + delta })
-        .eq('id', productId)
-        .select()
-        .single()
-      if (error) throw error
-      base.invalidate()
-      return data
+    const currentStock = Number(product.stock) || 0
+    const newStock = Math.max(0, currentStock + delta)
+
+    // Actualizar localDb de inmediato
+    const updated = localDb.update('products', productId, { stock: newStock })
+
+    if (isSupabaseConfigured && supabase) {
+      const isUuid = typeof productId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId)
+      if (isUuid) {
+        try {
+          await supabase
+            .from('products')
+            .update({ stock: newStock })
+            .eq('id', productId)
+        } catch (err) {
+          console.warn('Aviso adjustStock remoto:', err)
+        }
+      }
     }
-    const updated = localDb.update('products', productId, { stock: product.stock + delta })
+
     base.invalidate()
-    return updated
+    return updated || { ...product, stock: newStock }
   },
 
-  async generateSku() {
-    const products = await base.list()
-    const numbers = products
+  async generateSku(existingProducts = null) {
+    const products = existingProducts || this.getCached() || await base.list().catch(() => [])
+    const numbers = (products || [])
       .map((p) => p.sku)
       .filter(Boolean)
       .map((sku) => parseInt(String(sku).replace(/\D/g, ''), 10))

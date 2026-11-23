@@ -46,15 +46,42 @@ export default function NewProduct() {
   const { user } = useAuth()
   const isEditing = Boolean(id)
 
-  const [form, setForm] = useState(initialForm)
-  const [categories, setCategories] = useState([])
-  const [suppliers, setSuppliers] = useState([])
-  const [allProducts, setAllProducts] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Inicialización síncrona instantánea (0ms) desde caché para evitar pantallas blancas
+  const cachedProds = useMemo(() => productsService.getCached?.() || [], [])
+  const initialCurrentProd = useMemo(() => {
+    if (!isEditing || !id) return null
+    return (cachedProds || []).find((p) => String(p.id) === String(id)) || null
+  }, [isEditing, id, cachedProds])
+
+  const [form, setForm] = useState(() => {
+    if (initialCurrentProd) {
+      return {
+        sku: initialCurrentProd.sku || '',
+        name: initialCurrentProd.name || '',
+        category_id: initialCurrentProd.category_id || '',
+        unit: initialCurrentProd.unit || 'unidad',
+        cost_price: initialCurrentProd.cost_price !== undefined ? String(initialCurrentProd.cost_price) : '',
+        sale_price: initialCurrentProd.sale_price !== undefined ? String(initialCurrentProd.sale_price) : '',
+        stock: initialCurrentProd.stock !== undefined ? String(initialCurrentProd.stock) : '0',
+        min_stock: initialCurrentProd.min_stock !== undefined ? String(initialCurrentProd.min_stock) : '5',
+        supplier_id: initialCurrentProd.supplier_id || '',
+        image_url: initialCurrentProd.image_url || '',
+        is_kit: Boolean(initialCurrentProd.is_kit),
+        kit_component_id: initialCurrentProd.kit_component_id || '',
+        kit_quantity: initialCurrentProd.kit_quantity !== undefined ? String(initialCurrentProd.kit_quantity) : '1',
+      }
+    }
+    return initialForm
+  })
+
+  const [categories, setCategories] = useState(() => categoriesService.getCached?.() || [])
+  const [suppliers, setSuppliers] = useState(() => suppliersService.getCached?.() || [])
+  const [allProducts, setAllProducts] = useState(cachedProds)
+  const [loading, setLoading] = useState(() => (isEditing ? !initialCurrentProd : false))
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingStep, setProcessingStep] = useState(0) // 1: 35%, 2: 75%, 3: 100%
   const [error, setError] = useState('')
-  const [originalProduct, setOriginalProduct] = useState(null)
+  const [originalProduct, setOriginalProduct] = useState(initialCurrentProd)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [scanToast, setScanToast] = useState('')
 
@@ -112,18 +139,24 @@ export default function NewProduct() {
   })
 
   useEffect(() => {
+    let isMounted = true
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setLoading(false)
+    }, 1200)
+
     async function initData() {
-      setLoading(true)
       try {
         const [cats, sups, prods, company] = await Promise.all([
-          categoriesService.list().catch(() => []),
-          suppliersService.list().catch(() => []),
-          productsService.list().catch(() => []),
+          categoriesService.list().catch(() => categoriesService.getCached?.() || []),
+          suppliersService.list().catch(() => suppliersService.getCached?.() || []),
+          productsService.list().catch(() => productsService.getCached?.() || []),
           companySettingsService.get().catch(() => null)
         ])
-        setCategories(cats || [])
-        setSuppliers(sups || [])
-        setAllProducts(prods || [])
+        if (!isMounted) return
+
+        if (Array.isArray(cats) && cats.length > 0) setCategories(cats)
+        if (Array.isArray(sups) && sups.length > 0) setSuppliers(sups)
+        if (Array.isArray(prods) && prods.length > 0) setAllProducts(prods)
 
         if (!isEditing) {
           // Check plan limits
@@ -132,12 +165,14 @@ export default function NewProduct() {
             setLimitReached(true)
             setLimitMsg(`Has alcanzado el límite de tu plan (${limits.maxProducts} productos). Actualiza a Pro para agregar más artículos.`)
           }
-          // Auto generate SKU
-          const newSku = await productsService.generateSku()
-          setForm(prev => ({ ...prev, sku: newSku }))
+          // Auto generate SKU si no fue generado aún
+          if (!form.sku) {
+            const newSku = await productsService.generateSku(prods)
+            setForm(prev => ({ ...prev, sku: prev.sku || newSku }))
+          }
         } else {
           // Editing mode: find product by ID
-          const currentProd = (prods || []).find(p => String(p.id) === String(id))
+          const currentProd = (prods || []).find(p => String(p.id) === String(id)) || initialCurrentProd
           if (currentProd) {
             setOriginalProduct(currentProd)
             setForm({
@@ -161,13 +196,19 @@ export default function NewProduct() {
         }
       } catch (err) {
         console.error('Error cargando formulario de producto:', err)
-        setError('Error al conectar con la base de datos')
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          clearTimeout(safetyTimer)
+          setLoading(false)
+        }
       }
     }
 
     initData()
+    return () => {
+      isMounted = false
+      clearTimeout(safetyTimer)
+    }
   }, [id, isEditing])
 
   // Handle image file selection
@@ -286,35 +327,43 @@ export default function NewProduct() {
 
       if (isEditing && originalProduct) {
         await productsService.update(originalProduct.id, payload)
-        // If stock changed manually, register inventory movement
+        // If stock changed manually, register inventory movement safely
         if (!form.is_kit) {
           const oldStock = Number(originalProduct.stock) || 0
           const newStock = Number(form.stock) || 0
           const delta = newStock - oldStock
           if (delta !== 0) {
-            await inventoryMovementsService.register({
-              product_id: originalProduct.id,
-              type: delta > 0 ? 'entrada' : 'salida',
-              quantity: Math.abs(delta),
-              reason: 'Ajuste manual desde edición de producto',
-              user_id: user?.id || null,
-            })
+            try {
+              await inventoryMovementsService.register({
+                product_id: originalProduct.id,
+                type: delta > 0 ? 'entrada' : 'salida',
+                quantity: Math.abs(delta),
+                reason: 'Ajuste manual desde edición de producto',
+                user_id: user?.id || null,
+              })
+            } catch (mErr) {
+              console.warn('Aviso registrando movimiento de stock:', mErr)
+            }
           }
         }
       } else {
         const created = await productsService.create(payload)
         if (!form.is_kit && Number(payload.stock) > 0 && created?.id) {
-          await inventoryMovementsService.recordInitialStock({
-            product_id: created.id,
-            quantity: Number(payload.stock),
-            reason: 'Stock inicial al registrar producto',
-            user_id: user?.id || null,
-          }).catch((mErr) => console.warn('Aviso registrando movimiento inicial:', mErr))
+          try {
+            await inventoryMovementsService.recordInitialStock({
+              product_id: created.id,
+              quantity: Number(payload.stock),
+              reason: 'Stock inicial al registrar producto',
+              user_id: user?.id || null,
+            })
+          } catch (mErr) {
+            console.warn('Aviso registrando movimiento inicial:', mErr)
+          }
         }
       }
 
       setProcessingStep(3) // 100%
-      await new Promise((r) => setTimeout(r, 450))
+      await new Promise((r) => setTimeout(r, 350))
 
       setIsProcessing(false)
       navigate('/productos', {
