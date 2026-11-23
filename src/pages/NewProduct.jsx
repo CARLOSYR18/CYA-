@@ -426,18 +426,18 @@ export default function NewProduct() {
         {/* ═════════════════════════════════════════════════════════
             0. BREADCRUMB & HEADER ROW (SENIOR ERP ARCHITECTURE)
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/90 dark:border-zinc-800 p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
+        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/90 dark:border-zinc-800 p-3.5 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             <button
               type="button"
               onClick={() => requestLeave('/productos')}
-              className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer shrink-0"
               title="Volver a Catálogo de Productos [Esc]"
             >
-              <ArrowLeft size={17} />
+              <ArrowLeft size={16} />
             </button>
-            <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+            <div className="min-w-0">
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
                 <span className="hover:text-[#1B4FD8] cursor-pointer" onClick={() => requestLeave('/productos')}>
                   MÓDULO DE INVENTARIO
                 </span>
@@ -448,34 +448,35 @@ export default function NewProduct() {
                   {isEditing ? 'MODIFICAR ARTÍCULO' : 'REGISTRAR ARTÍCULO'}
                 </span>
               </div>
-              <div className="flex items-center gap-2.5 mt-0.5">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                  {isEditing ? `Modificar: ${originalProduct?.name || form.name}` : 'Ficha Técnica de Alta de Producto'}
+              <div className="flex items-center gap-2 mt-0.5">
+                <h1 className="text-base sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight truncate">
+                  {isEditing ? `Modificar: ${originalProduct?.name || form.name}` : 'Alta de Producto'}
                 </h1>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8] animate-pulse" />
-                  {isEditing ? 'MODO EDICIÓN ACTIVA' : 'NUEVO ARTÍCULO'}
+                  {isEditing ? 'EDICIÓN' : 'NUEVO'}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => requestLeave('/productos')}
-              className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer"
             >
-              Cancelar [Esc]
+              Cancelar
             </button>
             <button
               type="button"
               onClick={handleSubmit}
               disabled={isProcessing || limitReached}
-              className="px-5 py-2.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-2 shadow-sm shadow-blue-600/25 transition-all cursor-pointer disabled:opacity-60"
+              className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 sm:gap-2 shadow-sm shadow-blue-600/25 transition-all cursor-pointer disabled:opacity-60"
             >
-              <Check size={16} strokeWidth={2.5} />
-              <span>{isEditing ? 'Guardar Cambios [F2]' : 'Crear Producto [F2]'}</span>
+              <Check size={15} strokeWidth={2.5} />
+              <span>{isEditing ? 'Guardar' : 'Crear'}</span>
+              <span className="hidden sm:inline">{isEditing ? ' Cambios [F2]' : ' Producto [F2]'}</span>
             </button>
           </div>
         </div>

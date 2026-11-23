@@ -350,7 +350,7 @@ export default function Clients() {
 
   return (
     <AppLayout title="Cartera de Clientes & CRM">
-      <div className="space-y-6 max-w-[1440px] mx-auto pb-16">
+      <div className="space-y-4 sm:space-y-6 max-w-[1440px] mx-auto pb-24 sm:pb-16">
 
         {/* ═════════════════════════════════════════════════════════
             SUCCESS TOAST
@@ -373,25 +373,25 @@ export default function Clients() {
         {/* ═════════════════════════════════════════════════════════
             0. INSTITUTIONAL HEADER & TELEMETRY SCOPE
            ═════════════════════════════════════════════════════════ */}
-        <div className="space-y-2">
-          {/* Breadcrumb + Scope */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="space-y-1.5 sm:space-y-2">
+          {/* Breadcrumb + Scope (Hidden on mobile) */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3">
             <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
                 <span>MÓDULO COMERCIAL</span>
                 <span>/</span>
                 <span className="text-slate-600 dark:text-zinc-400">CARTERA Y DIRECTORIO DE CLIENTES</span>
               </div>
-              <div className="flex items-center gap-2.5 mt-1">
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  Directorio Comercial & Cartera de Clientes
+              <div className="flex items-center gap-2 mt-0.5 sm:mt-1">
+                <h1 className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Directorio Comercial
                 </h1>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-                  {stats.totalClients} CUENTAS REGISTRADAS
+                  {stats.totalClients} Cuentas
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 max-w-2xl">
+              <p className="hidden sm:block text-xs text-slate-500 dark:text-zinc-400 mt-1 max-w-2xl">
                 Control de ciclo de vida del cliente, fidelización LTV, recurrencia de compra y contacto comercial directo.
               </p>
             </div>
@@ -400,7 +400,7 @@ export default function Clients() {
               {/* Excel Button */}
               <button
                 onClick={handleExportExcel}
-                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+                className="hidden sm:flex px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold items-center gap-2 transition-colors cursor-pointer shadow-xs"
                 title="Exportar cartera a Excel / CSV"
               >
                 <FileSpreadsheet size={15} className="text-emerald-600 dark:text-emerald-400" />
@@ -410,7 +410,7 @@ export default function Clients() {
               {/* + Nuevo Cliente Primary Button */}
               <button
                 onClick={openCreate}
-                className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-2 shadow-sm shadow-blue-600/25 transition-all cursor-pointer"
+                className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 sm:gap-2 shadow-sm shadow-blue-600/25 transition-all cursor-pointer"
               >
                 <Plus size={15} strokeWidth={2.5} />
                 <span>Registrar Cliente</span>
@@ -420,84 +420,77 @@ export default function Clients() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            1. 4 FINANCIAL & CLIENT TELEMETRY CARDS (SENIOR ERP GRADE)
+            1. 4 FINANCIAL & CLIENT TELEMETRY CARDS (2-COL ON MOBILE)
            ═════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 animate-fade-in">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 animate-fade-in">
           
           {/* Card 1: Cartera Activa */}
-          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
-                  CARTERA TOTAL
+                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[10px] sm:text-[11px] truncate">
+                  Cartera Total
                 </span>
-                <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
-                  CRM ACTIVO
+                <span className="text-[9px] sm:text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
+                  CRM
                 </span>
               </div>
-              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+              <div className="text-lg sm:text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight mt-0.5 sm:mt-1 truncate">
                 {loading ? '…' : stats.totalClients}
-                <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">cuentas</span>
+                <span className="text-[10px] sm:text-xs font-sans font-normal text-slate-400 ml-1">cuentas</span>
               </div>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-400">
-              <div className="flex items-center justify-between">
-                <span>Recurrentes: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.recurringClients}</strong></span>
+            <div className="mt-2 sm:mt-3 pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-zinc-800 text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">
+              <div className="flex items-center justify-between truncate">
+                <span>Rec: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.recurringClients}</strong></span>
                 <span>Nuevos: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.newClients}</strong></span>
-              </div>
-              {/* Segmented bar */}
-              <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden mt-1.5 flex">
-                <div style={{ width: `${segmentStats.recPct}%` }} className="bg-blue-600 h-full" title={`Recurrentes: ${segmentStats.recPct}%`} />
-                <div style={{ width: `${segmentStats.vipPct}%` }} className="bg-amber-500 h-full" title={`VIP: ${segmentStats.vipPct}%`} />
-                <div style={{ width: `${segmentStats.newPct}%` }} className="bg-emerald-500 h-full" title={`Nuevos: ${segmentStats.newPct}%`} />
-                <div style={{ width: `${segmentStats.leadPct}%` }} className="bg-slate-300 h-full" title={`Prospectos: ${segmentStats.leadPct}%`} />
               </div>
             </div>
           </div>
 
           {/* Card 2: Facturación Total (LTV) */}
-          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
-                  FACTURACIÓN CARTERA
+                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[10px] sm:text-[11px] truncate">
+                  Facturación LTV
                 </span>
-                <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">
-                  LTV TOTAL
+                <span className="text-[9px] sm:text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">
+                  TOTAL
                 </span>
               </div>
-              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+              <div className="text-lg sm:text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight mt-0.5 sm:mt-1 truncate">
                 {loading ? '…' : fmt(stats.totalSpentAll)}
               </div>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
-              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                <TrendingUp size={12} /> +8.3% liquidado
+            <div className="mt-2 sm:mt-3 pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">
+              <span className="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-semibold truncate">
+                <TrendingUp size={11} /> +8.3%
               </span>
               <span className="font-mono text-slate-400">100% cobrado</span>
             </div>
           </div>
 
           {/* Card 3: Ticket Promedio */}
-          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
-                  TICKET PROMEDIO
+                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[10px] sm:text-[11px] truncate">
+                  Ticket Promedio
                 </span>
-                <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40">
-                  POR CUENTA
+                <span className="text-[9px] sm:text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40">
+                  CUENTA
                 </span>
               </div>
-              <div className="text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+              <div className="text-lg sm:text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight mt-0.5 sm:mt-1 truncate">
                 {loading ? '…' : fmt(stats.avgTicket)}
               </div>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
-              <span>Ratio medio de compra</span>
+            <div className="mt-2 sm:mt-3 pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">
+              <span className="truncate">Ratio medio:</span>
               <span className="font-mono font-semibold text-slate-700 dark:text-zinc-300">
                 {stats.totalClients > 0 ? (stats.totalSpentAll / stats.totalClients).toFixed(2) : 0} S//cli
               </span>
@@ -505,26 +498,26 @@ export default function Clients() {
           </div>
 
           {/* Card 4: Cliente VIP Top */}
-          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
-                  CLIENTE VIP TOP
+                <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[10px] sm:text-[11px] truncate">
+                  Cliente VIP Top
                 </span>
-                <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900/40 flex items-center gap-1">
-                  <Crown size={10} /> {stats.vipClients} VIPs
+                <span className="text-[9px] sm:text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900/40 flex items-center gap-0.5">
+                  <Crown size={9} /> {stats.vipClients}
                 </span>
               </div>
-              <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight mt-1 truncate" title={stats.topClient?.name}>
+              <div className="text-sm sm:text-lg font-black text-slate-900 dark:text-white tracking-tight mt-0.5 sm:mt-1 truncate" title={stats.topClient?.name}>
                 {loading ? '…' : (stats.topClient?.name || 'Cliente Particular')}
               </div>
             </div>
 
-            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
-              <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+            <div className="mt-2 sm:mt-3 pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[10px] sm:text-[11px]">
+              <span className="font-mono font-bold text-amber-600 dark:text-amber-400 truncate">
                 {stats.topClient ? fmt(stats.topClient.totalSpent) : 'S/ 0.00'}
               </span>
-              <span className="text-slate-400 dark:text-zinc-500 font-mono">
+              <span className="text-slate-400 dark:text-zinc-500 font-mono shrink-0">
                 {stats.topClient?.salesCount || 0} compras
               </span>
             </div>

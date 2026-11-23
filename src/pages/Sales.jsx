@@ -666,7 +666,7 @@ export default function Sales() {
 
   return (
     <AppLayout title="Ventas & Facturación">
-      <div className="space-y-6 max-w-[1440px] mx-auto pb-16">
+      <div className="space-y-4 sm:space-y-6 max-w-[1440px] mx-auto pb-24 sm:pb-16">
 
         {/* ═════════════════════════════════════════════════════════
             SUCCESS TOAST
@@ -689,9 +689,9 @@ export default function Sales() {
         {/* ═════════════════════════════════════════════════════════
             0. BREADCRUMB & EXECUTIVE HEADER
            ═════════════════════════════════════════════════════════ */}
-        <div className="space-y-2">
-          {/* System Scope Indicator */}
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
+        <div className="space-y-1.5 sm:space-y-2">
+          {/* System Scope Indicator (Hidden on mobile, preserved on desktop) */}
+          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400">
             <span className="font-semibold text-slate-700 dark:text-zinc-300">CYA ERP</span>
             <span className="text-slate-300 dark:text-zinc-700">/</span>
             <span className="text-slate-500 dark:text-zinc-400">Módulo Comercial</span>
@@ -700,39 +700,39 @@ export default function Sales() {
           </div>
 
           {/* Title & Action Toolbar */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-0.5 sm:pt-1">
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                   Ventas & Facturación
                 </h1>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40 shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Terminal POS Operativo
+                  Terminal POS
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-1">
+              <p className="hidden sm:block text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-1">
                 Control de comprobantes fiscales SUNAT (Boletas B001, Facturas F001), arqueo de turno y telemetría de ingresos.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               {/* Date Filter Dropdown */}
-              <div className="relative inline-flex items-center bg-white dark:bg-[#141417] border border-slate-200 dark:border-zinc-800 rounded-lg px-3 py-2 shadow-xs hover:border-slate-300 dark:hover:border-zinc-700 transition-colors">
-                <Calendar size={14} className="text-slate-500 mr-2 shrink-0" />
+              <div className="relative inline-flex items-center bg-white dark:bg-[#141417] border border-slate-200 dark:border-zinc-800 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 shadow-xs hover:border-slate-300 dark:hover:border-zinc-700 transition-colors">
+                <Calendar size={13} className="text-slate-500 mr-1.5 shrink-0" />
                 <select
                   value={periodFilter}
                   onChange={(e) => {
                     setPeriodFilter(e.target.value)
                     setCurrentPage(1)
                   }}
-                  className="bg-transparent text-xs text-slate-800 dark:text-zinc-200 font-semibold outline-none cursor-pointer pr-1"
+                  className="bg-transparent text-[11px] sm:text-xs text-slate-800 dark:text-zinc-200 font-semibold outline-none cursor-pointer pr-1"
                 >
                   <option value="TODAY" className="dark:bg-zinc-900">Hoy</option>
-                  <option value="7DAYS" className="dark:bg-zinc-900">Últimos 7 días</option>
-                  <option value="30DAYS" className="dark:bg-zinc-900">Últimos 30 días</option>
+                  <option value="7DAYS" className="dark:bg-zinc-900">7 días</option>
+                  <option value="30DAYS" className="dark:bg-zinc-900">30 días</option>
                   <option value="MONTH" className="dark:bg-zinc-900">Este mes</option>
-                  <option value="ALL" className="dark:bg-zinc-900">Histórico completo</option>
+                  <option value="ALL" className="dark:bg-zinc-900">Histórico</option>
                 </select>
               </div>
 
@@ -740,30 +740,30 @@ export default function Sales() {
               <button
                 type="button"
                 onClick={() => setCashClosingOpen(true)}
-                className="px-3.5 py-2 rounded-lg bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+                className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                 title="Cierre de caja y arqueo de turno"
               >
-                <CreditCard size={14} className="text-amber-600 dark:text-amber-400" />
-                <span>Arqueo Caja</span>
+                <CreditCard size={13} className="text-amber-600 dark:text-amber-400" />
+                <span>Arqueo</span>
               </button>
 
-              {/* Exportar Excel */}
+              {/* Exportar Excel (Hidden on mobile) */}
               <button
                 type="button"
                 onClick={handleExportExcel}
-                className="px-3.5 py-2 rounded-lg bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+                className="hidden sm:flex px-3.5 py-2 rounded-lg bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold items-center gap-2 shadow-xs transition-colors cursor-pointer"
                 title="Exportar reporte PLE / Excel"
               >
                 <FileSpreadsheet size={14} className="text-emerald-600 dark:text-emerald-400" />
-                <span className="hidden sm:inline">Exportar Excel</span>
+                <span>Exportar Excel</span>
               </button>
 
               {/* + Nueva Venta Primary Action */}
               <button
                 onClick={() => navigate('/ventas/nueva')}
-                className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-[#1B4FD8] hover:bg-[#163FBF] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
               >
-                <Plus size={15} strokeWidth={2.5} />
+                <Plus size={14} strokeWidth={2.5} />
                 <span>Nueva Venta</span>
               </button>
             </div>
@@ -771,89 +771,91 @@ export default function Sales() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            1. 4 EXECUTIVE TELEMETRY KPI CARDS (STRIPE / ENTERPRISE STYLE)
+            1. 4 EXECUTIVE TELEMETRY KPI CARDS (2-COL ON MOBILE, 4-COL ON DESKTOP)
            ═════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 animate-fade-in">
           {/* Card 1: Facturación Total */}
-          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800 p-4 shadow-xs relative overflow-hidden transition-all hover:border-slate-300 dark:hover:border-zinc-700">
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800 p-3 sm:p-4 shadow-xs relative overflow-hidden transition-all hover:border-slate-300 dark:hover:border-zinc-700 flex flex-col justify-between">
             <div className="absolute top-0 left-0 right-0 h-1 bg-blue-600" />
-            <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Total Facturado</span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md">
-                ↑ +14.8%
-              </span>
+            <div>
+              <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 mb-1 sm:mb-2">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Total Facturado</span>
+                <span className="hidden xs:inline-flex items-center gap-0.5 text-[10px] sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.2 rounded">
+                  +14.8%
+                </span>
+              </div>
+              <h3 className="text-base xs:text-lg sm:text-[24px] font-black text-slate-900 dark:text-white tracking-tight font-mono truncate">
+                {loading ? '…' : fmtMoney(stats.totalAmount)}
+              </h3>
             </div>
-            <h3 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight font-mono">
-              {loading ? '…' : fmtMoney(stats.totalAmount)}
-            </h3>
-            <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
-              <span>Op. Gravada: <strong className="font-mono text-slate-700 dark:text-zinc-300">{fmtMoney(stats.totalAmount / 1.18)}</strong></span>
-              <span>IGV (18%): <strong className="font-mono text-slate-700 dark:text-zinc-300">{fmtMoney(stats.totalAmount - (stats.totalAmount / 1.18))}</strong></span>
+            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">
+              <span className="truncate">Op. Gravada: <strong className="font-mono text-slate-700 dark:text-zinc-300">{fmtMoney(stats.totalAmount / 1.18)}</strong></span>
             </div>
           </div>
 
           {/* Card 2: Comprobantes Emitidos */}
-          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800 p-4 shadow-xs relative overflow-hidden transition-all hover:border-slate-300 dark:hover:border-zinc-700">
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800 p-3 sm:p-4 shadow-xs relative overflow-hidden transition-all hover:border-slate-300 dark:hover:border-zinc-700 flex flex-col justify-between">
             <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-600" />
-            <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Comprobantes Emitidos</span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md">
-                100% Válidos
-              </span>
+            <div>
+              <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 mb-1 sm:mb-2">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Comprobantes</span>
+                <span className="text-[10px] sm:text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.2 rounded">
+                  Válidos
+                </span>
+              </div>
+              <div className="flex items-baseline gap-1.5">
+                <h3 className="text-base xs:text-lg sm:text-[24px] font-black text-slate-900 dark:text-white tracking-tight font-mono">
+                  {loading ? '…' : stats.vouchersCount}
+                </h3>
+                <span className="text-[10px] sm:text-xs text-slate-400 font-medium">docs</span>
+              </div>
             </div>
-            <div className="flex items-baseline gap-2">
-              <h3 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight font-mono">
-                {loading ? '…' : stats.vouchersCount}
-              </h3>
-              <span className="text-xs text-slate-400 font-medium">documentos</span>
-            </div>
-            <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
-              <span>Boletas: <strong className="text-blue-600 dark:text-blue-400">{salesInPeriod.filter((s) => (s.receipt_type || '').toLowerCase() === 'boleta' || !s.receipt_type).length}</strong></span>
-              <span>Facturas: <strong className="text-indigo-600 dark:text-indigo-400">{salesInPeriod.filter((s) => (s.receipt_type || '').toLowerCase() === 'factura').length}</strong></span>
-              <span>Notas: <strong className="text-slate-600 dark:text-zinc-300">{salesInPeriod.filter((s) => (s.receipt_type || '').toLowerCase() === 'nota').length}</strong></span>
+            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
+              <span>B: <strong className="text-blue-600 dark:text-blue-400">{salesInPeriod.filter((s) => (s.receipt_type || '').toLowerCase() === 'boleta' || !s.receipt_type).length}</strong></span>
+              <span>F: <strong className="text-indigo-600 dark:text-indigo-400">{salesInPeriod.filter((s) => (s.receipt_type || '').toLowerCase() === 'factura').length}</strong></span>
+              <span>N: <strong className="text-slate-600 dark:text-zinc-300">{salesInPeriod.filter((s) => (s.receipt_type || '').toLowerCase() === 'nota').length}</strong></span>
             </div>
           </div>
 
           {/* Card 3: Clientes Atendidos & Ticket Promedio */}
-          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800 p-4 shadow-xs relative overflow-hidden transition-all hover:border-slate-300 dark:hover:border-zinc-700">
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800 p-3 sm:p-4 shadow-xs relative overflow-hidden transition-all hover:border-slate-300 dark:hover:border-zinc-700 flex flex-col justify-between">
             <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-600" />
-            <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Ticket Promedio</span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md font-mono">
-                {stats.clientsCount} Clientes
-              </span>
+            <div>
+              <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 mb-1 sm:mb-2">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Ticket Promedio</span>
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.2 rounded font-mono">
+                  {stats.clientsCount} Clis
+                </span>
+              </div>
+              <h3 className="text-base xs:text-lg sm:text-[24px] font-black text-slate-900 dark:text-white tracking-tight font-mono truncate">
+                {loading ? '…' : fmtMoney(stats.avgTicket)}
+              </h3>
             </div>
-            <h3 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight font-mono">
-              {loading ? '…' : fmtMoney(stats.avgTicket)}
-            </h3>
-            <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
-              <span>Transacciones: <strong className="font-mono text-slate-800 dark:text-zinc-200">{stats.vouchersCount}</strong></span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Tasa cobro: 100%</span>
+            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">
+              <span className="truncate">Tasa cobro: <strong className="text-emerald-600 dark:text-emerald-400">100%</strong></span>
             </div>
           </div>
 
           {/* Card 4: Efectivo en Caja & Cuadre */}
-          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800 p-4 shadow-xs relative overflow-hidden transition-all hover:border-slate-300 dark:hover:border-zinc-700">
+          <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800 p-3 sm:p-4 shadow-xs relative overflow-hidden transition-all hover:border-slate-300 dark:hover:border-zinc-700 flex flex-col justify-between">
             <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
-            <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Efectivo en Caja</span>
-              <button
-                type="button"
-                onClick={() => setCashClosingOpen(true)}
-                className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
-              >
-                Cerrar Turno →
-              </button>
+            <div>
+              <div className="flex items-center justify-between text-slate-500 dark:text-zinc-400 mb-1 sm:mb-2">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider truncate">Efectivo en Caja</span>
+                <button
+                  type="button"
+                  onClick={() => setCashClosingOpen(true)}
+                  className="text-[10px] sm:text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                >
+                  Cierre →
+                </button>
+              </div>
+              <h3 className="text-base xs:text-lg sm:text-[24px] font-black text-slate-900 dark:text-white tracking-tight font-mono truncate">
+                {loading ? '…' : fmtMoney(paymentStats.efectivo)}
+              </h3>
             </div>
-            <h3 className="text-2xl sm:text-[26px] font-black text-slate-900 dark:text-white tracking-tight font-mono">
-              {loading ? '…' : fmtMoney(paymentStats.efectivo)}
-            </h3>
-            <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
-              <span>Digital: <strong className="font-mono text-slate-800 dark:text-zinc-200">{fmtMoney(paymentStats.total - paymentStats.efectivo)}</strong></span>
-              <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                Cuadre OK
-              </span>
+            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">
+              <span className="truncate">Digital: <strong className="font-mono text-slate-800 dark:text-zinc-200">{fmtMoney(paymentStats.total - paymentStats.efectivo)}</strong></span>
             </div>
           </div>
         </div>

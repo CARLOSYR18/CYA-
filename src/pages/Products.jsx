@@ -406,9 +406,9 @@ export default function Products() {
         {/* ═════════════════════════════════════════════════════════
             0. BREADCRUMB & HEADER ROW (SENIOR ERP ARCHITECTURE)
            ═════════════════════════════════════════════════════════ */}
-        <div className="space-y-2">
-          {/* Executive Breadcrumb */}
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+        <div className="space-y-1.5 sm:space-y-2">
+          {/* Executive Breadcrumb (Hidden on mobile) */}
+          <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
             <span>MÓDULO DE INVENTARIO</span>
             <span>/</span>
             <span>CONTROL DE EXISTENCIAS & ALMACÉN</span>
@@ -417,18 +417,18 @@ export default function Products() {
           </div>
 
           {/* Title & Actions Row */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
             <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  Catálogo Maestro de Productos & Artículos
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                <h1 className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Catálogo de Productos
                 </h1>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#1B4FD8] animate-pulse" />
-                  {stats.totalSkus} SKUS REGISTRADOS
+                  {stats.totalSkus} SKUs
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 max-w-2xl">
+              <p className="hidden sm:block text-xs text-slate-500 dark:text-zinc-400 mt-0.5 max-w-2xl">
                 Administración centralizada de artículos, existencias físicas, precios comerciales y control de reposición.
               </p>
             </div>
@@ -438,10 +438,10 @@ export default function Products() {
               <button
                 type="button"
                 onClick={() => setShowMetrics((prev) => !prev)}
-                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-2xs"
+                className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                 title="Mostrar u ocultar métricas y gráficas"
               >
-                <TrendingUp size={15} className="text-slate-400 dark:text-zinc-400" />
+                <TrendingUp size={14} className="text-slate-400 dark:text-zinc-400" />
                 <span className="hidden sm:inline">{showMetrics ? 'Ocultar KPIs' : 'Ver KPIs'}</span>
               </button>
 
@@ -449,7 +449,7 @@ export default function Products() {
               <button
                 type="button"
                 onClick={handleExportExcel}
-                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-2xs"
+                className="hidden sm:flex px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-semibold items-center gap-2 transition-colors cursor-pointer shadow-2xs"
                 title="Descargar catálogo en Excel / CSV"
               >
                 <FileSpreadsheet size={15} className="text-emerald-600 dark:text-emerald-400" />
@@ -460,7 +460,7 @@ export default function Products() {
               <button
                 type="button"
                 onClick={() => navigate('/productos/nuevo')}
-                className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-2 shadow-sm shadow-blue-600/25 transition-all cursor-pointer"
+                className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 sm:gap-2 shadow-sm shadow-blue-600/25 transition-all cursor-pointer"
               >
                 <Plus size={15} strokeWidth={2.5} />
                 <span>Registrar Producto</span>
@@ -470,127 +470,114 @@ export default function Products() {
         </div>
 
         {/* ═════════════════════════════════════════════════════════
-            1. 4 FINANCIAL & INVENTORY TELEMETRY CARDS (SENIOR ERP GRADE)
+            1. 4 FINANCIAL & INVENTORY TELEMETRY CARDS (2-COL ON MOBILE)
            ═════════════════════════════════════════════════════════ */}
         {showMetrics && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 animate-fade-in">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 animate-fade-in">
 
             {/* Card 1: SKUs en Catálogo */}
-            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
-                    SKUS EN CATÁLOGO
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[10px] sm:text-[11px] truncate">
+                    SKUs Catálogo
                   </span>
-                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
-                    CATÁLOGO MAESTRO
+                  <span className="text-[9px] sm:text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-blue-50 text-[#1B4FD8] dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40">
+                    ACTIVO
                   </span>
                 </div>
-                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                <div className="text-lg sm:text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-0.5 sm:mt-1 truncate">
                   {loading ? '…' : stats.totalSkus}
-                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">artículos</span>
+                  <span className="text-[10px] sm:text-xs font-sans font-normal text-slate-400 ml-1">artículos</span>
                 </div>
               </div>
 
-              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-400">
-                <div className="flex items-center justify-between">
-                  <span>Combos/Kits: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.kitsCount}</strong></span>
+              <div className="mt-2 sm:mt-3 pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-zinc-800 text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">
+                <div className="flex items-center justify-between truncate">
+                  <span>Combos: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.kitsCount}</strong></span>
                   <span>Simples: <strong className="text-slate-800 dark:text-zinc-200 font-mono">{stats.totalSkus - stats.kitsCount}</strong></span>
-                </div>
-                {/* Segmented bar */}
-                <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden mt-1.5 flex">
-                  <div
-                    style={{ width: `${stats.totalSkus > 0 ? ((stats.totalSkus - stats.alertsCount) / stats.totalSkus) * 100 : 100}%` }}
-                    className="bg-[#1B4FD8] h-full"
-                    title="Disponibles"
-                  />
-                  <div
-                    style={{ width: `${stats.totalSkus > 0 ? (stats.alertsCount / stats.totalSkus) * 100 : 0}%` }}
-                    className="bg-amber-500 h-full"
-                    title="Con alertas de stock"
-                  />
                 </div>
               </div>
             </div>
 
             {/* Card 2: Valor del Inventario */}
-            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
-                    VALOR DEL INVENTARIO
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[10px] sm:text-[11px] truncate">
+                    Valor Inventario
                   </span>
-                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">
-                    CAPITAL ACTIVO
+                  <span className="text-[9px] sm:text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-900/40">
+                    CAPITAL
                   </span>
                 </div>
-                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                <div className="text-lg sm:text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-0.5 sm:mt-1 truncate">
                   {loading ? '…' : fmt(stats.inventoryValuation)}
                 </div>
               </div>
 
-              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                  <TrendingUp size={12} /> +15.2% valorizado
+              <div className="mt-2 sm:mt-3 pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">
+                <span className="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-semibold truncate">
+                  <TrendingUp size={11} /> +15.2%
                 </span>
-                <span className="font-mono text-slate-400">100% en almacén</span>
+                <span className="font-mono text-slate-400">En almacén</span>
               </div>
             </div>
 
             {/* Card 3: Unidades en Almacén */}
-            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
-                    UNIDADES EN ALMACÉN
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[10px] sm:text-[11px] truncate">
+                    Unidades Totales
                   </span>
-                  <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40">
-                    STOCK AUDITADO
+                  <span className="text-[9px] sm:text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/40">
+                    KARDEX
                   </span>
                 </div>
-                <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-1">
+                <div className="text-lg sm:text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight mt-0.5 sm:mt-1 truncate">
                   {loading ? '…' : `${fmtN(stats.totalUnits)}`}
-                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">unidades</span>
+                  <span className="text-[10px] sm:text-xs font-sans font-normal text-slate-400 ml-1">uds.</span>
                 </div>
               </div>
 
-              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
-                <span>Control Kardex central</span>
+              <div className="mt-2 sm:mt-3 pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 dark:text-zinc-400">
+                <span className="truncate">Líneas auditadas:</span>
                 <span className="font-mono font-semibold text-slate-700 dark:text-zinc-300">
-                  {stats.totalSkus} líneas de artículo
+                  {stats.totalSkus} líneas
                 </span>
               </div>
             </div>
 
             {/* Card 4: Alertas de Stock */}
-            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
+            <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-4 shadow-2xs hover:border-slate-300 dark:hover:border-zinc-700 transition-all flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[11px]">
-                    ALERTAS DE STOCK
+                  <span className="font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider text-[10px] sm:text-[11px] truncate">
+                    Alertas Stock
                   </span>
-                  <span className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border ${
+                  <span className={`text-[9px] sm:text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded border ${
                     stats.alertsCount > 0
                       ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200/60 dark:border-rose-900/40'
                       : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/40'
                   }`}>
-                    {stats.alertsCount > 0 ? 'NIVEL CRÍTICO' : 'STOCK ÓPTIMO'}
+                    {stats.alertsCount > 0 ? 'CRÍTICO' : 'ÓPTIMO'}
                   </span>
                 </div>
-                <div className={`text-2xl font-bold font-mono tracking-tight mt-1 ${
+                <div className={`text-lg sm:text-2xl font-bold font-mono tracking-tight mt-0.5 sm:mt-1 truncate ${
                   stats.alertsCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'
                 }`}>
                   {loading ? '…' : `${stats.alertsCount}`}
-                  <span className="text-xs font-sans font-normal text-slate-400 ml-1.5">en riesgo</span>
+                  <span className="text-[10px] sm:text-xs font-sans font-normal text-slate-400 ml-1">alertas</span>
                 </div>
               </div>
 
-              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
-                <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+              <div className="mt-2 sm:mt-3 pt-2 sm:pt-2.5 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[10px] sm:text-[11px]">
+                <span className="font-mono font-bold text-rose-600 dark:text-rose-400 truncate">
                   {stats.outOfStockCount} agotados
                 </span>
-                <span className="font-mono font-semibold text-amber-600 dark:text-amber-400">
-                  {stats.lowStockCount} por agotar
+                <span className="font-mono font-semibold text-amber-600 dark:text-amber-400 truncate">
+                  {stats.lowStockCount} bajos
                 </span>
               </div>
             </div>

@@ -251,19 +251,19 @@ export default function NewClient() {
         {/* ═════════════════════════════════════════════════════════
             0. INSTITUTIONAL HEADER & AUDIT SCOPE
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 px-5 py-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3.5">
-          <div className="flex items-center gap-3">
+        <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 px-3.5 sm:px-5 py-3 sm:py-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3 sm:gap-3.5">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <button
               type="button"
               onClick={() => requestLeave('/clientes')}
-              className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-200 transition-colors cursor-pointer shrink-0 shadow-2xs"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200/80 dark:border-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-200 transition-colors cursor-pointer shrink-0 shadow-2xs"
               title="Volver a la Cartera de Clientes"
             >
               <ArrowLeft size={16} />
             </button>
 
             <div>
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
                 <span>MÓDULO COMERCIAL</span>
                 <span>/</span>
                 <span className="text-slate-600 dark:text-zinc-400">CARTERA Y DIRECTORIO</span>
@@ -272,9 +272,9 @@ export default function NewClient() {
                   {isEditing ? 'MODIFICACIÓN DE FICHA' : 'ALTA DE CUENTA COMERCIAL'}
                 </span>
               </div>
-              <div className="flex items-center gap-2.5 mt-0.5">
-                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-none">
-                  {isEditing ? `Modificar Ficha — ${name || 'Cliente'}` : 'Registrar Nuevo Cliente en Cartera'}
+              <div className="flex items-center gap-2 sm:gap-2.5 mt-0.5">
+                <h1 className="text-base sm:text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-none">
+                  {isEditing ? `Modificar — ${name || 'Cliente'}` : 'Registrar Nuevo Cliente'}
                 </h1>
                 <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
@@ -289,18 +289,18 @@ export default function NewClient() {
             <button
               type="button"
               onClick={() => requestLeave('/clientes')}
-              className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+              className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
             >
-              Cancelar [Esc]
+              Cancelar
             </button>
             <button
               type="button"
               onClick={handleSubmit}
               disabled={isProcessing}
-              className="px-4 py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-60"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 sm:gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-60"
             >
               <Check size={14} strokeWidth={2.5} />
-              <span>{isEditing ? 'Guardar Cambios' : 'Guardar y Registrar Cliente'}</span>
+              <span>{isEditing ? 'Guardar' : 'Guardar Cliente'}</span>
               <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-blue-700/60 text-[10px] font-mono">F2</kbd>
             </button>
           </div>

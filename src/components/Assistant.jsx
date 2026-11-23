@@ -420,8 +420,8 @@ export default function Assistant() {
       {/* ─── Floating Button / Intro Showcase ─── */}
       <div
         className={`fixed z-50 flex flex-col items-end transition-all duration-700 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${isLarge
-            ? 'bottom-4 right-4 sm:bottom-8 sm:right-8'
-            : 'bottom-4 right-4 sm:bottom-6 sm:right-6'
+            ? 'bottom-3 right-3 sm:bottom-8 sm:right-8'
+            : 'bottom-3 right-3 sm:bottom-6 sm:right-6'
           }`}
       >
         {/* Globo de bienvenida durante el tamaño real */}
@@ -459,8 +459,8 @@ export default function Assistant() {
             }
           }}
           className={`relative overflow-hidden bg-gradient-to-tr from-[#1B4FD8] via-indigo-700 to-violet-600 border-2 border-white/95 shadow-2xl cursor-pointer transition-all duration-700 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${isLarge
-              ? 'w-36 h-36 sm:w-56 sm:h-56 rounded-3xl hover:scale-[1.02] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] ring-4 ring-brand/20 animate-pop-in'
-              : 'w-12 h-12 sm:w-14 sm:h-14 rounded-full hover:scale-105 active:scale-95 animate-float-assistant'
+              ? 'w-28 h-28 sm:w-56 sm:h-56 rounded-3xl hover:scale-[1.02] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] ring-4 ring-brand/20 animate-pop-in'
+              : 'w-10 h-10 sm:w-14 sm:h-14 rounded-full hover:scale-105 active:scale-95 animate-float-assistant'
             }`}
           title={isLarge ? 'Minimizar asistente' : open ? 'Cerrar chat' : 'Abrir asistente virtual'}
         >

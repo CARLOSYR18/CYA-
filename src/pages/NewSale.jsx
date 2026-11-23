@@ -493,25 +493,25 @@ export default function NewSale() {
 
   return (
     <AppLayout title="Nueva Venta">
-      <div className="max-w-[1440px] mx-auto space-y-3 pb-6 animate-fade-in">
+      <div className="max-w-[1440px] mx-auto space-y-3 pb-28 lg:pb-6 animate-fade-in">
 
         {/* ═════════════════════════════════════════════════════════
             0. INSTITUTIONAL HEADER BAR
            ═════════════════════════════════════════════════════════ */}
-        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3.5 sm:p-4.5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+        <div className="bg-white dark:bg-[#141417] rounded-xl border border-slate-200/90 dark:border-zinc-800/90 p-3 sm:p-4.5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-3.5">
           {/* Left: Back button & Breadcrumbs & Title */}
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <button
               type="button"
               onClick={() => requestLeave('/ventas')}
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 transition-all cursor-pointer shrink-0 active:scale-95"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 transition-all cursor-pointer shrink-0 active:scale-95"
               title="Volver a Ventas (Esc)"
             >
               <ArrowLeft size={16} strokeWidth={2.5} />
             </button>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider truncate">
+              <div className="hidden sm:flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider truncate">
                 <span className="hover:underline cursor-pointer" onClick={() => requestLeave('/ventas')}>
                   MÓDULO COMERCIAL
                 </span>
@@ -522,7 +522,7 @@ export default function NewSale() {
               </div>
               <div className="flex items-center gap-2 mt-0.5">
                 <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-tight truncate">
-                  Punto de Venta (POS) & Facturación
+                  Punto de Venta (POS)
                 </h1>
                 <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -539,7 +539,7 @@ export default function NewSale() {
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('BOLETA')}
-                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
                   docType === 'BOLETA'
                     ? 'bg-[#1B4FD8] text-white shadow-xs font-bold'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
@@ -552,7 +552,7 @@ export default function NewSale() {
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('FACTURA')}
-                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
                   docType === 'FACTURA'
                     ? 'bg-[#1B4FD8] text-white shadow-xs font-bold'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
@@ -565,13 +565,13 @@ export default function NewSale() {
               <button
                 type="button"
                 onClick={() => handleDocTypeChange('NOTA')}
-                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 ${
                   docType === 'NOTA'
                     ? 'bg-[#1B4FD8] text-white shadow-xs font-bold'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <span>Nota Venta</span>
+                <span>Nota</span>
                 <span className={`text-[10px] font-mono ${docType === 'NOTA' ? 'opacity-85' : 'text-slate-400'}`}>NV01</span>
               </button>
             </div>
@@ -580,7 +580,7 @@ export default function NewSale() {
             <button
               type="button"
               onClick={handleQuickClient}
-              className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95"
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs shrink-0 active:scale-95"
               title="Llenar cliente consumidor final rápido [Alt + C]"
             >
               <Zap size={13} className="text-amber-500 fill-amber-500" />
@@ -730,26 +730,26 @@ export default function NewSale() {
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
                 onClick={() => setScannerOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
+                className="px-2 sm:px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 sm:gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
                 title="Escanear código de barras con cámara o pistola [F4]"
               >
                 <ScanBarcode size={13} strokeWidth={2.5} />
-                <span>Escanear Código</span>
+                <span>Escanear<span className="hidden sm:inline"> Código</span></span>
                 <kbd className="hidden sm:inline text-[9px] font-mono text-emerald-100 bg-emerald-800/60 px-1 py-0.2 rounded">F4</kbd>
               </button>
 
               <button
                 type="button"
                 onClick={addItemRow}
-                className="px-3 py-1.5 rounded-lg bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
+                className="px-2 sm:px-3 py-1.5 rounded-lg bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs flex items-center gap-1 sm:gap-1.5 shadow-xs transition-all cursor-pointer active:scale-95"
                 title="Agregar fila de producto [F3]"
               >
                 <Plus size={13} strokeWidth={2.5} />
-                <span>Agregar Producto</span>
+                <span>Agregar<span className="hidden sm:inline"> Producto</span></span>
                 <kbd className="hidden sm:inline text-[9px] font-mono text-blue-100 bg-blue-800/60 px-1 py-0.2 rounded">F3</kbd>
               </button>
             </div>
@@ -1355,6 +1355,36 @@ export default function NewSale() {
             </div>
           </div>
 
+        </div>
+
+        {/* ═════════════════════════════════════════════════════════
+            STICKY MOBILE CHECKOUT BAR (< lg)
+           ═════════════════════════════════════════════════════════ */}
+        <div className="fixed bottom-0 inset-x-0 bg-white/95 dark:bg-[#141417]/95 backdrop-blur-md border-t border-slate-200 dark:border-zinc-800 px-4 py-2.5 z-40 lg:hidden shadow-lg flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+              Total a Cobrar
+            </span>
+            <span className="text-xl font-black font-mono text-[#1B4FD8] dark:text-blue-400 leading-tight">
+              {fmt(total)}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            disabled={isProcessing}
+            onClick={handleSubmit}
+            className="flex-1 max-w-[210px] py-2.5 px-4 rounded-xl bg-[#1B4FD8] hover:bg-[#163FBF] text-white font-bold text-xs shadow-md shadow-blue-600/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95"
+          >
+            {isProcessing ? (
+              <span>Emitiendo…</span>
+            ) : (
+              <>
+                <Check size={15} strokeWidth={3} />
+                <span>Emitir Comprobante</span>
+              </>
+            )}
+          </button>
         </div>
 
         {/* ═════════════════════════════════════════════════════════
