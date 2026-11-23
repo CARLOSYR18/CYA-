@@ -397,6 +397,7 @@ export default function Assistant() {
   if (!user || !user.company_id || isAuthPage) return null
 
   const isLarge = introState === 'showcase'
+  const isPosPage = location.pathname.startsWith('/ventas/nueva')
 
   return (
     <>
@@ -421,7 +422,9 @@ export default function Assistant() {
       <div
         className={`fixed z-50 flex flex-col items-end transition-all duration-700 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${isLarge
             ? 'bottom-3 right-3 sm:bottom-8 sm:right-8'
-            : 'bottom-3 right-3 sm:bottom-6 sm:right-6'
+            : isPosPage
+            ? 'bottom-20 right-3 sm:bottom-6 sm:right-6'
+            : 'bottom-4 right-3 sm:bottom-6 sm:right-6'
           }`}
       >
         {/* Globo de bienvenida durante el tamaño real */}
