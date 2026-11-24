@@ -397,7 +397,10 @@ export default function Assistant() {
   if (!user || !user.company_id || isAuthPage) return null
 
   const isLarge = introState === 'showcase'
-  const isPosPage = location.pathname.startsWith('/ventas/nueva')
+  const isFormPage =
+    location.pathname.startsWith('/ventas/nueva') ||
+    location.pathname.includes('/nuevo') ||
+    location.pathname.includes('/editar')
 
   return (
     <>
@@ -422,7 +425,7 @@ export default function Assistant() {
       <div
         className={`fixed z-50 flex flex-col items-end transition-all duration-700 ease-[cubic-bezier(0.34,1.3,0.64,1)] ${isLarge
             ? 'bottom-3 right-3 sm:bottom-8 sm:right-8'
-            : isPosPage
+            : isFormPage
             ? 'bottom-20 right-3 sm:bottom-6 sm:right-6'
             : 'bottom-4 right-3 sm:bottom-6 sm:right-6'
           }`}

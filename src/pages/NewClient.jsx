@@ -321,18 +321,18 @@ export default function NewClient() {
             <div className="lg:col-span-7 space-y-3.5">
               
               {/* SECTION 1: Identificación Fiscal & Razón Social */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-[#1B4FD8] dark:text-blue-400 flex items-center justify-center shrink-0">
-                      <Building2 size={16} />
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3.5 sm:p-5 shadow-xs space-y-3.5 sm:space-y-4">
+                <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2 sm:gap-2.5">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-[#1B4FD8] dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <Building2 size={15} />
                     </div>
                     <div>
-                      <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                      <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                         1. Identificación Fiscal & Razón Social
                       </h2>
-                      <p className="text-[11px] text-slate-400 dark:text-zinc-500">
-                        Registro oficial de identidad tributaria habilitado para comprobantes electrónicos SUNAT.
+                      <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-zinc-500 line-clamp-1 sm:line-clamp-none">
+                        Registro oficial habilitado para comprobantes electrónicos SUNAT.
                       </p>
                     </div>
                   </div>
@@ -367,11 +367,11 @@ export default function NewClient() {
                 <div className="space-y-3.5">
                   {/* Tipo de Documento y Número */}
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2">
                       <label className="text-xs font-bold text-slate-700 dark:text-zinc-300">
-                        Tipo y Número de Documento Tributario <span className="text-rose-500">*</span>
+                        Tipo y Documento Tributario <span className="text-rose-500">*</span>
                       </label>
-                      <div className="flex items-center gap-1 text-[10px] font-bold">
+                      <div className="grid grid-cols-4 sm:flex items-center gap-1 text-[10px] font-bold">
                         {[
                           { id: 'DNI', label: 'D.N.I.' },
                           { id: 'RUC', label: 'R.U.C.' },
@@ -386,9 +386,9 @@ export default function NewClient() {
                               if (t.id === 'RUC') setClientType('JURIDICA')
                               else setClientType('NATURAL')
                             }}
-                            className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                            className={`py-1 sm:py-0.5 px-2 rounded-lg cursor-pointer transition-all text-center active:scale-95 ${
                               docType === t.id
-                                ? 'bg-[#1B4FD8] text-white shadow-2xs'
+                                ? 'bg-[#1B4FD8] text-white shadow-2xs font-bold'
                                 : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200'
                             }`}
                           >
@@ -490,17 +490,17 @@ export default function NewClient() {
               </div>
 
               {/* SECTION 2: Vías de Comunicación & Facturación Electrónica */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs space-y-4">
-                <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-zinc-800">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                    <Phone size={16} />
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3.5 sm:p-5 shadow-xs space-y-3.5 sm:space-y-4">
+                <div className="flex items-center gap-2 sm:gap-2.5 pb-2.5 sm:pb-3 border-b border-slate-100 dark:border-zinc-800">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <Phone size={15} />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                    <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                       2. Vías de Comunicación & Facturación Electrónica
                     </h2>
-                    <p className="text-[11px] text-slate-400 dark:text-zinc-500">
-                      Canales autorizados para envío de comprobantes electrónicos (XML/PDF) y notificaciones de entrega.
+                    <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-zinc-500 line-clamp-1 sm:line-clamp-none">
+                      Canales autorizados para envío de comprobantes electrónicos (XML/PDF).
                     </p>
                   </div>
                 </div>
@@ -512,7 +512,7 @@ export default function NewClient() {
                       Teléfono Móvil / WhatsApp de Notificaciones
                     </label>
                     <div className="relative">
-                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-400 text-xs font-mono font-semibold">
+                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-400 text-xs font-mono font-semibold pointer-events-none select-none">
                         <span>🇵🇪 +51</span>
                       </div>
                       <input
@@ -520,10 +520,10 @@ export default function NewClient() {
                         placeholder="987 654 321"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        className="w-full pl-18 pr-4 py-2 rounded-xl border border-slate-200/90 dark:border-zinc-700 bg-slate-50/60 dark:bg-zinc-800/60 text-xs sm:text-sm font-mono font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-zinc-800 focus:border-[#1B4FD8] focus:ring-2 focus:ring-blue-500/10 outline-none transition-all"
+                        className="w-full pl-[74px] pr-4 py-2 rounded-xl border border-slate-200/90 dark:border-zinc-700 bg-slate-50/60 dark:bg-zinc-800/60 text-xs sm:text-sm font-mono font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-zinc-800 focus:border-[#1B4FD8] focus:ring-2 focus:ring-blue-500/10 outline-none transition-all"
                       />
                     </div>
-                    <span className="text-[10.5px] text-slate-400 mt-1 block">
+                    <span className="text-[10px] text-slate-400 mt-1 block">
                       Permite enviar el PDF del ticket directamente por WhatsApp Web.
                     </span>
                   </div>
@@ -551,17 +551,17 @@ export default function NewClient() {
               </div>
 
               {/* SECTION 3: Domicilio Fiscal & Logística de Despacho */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs space-y-4">
-                <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-zinc-800">
-                  <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                    <MapPin size={16} />
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3.5 sm:p-5 shadow-xs space-y-3.5 sm:space-y-4">
+                <div className="flex items-center gap-2 sm:gap-2.5 pb-2.5 sm:pb-3 border-b border-slate-100 dark:border-zinc-800">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <MapPin size={15} />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                    <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                       3. Domicilio Fiscal & Dirección de Entrega
                     </h2>
-                    <p className="text-[11px] text-slate-400 dark:text-zinc-500">
-                      Ubicación para consignación en guía de remisión electrónica y despacho a almacén.
+                    <p className="text-[10px] sm:text-[11px] text-slate-400 dark:text-zinc-500 line-clamp-1 sm:line-clamp-none">
+                      Ubicación para consignación en guía de remisión y despacho a almacén.
                     </p>
                   </div>
                 </div>
@@ -619,10 +619,10 @@ export default function NewClient() {
             <div className="lg:col-span-5 space-y-3.5">
               
               {/* PANEL 1: Perfil Comercial & Condiciones Financieras */}
-              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-5 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-zinc-800">
+              <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200/80 dark:border-zinc-800 p-3.5 sm:p-5 shadow-xs space-y-3.5 sm:space-y-4">
+                <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <CreditCard size={16} className="text-[#1B4FD8] dark:text-blue-400" />
+                    <CreditCard size={15} className="text-[#1B4FD8] dark:text-blue-400" />
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
                       Condiciones Comerciales & Crédito
                     </h3>
