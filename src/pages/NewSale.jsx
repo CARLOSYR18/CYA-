@@ -1174,75 +1174,150 @@ export default function NewSale() {
               {/* Payment Methods */}
               {paymentStatus === 'pagado' ? (
                 <div className="space-y-2.5">
-                  <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
+                  {/* MOBILE VIEW: Compact 3 + 2 Modern Keypad (No giant vertical stack) */}
+                  <div className="sm:hidden space-y-1.5">
+                    {/* Fila 1: Instant Retail Payments (Efectivo, Yape, Plin) */}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('efectivo')}
+                        className={`h-10 px-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
+                          paymentMethod === 'efectivo'
+                            ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs'
+                            : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Banknote size={15} className="shrink-0" />
+                        <span className="text-xs font-bold">Efectivo</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('yape')}
+                        className={`h-10 px-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
+                          paymentMethod === 'yape'
+                            ? 'bg-[#742284] border-[#742284] text-white font-bold shadow-xs'
+                            : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-purple-50 dark:hover:bg-purple-950/20'
+                        }`}
+                      >
+                        <img src="/yape-logo.png" alt="Yape" className="w-4 h-4 rounded object-cover shrink-0" />
+                        <span className="text-xs font-black">Yape</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('plin')}
+                        className={`h-10 px-2 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
+                          paymentMethod === 'plin'
+                            ? 'bg-[#00b49f] border-[#00b49f] text-white font-bold shadow-xs'
+                            : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-teal-50 dark:hover:bg-teal-950/20'
+                        }`}
+                      >
+                        <img src="/plin-logo.png" alt="Plin" className="w-4 h-4 rounded-full object-cover shrink-0" />
+                        <span className="text-xs font-black">Plin</span>
+                      </button>
+                    </div>
+
+                    {/* Fila 2: Banking & Terminal (Transferencia, Tarjeta / POS) */}
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('transferencia')}
+                        className={`h-10 px-3 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
+                          paymentMethod === 'transferencia'
+                            ? 'bg-[#1B4FD8] text-white border-[#1B4FD8] font-bold shadow-xs'
+                            : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Building2 size={15} className="shrink-0" />
+                        <span className="text-xs font-bold">Transferencia</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('tarjeta')}
+                        className={`h-10 px-3 rounded-xl border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
+                          paymentMethod === 'tarjeta'
+                            ? 'bg-indigo-600 text-white border-indigo-600 font-bold shadow-xs'
+                            : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        <CreditCard size={15} className="shrink-0" />
+                        <span className="text-xs font-bold">Tarjeta / POS</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* DESKTOP VIEW (sm+): 5 Columns in 1 Row (Untouched) */}
+                  <div className="hidden sm:grid sm:grid-cols-5 gap-1.5">
                     {/* Efectivo */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('efectivo')}
-                      className={`py-1.5 px-1 sm:p-2 rounded-lg border text-center transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 ${
+                      className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'efectivo'
                           ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs'
                           : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
                       }`}
                     >
                       <Banknote size={14} className="shrink-0" />
-                      <span className="text-[10px] sm:text-xs font-semibold">Efectivo</span>
+                      <span className="text-xs font-semibold">Efectivo</span>
                     </button>
 
                     {/* Yape */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('yape')}
-                      className={`py-1.5 px-1 sm:p-2 rounded-lg border text-center transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 ${
+                      className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'yape'
                           ? 'bg-[#742284] border-[#742284] text-white font-bold shadow-xs'
                           : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-purple-50 dark:hover:bg-purple-950/20'
                       }`}
                     >
                       <img src="/yape-logo.png" alt="Yape" className="w-3.5 h-3.5 rounded object-cover shrink-0" />
-                      <span className="text-[10px] sm:text-xs font-bold">Yape</span>
+                      <span className="text-xs font-bold">Yape</span>
                     </button>
 
                     {/* Plin */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('plin')}
-                      className={`py-1.5 px-1 sm:p-2 rounded-lg border text-center transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 ${
+                      className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'plin'
                           ? 'bg-[#00b49f] border-[#00b49f] text-white font-bold shadow-xs'
                           : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-teal-50 dark:hover:bg-teal-950/20'
                       }`}
                     >
                       <img src="/plin-logo.png" alt="Plin" className="w-3.5 h-3.5 rounded-full object-cover shrink-0" />
-                      <span className="text-[10px] sm:text-xs font-bold">Plin</span>
+                      <span className="text-xs font-bold">Plin</span>
                     </button>
 
                     {/* Transferencia */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('transferencia')}
-                      className={`py-1.5 px-1 sm:p-2 rounded-lg border text-center transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 ${
+                      className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'transferencia'
                           ? 'bg-[#1B4FD8] text-white border-[#1B4FD8] font-bold shadow-xs'
                           : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
                       }`}
                     >
                       <Building2 size={14} className="shrink-0" />
-                      <span className="text-[10px] sm:text-xs font-semibold">Transf.</span>
+                      <span className="text-xs font-semibold">Transf.</span>
                     </button>
 
                     {/* Tarjeta */}
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('tarjeta')}
-                      className={`py-1.5 px-1 sm:p-2 rounded-lg border text-center transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 ${
+                      className={`p-2 rounded-lg border text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                         paymentMethod === 'tarjeta'
                           ? 'bg-indigo-600 text-white border-indigo-600 font-bold shadow-xs'
                           : 'bg-slate-50/80 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100'
                       }`}
                     >
                       <CreditCard size={14} className="shrink-0" />
-                      <span className="text-[10px] sm:text-xs font-semibold">POS</span>
+                      <span className="text-xs font-semibold">POS</span>
                     </button>
                   </div>
 
